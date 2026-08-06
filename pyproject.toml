@@ -1,0 +1,37 @@
+[project]
+name = "jobhunters"
+version = "0.1.0"
+description = "An agentic job-search pipeline: ingest ATS boards, score with an LLM, digest by email and tailor applications."
+readme = "README.md"
+authors = [
+    { name = "Nelson Filipe Costa", email = "nffacosta@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.120.2",
+    "apscheduler>=3.11.3",
+    "fastapi>=0.141.1",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.2",
+    "pyyaml>=6.0.3",
+    "rapidfuzz>=3.14.5",
+    "sqlalchemy>=2.0.51",
+    "uvicorn[standard]>=0.52.1",
+]
+
+[project.scripts]
+jobhunters = "jobhunters.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.24,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
