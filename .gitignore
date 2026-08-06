@@ -216,3 +216,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# Job-Hunters
+#
+# This repository is public. Nothing below may ever be committed.
+# ---------------------------------------------------------------------------
+
+# Private implementation notes and plans
+PLAN.md
+
+# CV, thesis, papers and achievement records
+profile/
+
+# SQLite database, generated drafts and Chroma index
+data/
+
+# Timestamped database backups
+backups/
+
+# macOS directory metadata
+.DS_Store
