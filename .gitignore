@@ -223,8 +223,9 @@ __marimo__/
 # This repository is public. Nothing below may ever be committed.
 # ---------------------------------------------------------------------------
 
-# Private implementation notes and plans
+# Private implementation plan and test plan
 PLAN.md
+TESTS.md
 
 # CV, thesis, papers and achievement records
 profile/
