@@ -3,9 +3,10 @@
 Defines the subcommands available at the terminal and connects each
 one to the code that does the actual work:
 
-    job-hunters init-db      creates the data directories and the database schema
     job-hunters show-config  loads, validates and summarises the config
-
+    job-hunters check-git    refuses if `profile/`, `data/` or `.env` are git-tracked
+    job-hunters init-db      creates the data directories and the database schema
+    
 This file does no work of its own. `build_parser()` registers each subcommand
 under a name. `main()` reads what was typed and calls whichever `cmd_*`
 function was selected.
@@ -19,27 +20,13 @@ import sys
 from . import paths
 from .config import ConfigError, load_all
 from .db import init_db
-
-
-def cmd_init_db(_args: argparse.Namespace) -> int:
-    """Handle `job-hunters init-db`: create the data directories and the schema.
-
-    Takes no arguments of its own. `_args` exists only because every command
-    function must accept the parsed arguments, whether it uses them or not.
-    """
-    paths.ensure_runtime_dirs()
-    db_file = init_db()
-    print(f"schema ready at {db_file}")
-    return 0
+from .gitcheck import GitSafetyError, check_git_safety
 
 
 def cmd_show_config(_args: argparse.Namespace) -> int:
-    """Handle `job-hunters show-config`: load, validate and summarise the config.
-
-    Useful on its own as a syntax check: it exits non-zero on any invalid file.
-    """
+    """Handle `job-hunters show-config`: load, validate and summarise the config."""
     config = load_all()
-    # Summarise the search profile in `search_profile.yaml`.
+    # Summarise the search profile in `search_profile.yaml`
     profile = config.search_profile
     print(f"config directory       {paths.CONFIG_DIR}")
     print()
@@ -56,7 +43,7 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
           f"{', '.join(profile.location.work_authorization.need_sponsorship) or '-'}")
     print(f"  threshold            {profile.scoring.threshold} "
           f"(prompt version {profile.scoring.prompt_version})")
-    # Summarise the system configuration in `system_config.yaml`.
+    # Summarise the system configuration in `system_config.yaml`
     system = config.system
     print()
     print("system_config.yaml")
@@ -71,7 +58,7 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     else:
         summary = "disabled"
     print(f"  repeat suppression   {summary}")
-    # Summarise the companies watchlist in `companies_watchlist.yaml`.
+    # Summarise the companies watchlist in `companies_watchlist.yaml`
     print()
     print("companies_watchlist.yaml")
     print(f"  companies            {len(config.watchlist)} "
@@ -81,6 +68,21 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
         by_ats[entry.ats.value] = by_ats.get(entry.ats.value, 0) + 1
     for ats, count in sorted(by_ats.items()):
         print(f"    {ats:<18} {count}")
+    return 0
+
+
+def cmd_check_git(_args: argparse.Namespace) -> int:
+    """Handle `job-hunters check-git`: refuse if any private path is git-tracked."""
+    check_git_safety()
+    print("No private data is tracked by git.")
+    return 0
+
+
+def cmd_init_db(_args: argparse.Namespace) -> int:
+    """Handle `job-hunters init-db`: create the data directories and the schema."""
+    paths.ensure_runtime_dirs()
+    db_file = init_db()
+    print(f"Schema ready at {db_file}.")
     return 0
 
 
@@ -96,17 +98,23 @@ def build_parser() -> argparse.ArgumentParser:
     # error rather than silently doing nothing.
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # `job-hunters init-db`
-    init = subparsers.add_parser("init-db", help="create any missing tables")
-    # `set_defaults()` attaches the function to run onto the parsed arguments,
-    # so `main()` below can call it without an if/elif chain over command names.
-    init.set_defaults(func=cmd_init_db)
-
     # `job-hunters show-config`
     show = subparsers.add_parser(
         "show-config", help="validate and summarise the three config files"
     )
     show.set_defaults(func=cmd_show_config)
+
+    # `job-hunters check-git`
+    check_git = subparsers.add_parser(
+        "check-git", help="refuse if `profile/`, `data/` or `.env` are git-tracked"
+    )
+    check_git.set_defaults(func=cmd_check_git)
+
+    # `job-hunters init-db`
+    init = subparsers.add_parser("init-db", help="create any missing tables")
+    # `set_defaults()` attaches the function to run onto the parsed arguments,
+    # so `main()` below can call it without an if/elif chain over command names.
+    init.set_defaults(func=cmd_init_db)
 
     return parser
 
@@ -136,6 +144,12 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         # A config mistake is a user error, not a crash. Print it plainly
         # instead of letting a Python traceback reach the terminal.
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except GitSafetyError as exc:
+        # Same reasoning as ConfigError: expected, and should never dump a
+        # traceback -- this is the one error this project must never let
+        # a user miss.
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
