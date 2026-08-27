@@ -1,0 +1,89 @@
+# What you are looking for.
+#
+# This is the only file another person needs to rewrite to use this system for a
+# different search. Nothing here is secret. Secrets live in `.env`.
+
+titles:
+  # Tier 1 keeps a job if the title matches OR the keywords match - deliberately
+  # generous. Letting junk through costs a fraction of a cent for the judge to
+  # reject. Missing a role costs a job you never knew existed.
+  include:
+    - research scientist
+    - research engineer
+    - member of technical staff
+    - applied scientist
+    - post-training
+    - model evaluation
+  # Hard elimination: these never reach the judge.
+  exclude:
+    - sales
+    - account executive
+    - recruiter
+    - counsel
+    - policy lead
+    - customer success
+    - solutions architect
+
+keywords:
+  # Domain vocabulary specific enough that its presence alone justifies a look.
+  strong:
+    - RLHF
+    - RLAIF
+    - DPO
+    - post-training
+    - reward model
+    - SFT
+    - supervised fine-tuning
+    - preference optimization
+  # Weaker signals to widen recall - the judge sorts out the noise later.
+  supporting:
+    - fine-tuning
+    - evaluation
+    - evals
+    - alignment
+    - benchmark
+    - interpretability
+    - reinforcement learning
+
+seniority:
+  include: [mid, senior, staff]
+  exclude: [intern, director, vp, head-of]
+
+location:
+  base: portugal
+
+  priority:
+    - work_modes: [onsite, hybrid]
+      regions: [portugal, switzerland]
+
+  acceptable:
+    - work_modes: [onsite, hybrid]
+      regions: [canada]
+    - work_modes: [remote]
+      regions: [eu, switzerland, uk, us, canada]
+
+  work_authorization:
+    have: [eu, switzerland, canada]
+    need_sponsorship: [uk, us]
+
+scoring:
+  # Below this, a job is stored but never shown in the digest.
+  threshold: 70
+  # Cap per run. The remainder carries to the next run, oldest-unscored first.
+  max_llm_scores_per_run: 300
+  # Bump whenever the rubric below changes - it invalidates every prior score.
+  prompt_version: 1
+  rubric: |
+    Weight post-training and evaluation work most heavily: RLHF/RLAIF, DPO and
+    other preference optimization, reward modelling, supervised fine-tuning and
+    the design of evaluations and benchmarks for language models.
+
+    Weight second: alignment, interpretability and red-teaming research where
+    the role involves running experiments rather than only writing policy.
+
+    Penalize pure infrastructure and platform roles with no research component
+    and roles that are primarily about deploying someone else's models.
+
+    Do not penalize a job for being at a small company. A four-person lab doing
+    post-training research is a better match than a large company's generic ML
+    engineering opening.

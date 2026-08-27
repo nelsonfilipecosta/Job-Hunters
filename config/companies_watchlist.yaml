@@ -1,0 +1,69 @@
+# Which companies to watch.
+#
+# Every entry below was probed live and returned a working board. Greenhouse,
+# Lever and Ashby all expose free, unauthenticated JSON - no scraping and no keys.
+#
+# The slug is rarely the company name. Six of these 28 needed a non-obvious one
+# (scale -> scaleai, together -> togetherai, perplexityai -> perplexity,
+# luma -> lumaai, arize -> arizeai, liquid -> liquid-ai), which is why
+# `job-hunters discover <company>` probes variants instead of guessing.
+#
+# Tiers are labels for your own filtering: lab | bigtech | infra | discovered.
+# The Phase 5 promotion loop appends entries with tier: discovered.
+
+# --- AI labs and model companies ------------------------------------------
+
+- { slug: anthropic,  name: Anthropic,    ats: greenhouse, token: anthropic,  tier: lab }
+- { slug: openai,     name: OpenAI,       ats: ashby,      token: openai,     tier: lab }
+- { slug: xai,        name: xAI,          ats: greenhouse, token: xai,        tier: lab }
+- { slug: cohere,     name: Cohere,       ats: ashby,      token: cohere,     tier: lab }
+- { slug: perplexity, name: Perplexity,   ats: ashby,      token: perplexity, tier: lab }
+- { slug: scaleai,    name: Scale AI,     ats: greenhouse, token: scaleai,    tier: lab }
+- { slug: togetherai, name: Together AI,  ats: greenhouse, token: togetherai, tier: lab }
+- { slug: fireworks,  name: Fireworks AI, ats: ashby,      token: fireworks,  tier: lab }
+- { slug: reka,       name: Reka,         ats: ashby,      token: reka,       tier: lab }
+- { slug: sierra,     name: Sierra,       ats: ashby,      token: sierra,     tier: lab }
+- { slug: elevenlabs, name: ElevenLabs,   ats: ashby,      token: elevenlabs, tier: lab }
+- { slug: harvey,     name: Harvey,       ats: ashby,      token: harvey,     tier: lab }
+- { slug: suno,       name: Suno,         ats: ashby,      token: suno,       tier: lab }
+- { slug: cartesia,   name: Cartesia,     ats: ashby,      token: cartesia,   tier: lab }
+- { slug: lumaai,     name: Luma AI,      ats: ashby,      token: lumaai,     tier: lab }
+- { slug: liquid-ai,  name: Liquid AI,    ats: ashby,      token: liquid-ai,  tier: lab }
+- { slug: runway,     name: Runway,       ats: ashby,      token: runway,     tier: lab }
+
+# --- Evaluation, tooling and infrastructure -------------------------------
+
+- { slug: crusoe,     name: Crusoe,       ats: ashby,      token: crusoe,     tier: infra }
+- { slug: langchain,  name: LangChain,    ats: ashby,      token: langchain,  tier: infra }
+- { slug: lambda,     name: Lambda Labs,  ats: ashby,      token: lambda,     tier: infra }
+- { slug: baseten,    name: Baseten,      ats: ashby,      token: baseten,    tier: infra }
+- { slug: modal,      name: Modal,        ats: ashby,      token: modal,      tier: infra }
+- { slug: goodfire,   name: Goodfire,     ats: greenhouse, token: goodfire,   tier: infra }
+- { slug: arizeai,    name: Arize AI,     ats: greenhouse, token: arizeai,    tier: infra }
+- { slug: braintrust, name: Braintrust,   ats: ashby,      token: braintrust, tier: infra }
+- { slug: galileo,    name: Galileo,      ats: greenhouse, token: galileo,    tier: infra }
+- { slug: imbue,      name: Imbue,        ats: greenhouse, token: imbue,      tier: infra }
+
+# --- Other -----------------------------------------------------------------
+
+- { slug: palantir,   name: Palantir,     ats: lever,      token: palantir,   tier: bigtech }
+
+# --- Not reachable this way ------------------------------------------------
+#
+# Probed under multiple slug variants, no Greenhouse/Lever/Ashby board found:
+#   Mistral, Hugging Face, AI21, Contextual AI, Glean, Anysphere (Cursor),
+#   Weights & Biases, Replicate, Patronus, Humanloop, Adept, Magic.
+# Reachable only via the Phase 5 discovery sources (or by checking manually).
+#
+# Big tech splits in two. Workday tenants (NVIDIA, IBM, Intel, Adobe,
+# Salesforce, Qualcomm) become available if Phase 1b is built:
+#
+#   - slug: nvidia
+#     name: NVIDIA
+#     ats: workday
+#     tier: bigtech
+#     ats_config: { tenant: nvidia, wd: wd5, site: NVIDIAExternalCareerSite }
+#
+# Google, Microsoft, Amazon, Apple and Meta run proprietary systems
+# (careers.google.com, amazon.jobs, jobs.apple.com, metacareers.com) and each
+# would need a bespoke adapter.
