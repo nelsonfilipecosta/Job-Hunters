@@ -102,6 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
     show = subparsers.add_parser(
         "show-config", help="validate and summarise the three config files"
     )
+    # `set_defaults()` attaches the function to run onto the parsed arguments,
+    # so `main()` below can call it without an if/elif chain over command names.
     show.set_defaults(func=cmd_show_config)
 
     # `job-hunters check-git`
@@ -111,9 +113,9 @@ def build_parser() -> argparse.ArgumentParser:
     check_git.set_defaults(func=cmd_check_git)
 
     # `job-hunters init-db`
-    init = subparsers.add_parser("init-db", help="create any missing tables")
-    # `set_defaults()` attaches the function to run onto the parsed arguments,
-    # so `main()` below can call it without an if/elif chain over command names.
+    init = subparsers.add_parser(
+        "init-db", help="create the data directories and the database schema"
+    )
     init.set_defaults(func=cmd_init_db)
 
     return parser
@@ -144,13 +146,13 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         # A config mistake is a user error, not a crash. Print it plainly
         # instead of letting a Python traceback reach the terminal.
-        print(f"error: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
     except GitSafetyError as exc:
-        # Same reasoning as ConfigError: expected, and should never dump a
-        # traceback -- this is the one error this project must never let
+        # Same reasoning as ConfigError: expected and should never dump a
+        # traceback. This is the one error this project must never let
         # a user miss.
-        print(f"error: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
 
 
