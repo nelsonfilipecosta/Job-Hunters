@@ -1,10 +1,5 @@
 """Checks that private paths are never committed to git.
 
-This is the second line of defense. `.gitignore` is what normally keeps
-`profile/`, `data/` and `.env` out of git in the first place. This check exists
-for the case where that failed (e.g., `git add -f` or an edited `.gitignore`)
-and asks git directly, rather than trusting that nothing slipped through.
-
 This runs automatically as git pre-commit hook, but can also be run manually
 with `job-hunters check-git`.
 """
@@ -41,7 +36,7 @@ def find_tracked_private_files(repo_root: Path | None = None) -> list[str]:
             check=True,
         )
     except FileNotFoundError as exc:
-        raise GitSafetyError("git is not installed or not on PATH") from exc
+        raise GitSafetyError("Git is not installed or not on PATH") from exc
     except subprocess.CalledProcessError as exc:
         raise GitSafetyError(
             f"Could not list git-tracked files in {root} "
