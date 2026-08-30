@@ -1,4 +1,4 @@
-"""Command-line entry point.
+"""The command-line interface.
 
 Defines the subcommands available at the terminal and connects each
 one to the code that does the actual work:
