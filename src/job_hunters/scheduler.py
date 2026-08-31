@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from .config import load_system_config
+from .config import ConfigError, load_system_config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +31,12 @@ def main() -> int:
     """Starts the scheduler and blocks forever."""
     # The timezone comes from `system_config.yaml` rather than the TZ environment
     # variable, so schedules are driven by the same declared value everywhere.
-    timezone = ZoneInfo(load_system_config().timezone)
+    try:
+        timezone = ZoneInfo(load_system_config().timezone)
+    except ConfigError as exc:
+        log.error("Cannot start: %s", exc)
+        return 1
+
     scheduler = BlockingScheduler(timezone=timezone)
 
     log.info("Scheduler starting (timezone: %s)", timezone)
