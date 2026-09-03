@@ -1,0 +1,65 @@
+# How the `web` and `scheduler` services run together.
+
+services:
+  web:
+    build: .
+    # `--reload` restarts uvicorn whenever a file under `/app/src` changes,
+    # so editing code on the host takes effect without rebuilding the image
+    command:
+      - uvicorn
+      - job_hunters.web:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --reload
+      - --reload-dir=/app/src
+    ports:
+      # host_ip:host_port:container_port (loopback binding)
+      - "127.0.0.1:8000:8000"
+    environment:
+      TZ: Europe/Lisbon
+    env_file:
+      # Secrets are injected at run time and never baked into the image
+      - path: .env
+        # `required: false` keeps the stack starting before `.env` exists
+        required: false
+    volumes: &app_volumes
+      # Bind-mounted so `--reload` can see host edits
+      - ./src:/app/src
+      # Config files are also bind-mounted but read-only
+      - ./config:/app/config:ro
+      # Same thing for profile files
+      - ./profile:/app/profile:ro
+      # Backups are bind-mount to survive `down -v`
+      - ./backups:/app/backups
+      # The database is a named volume rather than a bind mount. SQLite's
+      # file locking is unreliable across the macOS bind-mount layer, which is
+      # could corrupt the database.
+      - job-hunters-data:/app/data
+    healthcheck:
+      # Docker calls `/health` on a schedule and marks the container unhealthy
+      # if it stops answering. Uses python rather than curl, which the slim
+      # base image does not ship.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  scheduler:
+    build: .
+    command: ["python", "-m", "job_hunters.scheduler"]
+    environment:
+      TZ: Europe/Lisbon
+    env_file:
+      - path: .env
+        required: false
+    # Exactly the same mounts as `web` (both services see one database)
+    volumes: *app_volumes
+    restart: unless-stopped
+
+volumes:
+  # Living outside the project directory. `docker compose down` keeps it
+  # and `docker compose down -v` destroys it, which is why `job-hunters backup`
+  # writes into the bind-mounted `./backups` instead.
+  job-hunters-data:

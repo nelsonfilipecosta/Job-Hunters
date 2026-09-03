@@ -1,0 +1,13 @@
+#!/bin/sh
+# Refuses the commit if `profile/`, `data/` or `.env` are git-tracked.
+#
+# git runs this automatically after files are staged but before the commit
+# is created. A non-zero exit here aborts the commit and leaves the staging
+# area untouched. See `gitcheck.py` for what the check itself does and why.
+#
+# This file lives here, rather than in .git/hooks/, because .git/hooks/ is
+# never tracked by git and would not survive a clone. Getting this hook to
+# actually run requires one `git config core.hooksPath .githooks` - see
+# `setup.sh`, which runs that once per clone.
+
+exec uv run job-hunters check-git

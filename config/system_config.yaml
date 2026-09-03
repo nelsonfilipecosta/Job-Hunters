@@ -1,0 +1,43 @@
+# How the system runs.
+#
+# Nothing here is secret. Secrets come from `.env`:
+#   SMTP_PASSWORD
+#   ACTION_TOKEN_SECRET
+#   ANTHROPIC_API_KEY
+
+timezone: Europe/Lisbon
+
+schedules:
+  # Accepted forms: "every <N><m|h|d>", "daily HH:MM", "weekly <dow> HH:MM"
+  ingest:    every 2h
+  score:     every 2h
+  digest:    daily 08:00
+  discovery: weekly mon 06:00
+  backup:    weekly sun 02:00
+
+models:
+  # Cheap, fast and good enough to triage. Runs on hundreds of jobs.
+  judge:   claude-haiku-4-5
+  # Pulling {company, role, careers_url} out of free-form HN prose.
+  extract: claude-haiku-4-5
+  # Runs a few times a week on work that gets sent to a human. More expensive.
+  tailor:  claude-opus-5
+
+email:
+  to: nffacosta@gmail.com
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  smtp_username: nffacosta@gmail.com
+
+digest:
+  # An application older than this with no subsequent event gets a nudge.
+  followup_after_days: 14
+
+  repeat_suppression:
+    enabled: true
+    # Appearances before a job is demoted to the bottom of its section.
+    demote_after: 3
+    # Appearances before it is folded into a one-line "Still open (12) ->" link.
+    suppress_after: 5
+    # A score moving by more than this resets the appearance counter.
+    reset_on_score_delta: 10
