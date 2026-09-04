@@ -71,9 +71,6 @@ def test_unknown_is_the_answer_to_nonsense() -> None:
     assert parsed.regions == ()
 
 
-# --- html --------------------------------------------------------------------
-
-
 def test_html_to_text_strips_tags_and_keeps_structure() -> None:
     """Tags disappear, entities decode and block order is preserved."""
     markup = "<h2>Summary</h2><p>We&#39;re hiring &amp; growing.</p><ul><li>One</li><li>Two</li></ul>"
@@ -101,9 +98,6 @@ def test_html_to_text_handles_greenhouse_double_encoding_after_unescape() -> Non
 def test_html_to_text_of_nothing_is_empty() -> None:
     """None and the empty string both produce an empty string."""
     assert html_to_text(None) == "" and html_to_text("") == ""
-
-
-# --- titles ------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -150,9 +144,6 @@ def test_company_prefix_is_stripped_only_when_it_is_the_company() -> None:
 def test_normalize_company() -> None:
     """A company name loses punctuation and legal suffixes."""
     assert normalize_company("Liquid AI, Inc.") == "liquid ai inc"
-
-
-# --- hashes ------------------------------------------------------------------
 
 
 def test_content_hash_ignores_whitespace_but_not_words() -> None:

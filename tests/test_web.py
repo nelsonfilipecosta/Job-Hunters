@@ -32,7 +32,7 @@ def test_startup_refuses_a_broken_config(monkeypatch) -> None:
     monkeypatch.setattr("job_hunters.web.load_all", _raise)
 
     with pytest.raises(ConfigError, match="timezone"), TestClient(app):
-        pass  # pragma: no cover -- startup raises before the body runs
+        pass  # pragma: no cover - startup raises before the body runs
 
 
 def test_unknown_routes_404() -> None:

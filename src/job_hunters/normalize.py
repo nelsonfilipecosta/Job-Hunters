@@ -487,5 +487,5 @@ def content_hash(company_name: str, title: str, location_raw: str | None, descri
 _emittable = set(_ISO2.values()) | set(_COUNTRY_NAMES.values()) | set(_CITIES.values()) \
     | set(_US_STATES.values()) | set(_CA_PROVINCES.values())
 _bad = _emittable - regions.COUNTRIES - {regions.OTHER}
-if _bad:  # pragma: no cover - a programming error, caught at import
+if _bad:  # pragma: no cover - a programming error caught at import
     raise RuntimeError(f"`normalize.py` emits region tokens missing from regions.COUNTRIES: {sorted(_bad)}")
