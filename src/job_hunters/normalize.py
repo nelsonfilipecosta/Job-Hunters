@@ -242,6 +242,22 @@ _SUPRANATIONAL = frozenset(
     "nordics benelux dach".split()
 )
 
+def _place_key(text: str) -> str:
+    """The form place names are looked up under: lowercase, dotless and single-spaced.
+
+    Boards can write the same country as `US`, `U.S.` and `U.S.A.`. Normalizing both
+    the tables and the token being resolved means each spelling is one entry.
+    """
+    return re.sub(r"\s+", " ", text.lower().replace(".", " ")).strip()
+
+
+# One lookup built from the tables above, keyed by `_place_key`. Built in reverse
+# so the earlier table wins where two disagree and matching the original order:
+# country names, then cities, then US states and then Canadian provinces.
+_PLACES: dict[str, str] = {}
+for _table in (_CA_PROVINCES, _US_STATES, _CITIES, _COUNTRY_NAMES):
+    _PLACES.update({_place_key(k): v for k, v in _table.items()})
+
 _SPLIT_RE = re.compile(r"\s*(?:\||;|/|&|,|\bor\b|\band\b|\s-\s|–|—)\s*")
 _GENDER_MARKER_RE = re.compile(r"^(?:[a-z]\s*/\s*){1,3}[a-z]$|^all genders$")
 _REQ_ID_RE = re.compile(r"\b(?:req(?:uisition)?|job|id|jr|r)[\s#.-]*\d{3,}\b|#\d{3,}\b|\b\d{5,}\b", re.I)
@@ -265,12 +281,11 @@ class ParsedLocation:
 
 def _resolve_place(token: str) -> str | None:
     """One cleaned token: region token, OTHER or None if unrecognised."""
-    t = token.strip().strip(".").strip()
+    t = _place_key(token)
     if not t:
         return None
-    for table in (_COUNTRY_NAMES, _CITIES, _US_STATES, _CA_PROVINCES):
-        if t in table:
-            return table[t]
+    if t in _PLACES:
+        return _PLACES[t]
     upper = t.upper()
     if len(upper) == 2 and upper.isalpha() and upper in _ISO2:
         return _ISO2[upper]
@@ -384,6 +399,9 @@ _NOISE_FRAGMENT_WORDS = _NOISE_WORDS | frozenset(
     "intern internship f/m/d m/f/d w/m/d all genders".split()
 )
 
+# IT in a title is usually the role and not a reference to Italy.
+_NOT_A_PLACE_IN_TITLES = frozenset({"it"})
+
 
 def _is_noise_fragment(fragment: str) -> bool:
     """True if a parenthesised or trailing fragment carries no role information."""
@@ -392,10 +410,12 @@ def _is_noise_fragment(fragment: str) -> bool:
         return True
     if _REQ_ID_RE.search(f) or _GENDER_MARKER_RE.match(f):
         return True
-    words = re.split(r"[\s,/&|-]+", f)
-    if all(w in _NOISE_FRAGMENT_WORDS for w in words if w):
+    words = [w for w in re.split(r"[\s,/&|-]+", f) if w]
+    if all(w in _NOISE_FRAGMENT_WORDS for w in words):
         return True
-    if _resolve_place(f) is not None or all(_resolve_place(w) for w in words if w):
+    if any(w in _NOT_A_PLACE_IN_TITLES for w in words):
+        return False
+    if _resolve_place(f) is not None or all(_resolve_place(w) for w in words):
         return True
     return False
 

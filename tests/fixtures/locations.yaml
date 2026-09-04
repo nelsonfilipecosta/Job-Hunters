@@ -26,6 +26,22 @@
   regions: [us]
   region: us
   work_mode: onsite
+- raw: "Washington D.C."
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "Remote - U.S."
+  regions: [us]
+  region: us
+  work_mode: remote
+- raw: "U.S.A."
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "London, U.K."
+  regions: [uk]
+  region: uk
+  work_mode: onsite
 - raw: "New York, New York"
   regions: [us]
   region: us

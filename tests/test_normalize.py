@@ -135,6 +135,23 @@ def test_titles_that_are_different_roles_stay_different(a: str, b: str) -> None:
     assert normalize_title(a) != normalize_title(b)
 
 
+def test_it_in_a_title_is_not_stripped_as_italy() -> None:
+    """`IT` reads as Information Technology in a title so it stays part of the role."""
+    assert normalize_title("Member of Technical Staff (IT)", "Acme") != normalize_title(
+        "Member of Technical Staff", "Acme"
+    )
+    assert "it" in normalize_title("Research Scientist - IT", "Acme").split()
+    # A location string is a different context: there `IT` really is Italy.
+    assert parse_location("Milan, IT").region == "italy"
+
+
+def test_an_unambiguous_country_code_is_still_stripped_from_a_title() -> None:
+    """The `IT` exception is one entry, not a decision to keep every country code."""
+    assert normalize_title("Research Scientist (US)", "Acme") == normalize_title(
+        "Research Scientist", "Acme"
+    )
+
+
 def test_company_prefix_is_stripped_only_when_it_is_the_company() -> None:
     """A leading company-name prefix is dropped only when it matches this company."""
     assert normalize_title("Acme | Research Scientist", "Acme") == "research scientist"
