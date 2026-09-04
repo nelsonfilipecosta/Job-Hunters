@@ -1,13 +1,4 @@
-"""Shared setup for every test in this directory.
-
-pytest loads this file automatically before running anything beside it. It is
-never imported by name and the name `conftest.py` is what makes that happen.
-
-What it holds are fixtures: named pieces of setup a test asks for by writing the
-name in its own signature. A test declared as `def test_x(session)` gets handed
-whatever the `session` fixture below produces. Keeping them here means the
-database setup is written once rather than repeated in every test file.
-"""
+"""Shared setup for every test in this directory."""
 
 from __future__ import annotations
 
@@ -54,3 +45,64 @@ def company(session: Session) -> Company:
     session.add(entry)
     session.commit()
     return entry
+
+
+from job_hunters.sources.base import FetchResult, RawPosting
+
+
+def make_posting(
+    source_job_id: str,
+    title: str = "Research Scientist",
+    *,
+    source: str = "greenhouse",
+    location: str | None = "Lisbon, Portugal",
+    description: str = "We do post-training and evals.",
+    url: str | None = None,
+    **hints,
+) -> RawPosting:
+    """A RawPosting with sensible defaults for building fetch results by hand."""
+    return RawPosting(
+        source=source,
+        source_job_id=source_job_id,
+        title=title,
+        url=url or f"https://example.test/{source}/{source_job_id}",
+        location_raw=location,
+        description=description,
+        raw={"id": source_job_id, "title": title, "location": location, "body": description},
+        **hints,
+    )
+
+
+class FakeAdapter:
+    """An adapter that returns a scripted sequence of results - one per fetch() call.
+
+    The last result repeats once the script runs out, so a test can say
+    "fetch these three postings, then fetch them again" by scripting one result.
+    """
+
+    def __init__(self, source: str, *results: FetchResult) -> None:
+        """Scripts one FetchResult per call to fetch(), in order."""
+        self.source = source
+        self._results = list(results)
+        self.calls = 0
+
+    @classmethod
+    def returning(cls, source: str, *postings: RawPosting) -> "FakeAdapter":
+        """A FakeAdapter that always succeeds with these postings, once ingested."""
+        return cls(source, FetchResult.ok(list(postings)))
+
+    def fetch(self, company) -> FetchResult:
+        """Returns the next scripted result, repeating the last one once exhausted."""
+        index = min(self.calls, len(self._results) - 1)
+        self.calls += 1
+        return self._results[index]
+
+
+def ok(*postings: RawPosting) -> FetchResult:
+    """A successful FetchResult carrying these postings."""
+    return FetchResult.ok(list(postings))
+
+
+def failed(error: str = "HTTP 429 for https://example.test") -> FetchResult:
+    """A failed FetchResult with a plausible default error message."""
+    return FetchResult.failed(error)

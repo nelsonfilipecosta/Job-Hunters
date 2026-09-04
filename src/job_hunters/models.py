@@ -62,6 +62,18 @@ def utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+def as_utc(value: datetime | None) -> datetime | None:
+    """Makes a datetime comparable regardless of where it came from.
+
+    Values read back from SQLite are naive (see `utcnow`), while values built
+    in code are aware. Python refuses to compare the two, so anything that
+    compares timestamps calls this first and treats naive as UTC.
+    """
+    if value is None or value.tzinfo is not None:
+        return value
+    return value.replace(tzinfo=UTC)
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -269,6 +281,9 @@ class Job(Base):
 
     location_raw: Mapped[str | None] = mapped_column(Text)
     region: Mapped[str] = mapped_column(String(30), default="unknown", index=True)
+    # Every country token the location string resolved to. `region` above is the
+    # first of them or "other"/"unknown" when none did.
+    regions: Mapped[list] = mapped_column(JSON, default=list)
     work_mode: Mapped[str] = mapped_column(String(20), default=WorkMode.UNKNOWN)
 
     description: Mapped[str | None] = mapped_column(Text)
@@ -286,6 +301,7 @@ class Job(Base):
     # create_all unorderable. The real relation lives on JobSource.job_id.
     primary_source_id: Mapped[int | None] = mapped_column(Integer)
 
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
