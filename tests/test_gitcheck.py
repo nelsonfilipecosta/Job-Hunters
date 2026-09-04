@@ -51,6 +51,18 @@ def test_a_file_tracked_under_data_is_detected(repo: Path) -> None:
         check_git_safety(repo)
 
 
+def test_a_file_tracked_under_backups_is_detected(repo: Path) -> None:
+    """`backups/` holds database copies, so tracking one leaks what `data/` would."""
+    target = repo / "backups" / "job_hunters-2026-09-04.db"
+    target.parent.mkdir()
+    target.write_text("fake backup contents")
+    _git("add", "-f", "backups/job_hunters-2026-09-04.db", cwd=repo)
+
+    assert find_tracked_private_files(repo) == ["backups/job_hunters-2026-09-04.db"]
+    with pytest.raises(GitSafetyError, match="backups/"):
+        check_git_safety(repo)
+
+
 def test_a_tracked_env_file_is_detected(repo: Path) -> None:
     """A tracked `.env` file is caught and not just files under a directory."""
     (repo / ".env").write_text("ANTHROPIC_API_KEY=sk-fake")
