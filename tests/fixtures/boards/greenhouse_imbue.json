@@ -1,0 +1,148 @@
+{
+ "jobs": [
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/imbue/jobs/4331285009",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 4194398009,
+   "location": {
+    "name": "San Francisco"
+   },
+   "metadata": null,
+   "id": 4331285009,
+   "updated_at": "2026-07-27T17:59:35-04:00",
+   "requisition_id": "32",
+   "title": "Founding Product Marketer",
+   "company_name": "Imbue",
+   "first_published": "2026-07-27T17:58:39-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;h2&gt;Summary&lt;/h2&gt;\n&lt;p&gt;We&#39;re looking for a savvy, skilled, creative, analytics-driven product marketer to help people discover our products.&lt;/p&gt;\n&lt;p&gt;This isn&#39;t a role where you&#39;ll inherit a mature marketing machine. You&#39;ll build one. You&#39;ll launch campaigns from scratch, analyze what works, iterate, and develop a repeatable acquisition engine for technical products.&lt;/p&gt;\n&lt;p&gt;Success in this role is measured by having the right people find our products, download them, and keep them coming back.&lt;/p&gt;\n&lt;p&gt;You\u2019ll get to be at the frontlines of testing product positioning, early adoption strategy, and have a driving role in finding the most valuable users for an AI product.&amp;nbsp;&lt;/p&gt;\n&lt;h2&gt;What you&#39;ll do&lt;/h2&gt;\n&lt;p&gt;Your goal is to figure out how to efficiently acquire users for our suite of products. We\u2019re looking to launch one of our biggest flagship products soon, and that will be the main focus, but we\u2019re also looking for someone to help with marketing and growth for our suite of products.&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;Example projects:&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Build our paid acquisition program from the ground up.&lt;/li&gt;\n&lt;li&gt;Launch dozens of experiments simultaneously across platforms, creatives, audiences, and messaging. Measure results, and double down on what works. Kill what doesn&#39;t.&lt;/li&gt;\n&lt;li&gt;Improve every stage of the acquisition funnel, from impressions to clicks to downloads to activation.&lt;/li&gt;\n&lt;li&gt;Draw good insights about which channels audiences spend time, whether that&#39;s Reddit, Hacker News, YouTube, X, developer newsletters, partnerships, or places we haven&#39;t considered yet.&lt;/li&gt;\n&lt;li&gt;Expand beyond paid acquisition into influencer partnerships, community-driven distribution, and other growth channels.&lt;/li&gt;\n&lt;li&gt;Partner with the engineering team on creative campaigns and think outside the box.&lt;/li&gt;\n&lt;/ul&gt;\n&lt;h2&gt;What success looks like&lt;/h2&gt;\n&lt;p&gt;You&#39;ll own metrics like these:&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Increasing downloads.&lt;/li&gt;\n&lt;li&gt;Improving impression-to-download conversion.&lt;/li&gt;\n&lt;li&gt;Improving activation and downstream funnel conversion.&lt;/li&gt;\n&lt;li&gt;Reducing cost per click and cost per acquisition.&lt;/li&gt;\n&lt;li&gt;Building a repeatable experimentation process that gets smarter over time.&lt;/li&gt;\n&lt;/ul&gt;\n&lt;h2&gt;About you&lt;/h2&gt;\n&lt;ul&gt;\n&lt;li&gt;You&#39;ve run paid acquisition before and have built campaigns yourself.&amp;nbsp;&lt;/li&gt;\n&lt;li&gt;You\u2019ve managed meaningful paid media budgets with clear performance ownership.&lt;/li&gt;\n&lt;li&gt;You\u2019ve designed rigorous A/B testing programs.&lt;/li&gt;\n&lt;li&gt;You have experience with creators, influencers, or technical communities.&lt;/li&gt;\n&lt;li&gt;You have strong analytical skills and comfort working directly with marketing data.&lt;/li&gt;\n&lt;li&gt;You know how to create audiences, manage budgets, write copy, test creatives, analyze performance, and decide where to invest resources.&lt;/li&gt;\n&lt;li&gt;You are experienced in marketing technical products, working with a technical team.&lt;/li&gt;\n&lt;li&gt;You are creative and strategic, but are also grounded in data and great at execution.&amp;nbsp;&lt;/li&gt;\n&lt;/ul&gt;\n&lt;h2&gt;We&#39;d be especially excited if you have&lt;/h2&gt;\n&lt;ul&gt;\n&lt;li&gt;Built paid acquisition for developer tools or AI products.&lt;/li&gt;\n&lt;li&gt;Built growth systems at an early-stage startup.&lt;/li&gt;\n&lt;/ul&gt;\n&lt;h2&gt;Compensation &amp;amp; Benefits&lt;/h2&gt;\n&lt;p&gt;\u2022 Lunch provided daily (SF office)&lt;br&gt;\u2022 $250 lifestyle stipend per month&lt;br&gt;\u2022 Generous budget for self-improvement: coaching, courses, conferences, etc.&lt;br&gt;\u2022 Actively co-create and participate in a positive, intentional team culture&lt;br&gt;\u2022 Frequent team events, dinners, off-sites, and hangouts&lt;br&gt;&lt;br&gt;The base salary range for this role is $150,000\u2013$220,000 per year.&lt;br&gt;&lt;br&gt;&lt;/p&gt;",
+   "departments": [
+    {
+     "id": 4007693009,
+     "name": "Marketing",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 4007490009,
+     "name": "San Francisco",
+     "location": "San Francisco, California, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": null,
+   "ai_opt_out_request_url": null
+  },
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/imbue/jobs/4010186009",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 4008254009,
+   "location": {
+    "name": "San Francisco, CA"
+   },
+   "metadata": null,
+   "id": 4010186009,
+   "updated_at": "2026-06-23T21:54:51-04:00",
+   "requisition_id": "4",
+   "title": "Product Engineer",
+   "company_name": "Imbue",
+   "first_published": "2025-07-25T14:39:39-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;h3&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\n&lt;div&gt;\n&lt;p&gt;Imbue is a radically different AI company.&lt;/p&gt;\n&lt;p&gt;We believe that data should belong to you, humans should come before technology, and everyone deserves to own a personal team of AI agents. We believe in a future of &lt;em&gt;open &lt;/em&gt;agents that you can modify to do exactly what you&lt;em&gt; &lt;/em&gt;want.&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;We\u2019re building a suite of tools to make tech serve humans, and making it open source.&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;Some first projects include&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;&lt;a href=&quot;https://github.com/imbue-ai/sculptor&quot;&gt;Sculpto&lt;/a&gt;r: An interface for programmers to run coding agents in parallel and stay in flow&lt;/li&gt;\n&lt;li&gt;&lt;a href=&quot;https://github.com/imbue-ai/mng&quot;&gt;mngr&lt;/a&gt;: A command-line tool for managing agents&amp;nbsp;&lt;/li&gt;\n&lt;li&gt;&lt;a href=&quot;https://github.com/imbue-ai/vet&quot;&gt;Vet&lt;/a&gt;: A standalone tool that catches AI coding mistakes and reviews full PRs&amp;nbsp;&lt;/li&gt;\n&lt;li&gt;&lt;a href=&quot;https://github.com/imbue-ai/offload&quot;&gt;Offload&lt;/a&gt;: A tool that automatically distributes your tests to run in isolated sandboxes&amp;nbsp;&lt;/li&gt;\n&lt;li&gt;&lt;a href=&quot;https://github.com/imbue-ai/latchkey&quot;&gt;Latchkey&lt;/a&gt;: A command-line tool to integrate local agents with third-party APIs&amp;nbsp;&lt;/li&gt;\n&lt;li&gt;&lt;a href=&quot;https://github.com/imbue-ai/darwinian_evolver&quot;&gt;Darwinian Evolver&lt;/a&gt;: A near-universal optimizer for code and agents&amp;nbsp;&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;And we\u2019re just getting started. If you\u2019re excited about building a future with open agents, say hi!&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;We&#39;re supported by investors like Nvidia, Simon Last (co-founder of Notion), and Eric Schmidt (former CEO of Google), with $200M raised at over $1B valuation.&lt;br&gt;&lt;br&gt;&lt;/p&gt;\n&lt;/div&gt;\n&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;Summary&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\n&lt;div&gt;In this role, you\u2019ll have the unique opportunity to shape our product and help build 0-1 \u2014 not just the technologies that we use, but the overall direction of our product as it evolves. \u200b\u200bYou will be responsible for building across our entire stack, understanding customer needs, and contributing to our product roadmap.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;div&gt;This role is a particularly good fit for anyone who either has previously been, or would like to be, a founder of a software product company. We are looking primarily for good product intuition and judgment \u2014 someone who understands what actually matters and then makes that happen.&lt;/div&gt;\n&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;Example Projects&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\n&lt;div&gt;\u2022 Conduct user interviews and ask insightful questions while shadowing current or potential users\u2022 Implement rough prototypes for potential product ideas or iterations&lt;/div&gt;\n&lt;div&gt;\u2022 Collect, parse, and ideate on feedback generated from both internal and external users&lt;/div&gt;\n&lt;div&gt;\u2022 Quickly assemble code abstractions to enable fast iteration, and exercise judgment to delete code that doesn\u2019t contribute as strongly to product fit&lt;/div&gt;\n&lt;div&gt;\u2022 Ship backend and frontend code against various interfaces (web, CLI, IDE, etc.)&lt;/div&gt;\n&lt;div&gt;\u2022 Collaborate with our product design team to transform promising ideas into new product features&lt;/div&gt;\n&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;You Are&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\n&lt;div&gt;\u2022 A builder at heart&lt;/div&gt;\n&lt;div&gt;\u2022 Motivated by solving real problems for real customers&lt;/div&gt;\n&lt;div&gt;\u2022 Energized by understanding and talking to users&lt;/div&gt;\n&lt;div&gt;\u2022 Someone that loves to sweat the details&amp;nbsp;&lt;/div&gt;\n&lt;div&gt;\u2022 Able to navigate ambiguity and work independently without explicit directions&lt;/div&gt;\n&lt;div&gt;\u2022 Either experienced or interested in being a founder of a software product company&lt;/div&gt;\n&lt;div&gt;\u2022 Experienced with React/Typescript and Python&amp;nbsp;&lt;/div&gt;\n&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;Compensation and Benefits&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\u2022 Competitive compensation, equity, and benefits&lt;/div&gt;\n&lt;div&gt;\u2022 Lunch provided daily to onsite employees&lt;/div&gt;\n&lt;div&gt;\u2022 $250 lifestyle stipend per month&lt;/div&gt;\n&lt;div&gt;\u2022 Generous budget for self-improvement: coaching, courses, conferences, etc&lt;/div&gt;\n&lt;div&gt;\u2022 Actively co-create and participate in a positive, intentional team culture&lt;/div&gt;\n&lt;div&gt;\u2022 Spend time learning, reading papers, and deeply understanding prior work.&lt;/div&gt;\n&lt;div&gt;\u2022 Frequent team events, dinners, off-sites, and hanging out.&lt;/div&gt;\n&lt;div&gt;\u2022 Compensation packages are highly variable based on a variety of factors. If your salary requirements fall outside of the stated range, we still encourage you to apply. The range for this role is $170,000\u2013$350,000 cash (plus equity).&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;How to Apply&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;All submissions are reviewed by a person, so we encourage you to include notes on why you&#39;re interested in working with us. If you have any other work that you can showcase (open source code, side projects, etc.), certainly include it! We know that talent comes from many backgrounds, and we aim to build a team with diverse skillsets that spike strongly in different areas.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;",
+   "departments": [
+    {
+     "id": 4007691009,
+     "name": "Product",
+     "child_ids": [],
+     "parent_id": 4007688009
+    }
+   ],
+   "offices": [
+    {
+     "id": 4007490009,
+     "name": "San Francisco",
+     "location": "San Francisco, California, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": null,
+   "ai_opt_out_request_url": null
+  },
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/imbue/jobs/4377420009",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "internal_job_id": 4218048009,
+   "location": {
+    "name": "San Francisco"
+   },
+   "metadata": null,
+   "id": 4377420009,
+   "updated_at": "2026-08-20T15:39:33-04:00",
+   "requisition_id": "33",
+   "title": "Video Storyteller",
+   "company_name": "Imbue",
+   "first_published": "2026-08-20T14:19:58-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;h3&gt;&lt;strong&gt;Summary&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\n&lt;div&gt;We\u2019re looking for a creative and resourceful Video Storyteller to help bring our brand to life across platforms for an upcoming product launch. The ideal candidate will be familiar with the current tech ecosystem and excited to shoot &amp;amp; edit the stories and content that will help our brand &amp;amp; product resonate with users.&lt;br&gt;&lt;br&gt;This is an ideal role for someone who understands what makes social content engaging and can turn ideas into shareable videos. If you have a great eye for pacing and tone, and know how to make people stop scrolling, we\u2019d love to work with you.&lt;br&gt;&lt;br&gt;You\u2019ll work closely with our team to craft short-form content that feels fresh, funny, and authentic to our brand.&lt;br&gt;&lt;br&gt;This role is available for an initial project period of 30+ hours per week for 2-5 weeks. Open to remote and SF-based candidates. Following a successful project, an ongoing part-time or full-time position may be considered depending on candidate location.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;What You&#39;ll Do&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\n&lt;div&gt;\u2022 Develop &amp;amp; edit scroll-stopping, shareable videos for upcoming product launches&lt;br&gt;\u2022 Create short-form video content with an eye for distribution across platforms (consider X, LinkedIn, YouTube, website, etc.)&lt;br&gt;\u2022 Turn existing footage, audio clips, or raw assets into engaging, story-driven content&lt;br&gt;\u2022 Collaborate with our team to brainstorm and experiment with new creative ideas&lt;br&gt;\u2022 Add captions, text overlays, memes, or graphics to videos as needed&lt;br&gt;\u2022 Optimize videos for platform-specific formats and trends&lt;br&gt;\u2022 Manage projects with quick turnaround times&lt;br&gt;\u2022 Optionally: contribute to social posting, scheduling, and engagement if that\u2019s your interest&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;You Are&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\n&lt;div&gt;\u2022 A creative storyteller who knows how to create a scroll-stopping narrative for products&lt;br&gt;\u2022 Fluent in video editing tools (CapCut, Premiere, Final Cut, or similar)&lt;br&gt;\u2022 Comfortable working quickly and iterating often&lt;br&gt;\u2022 Detail-oriented, with a good visual eye for framing, pacing, and flow&lt;br&gt;\u2022 A proactive communicator who enjoys collaborating in a small, fast-moving environment and wearing many hats&lt;br&gt;\u2022 Excited about experimenting and learning\u2014especially in a role that blends creativity and social media strategy&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;Compensation and Benefits&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;\u2022 Lunch provided daily (if in person)&lt;br&gt;\u2022 Hours: 30+ for 2\u20135 weeks for initial project scope&lt;br&gt;\u2022 Location: Onsite or hybrid (open to remote depending on candidate)&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;How to Apply&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;All submissions are reviewed by a person, so we encourage you to include notes on why you&#39;re interested in working with us. If you have any other work that you can showcase (open source code, side projects, etc.), certainly include it! We know that talent comes from many backgrounds, and we aim to build a team with diverse skill sets that spike strongly in different areas.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;h3&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/h3&gt;\n&lt;div&gt;Imbue builds AI systems that reason and code, enabling AI agents to accomplish larger goals and safely work in the real world. We train our own foundation models optimized for reasoning and prototype agents on top of these models. By using these agents extensively, we gain insights into improving both the capabilities of the underlying models and the interaction design for agents.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;\n&lt;div&gt;We aim to rekindle the dream of the&amp;nbsp;&lt;em&gt;personal&lt;/em&gt;&amp;nbsp;computer, where computers become truly intelligent tools that empower us, giving us freedom, dignity, and agency to pursue the things we love.&lt;/div&gt;\n&lt;div&gt;&amp;nbsp;&lt;/div&gt;",
+   "departments": [
+    {
+     "id": 4007693009,
+     "name": "Marketing",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "offices": [
+    {
+     "id": 4007490009,
+     "name": "San Francisco",
+     "location": "San Francisco, California, United States",
+     "child_ids": [],
+     "parent_id": null
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": null,
+   "ai_opt_out_request_url": null
+  }
+ ],
+ "meta": {
+  "total": 3
+ }
+}
