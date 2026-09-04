@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from conftest import FakeAdapter, make_posting, ok
+from conftest import FakeAdapter, make_posting, make_source, ok
 from job_hunters.dedup import (
     FUZZY_THRESHOLD,
     canonical_key,
@@ -180,7 +180,10 @@ def test_the_job_with_a_score_survives_over_an_unscored_one(session: Session, co
     """A scored job outranks an unscored one (second in the merge priority)."""
     older = _job(session, company, "a", NOW - timedelta(days=30))
     newer = _job(session, company, "b", NOW)
-    session.add(Score(job_id=newer.id, score=80, prompt_version=1, model="m", content_hash="c" * 64))
+    posting = make_source(company, newer, source_job_id="n")
+    session.add(posting)
+    session.flush()
+    session.add(Score(source_id=posting.id, score=80, prompt_version=1, model="m", content_hash="c" * 64))
     session.commit()
     assert merge_jobs(session, older, newer).id == newer.id
 
@@ -205,13 +208,16 @@ def test_two_applied_to_jobs_are_never_merged(session: Session, company: Company
 
 
 def test_merge_moves_sources_and_scores_to_the_survivor(session: Session, company: Company) -> None:
-    """Both scored, so the older survives. The other's source and score move to it."""
+    """Both scored, so the older survives. The other's posting moves to it."""
     keep = _job(session, company, "a", NOW - timedelta(days=1))
     drop = _job(session, company, "b", NOW)
+    kept_posting = make_source(company, keep, source="greenhouse", source_job_id="k", content_hash="c" * 64)
+    dropped_posting = make_source(company, drop, source="ashby", source_job_id="x", content_hash="d" * 64)
+    session.add_all([kept_posting, dropped_posting])
+    session.flush()
     session.add_all([
-        Score(job_id=keep.id, score=70, prompt_version=1, model="m", content_hash="c" * 64),
-        JobSource(company_id=company.id, job_id=drop.id, source="ashby", source_job_id="x", content_hash="h" * 64),
-        Score(job_id=drop.id, score=60, prompt_version=1, model="m", content_hash="d" * 64),
+        Score(source_id=kept_posting.id, score=70, prompt_version=1, model="m", content_hash="c" * 64),
+        Score(source_id=dropped_posting.id, score=60, prompt_version=1, model="m", content_hash="d" * 64),
     ])
     session.commit()
     session.expire_all()
@@ -222,8 +228,8 @@ def test_merge_moves_sources_and_scores_to_the_survivor(session: Session, compan
     session.expire_all()
     survivor = session.get(Job, survivor.id)
     assert survivor.id == keep.id
-    assert [s.source for s in survivor.sources] == ["ashby"], "the source moved"
-    assert sorted(s.score for s in survivor.scores) == [60, 70], "the score moved, nothing was lost"
+    assert sorted(s.source for s in survivor.sources) == ["ashby", "greenhouse"], "the posting moved"
+    assert sorted(s.score for s in survivor.scores) == [60, 70], "its score came with it, nothing was lost"
     assert _count(session, Job) == 1 and _count(session, Score) == 2
 
 

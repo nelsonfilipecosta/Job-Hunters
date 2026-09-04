@@ -29,7 +29,7 @@ from rapidfuzz import fuzz
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import DigestAppearance, Job, Score, as_utc
+from .models import DigestAppearance, Job, as_utc
 from .normalize import ParsedLocation, normalize_company, normalize_title, sha256
 from .sources.base import RawPosting
 
@@ -82,9 +82,10 @@ def _survivor_rank(job: Job) -> tuple:
 def merge_jobs(session: Session, a: Job, b: Job) -> Job:
     """Collapses two jobs into one and returns the survivor.
 
-    Sources, scores and digest appearances move to the survivor, while the other row
-    is deleted. Two jobs that both carry an application are never merged so the caller
-    gets `a` back untouched.
+    Sources and digest appearances move to the survivor, while the other row is
+    deleted. Scores need no handling of their own: each belongs to a posting and
+    travels with it. Two jobs that both carry an application are never merged
+    so the caller gets `a` back untouched.
     """
     if a.id == b.id:
         return a
@@ -94,13 +95,6 @@ def merge_jobs(session: Session, a: Job, b: Job) -> Job:
     for source in list(drop.sources):
         drop.sources.remove(source)
         keep.sources.append(source)
-    existing_scores = {(s.content_hash, s.prompt_version) for s in keep.scores}
-    for score in list(drop.scores):
-        drop.scores.remove(score)
-        if (score.content_hash, score.prompt_version) in existing_scores:
-            session.delete(score)
-        else:
-            keep.scores.append(score)
     existing_days = {
         d.digest_date for d in session.scalars(
             select(DigestAppearance).where(DigestAppearance.job_id == keep.id)

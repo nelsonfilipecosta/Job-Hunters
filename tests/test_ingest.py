@@ -164,14 +164,42 @@ def test_a_changed_posting_updates_the_job_and_its_hashes(session: Session, comp
     ingest_company(session, company, adapter, NOW)
     session.commit()
     job = session.scalar(select(Job))
+    source = session.scalar(select(JobSource))
     hash_before = job.content_hash
+    source_hashes_before = (source.raw_hash, source.content_hash)
+    assert source.content_hash == hash_before, "the primary posting's text hash is the job's"
 
     report = ingest_company(session, company, adapter, LATER)
     session.commit()
     session.expire_all()
     job = session.scalar(select(Job))
+    source = session.scalar(select(JobSource))
     assert job.description == "v2 with RLHF"
     assert job.content_hash != hash_before
+    assert source.raw_hash != source_hashes_before[0], "the payload changed"
+    assert source.content_hash != source_hashes_before[1], "so did the judged text"
+    assert report.updated_sources == 1
+
+
+def test_a_raw_only_change_leaves_the_text_hash_alone(session: Session, company: Company) -> None:
+    """A board bumping an internal field changes `raw_hash` but not `content_hash`, so no rescore."""
+    words = dict(title="Research Scientist", location="Lisbon, Portugal", description="Same text.")
+    adapter = FakeAdapter(
+        "greenhouse",
+        ok(make_posting("1", raw={"id": "1", "updated_at": "2026-08-01T00:00:00Z"}, **words)),
+        ok(make_posting("1", raw={"id": "1", "updated_at": "2026-09-01T00:00:00Z"}, **words)),
+    )
+    ingest_company(session, company, adapter, NOW)
+    session.commit()
+    source = session.scalar(select(JobSource))
+    before = (source.raw_hash, source.content_hash)
+
+    report = ingest_company(session, company, adapter, LATER)
+    session.commit()
+    session.expire_all()
+    source = session.scalar(select(JobSource))
+    assert source.raw_hash != before[0], "the payload did change"
+    assert source.content_hash == before[1], "but nothing the judge reads did"
     assert report.updated_sources == 1
 
 
@@ -242,14 +270,20 @@ def test_an_unsupported_ats_is_reported_not_raised(session: Session) -> None:
     assert session.scalar(select(FetchRun)).status == FetchStatus.FAILED
 
 
-def test_two_postings_with_the_same_title_and_place_are_one_job_by_design(
+def test_same_title_siblings_share_a_job_but_keep_their_own_text_hash(
     session: Session, company: Company
 ) -> None:
-    """The canonical key is (company, title, region): two source rows and one job."""
-    adapter = FakeAdapter.returning("greenhouse", make_posting("1"), make_posting("2"))
+    """The canonical key is (company, title, region): two source rows and one job, each with its own text hash."""
+    adapter = FakeAdapter.returning(
+        "greenhouse",
+        make_posting("1", description="Runs research infrastructure programs."),
+        make_posting("2", description="Coordinates safety evaluations."),
+    )
     ingest_company(session, company, adapter, NOW)
     session.commit()
     assert _counts(session) == (2, 1)
+    hashes = {s.content_hash for s in session.scalars(select(JobSource))}
+    assert len(hashes) == 2, "each posting is judged on its own text"
 
 
 def test_posted_at_survives_a_round_trip_through_sqlite(session: Session, company: Company) -> None:

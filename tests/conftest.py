@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from job_hunters import db as db_module
-from job_hunters.models import Company
+from job_hunters.models import Company, Job, JobSource
 
 
 @pytest.fixture
@@ -58,6 +58,7 @@ def make_posting(
     location: str | None = "Lisbon, Portugal",
     description: str = "We do post-training and evals.",
     url: str | None = None,
+    raw: dict | None = None,
     **hints,
 ) -> RawPosting:
     """A RawPosting with sensible defaults for building fetch results by hand."""
@@ -68,8 +69,28 @@ def make_posting(
         url=url or f"https://example.test/{source}/{source_job_id}",
         location_raw=location,
         description=description,
-        raw={"id": source_job_id, "title": title, "location": location, "body": description},
+        raw=raw or {"id": source_job_id, "title": title, "location": location, "body": description},
         **hints,
+    )
+
+
+def make_source(
+    company: Company,
+    job: Job | None = None,
+    *,
+    source: str = "greenhouse",
+    source_job_id: str = "1",
+    content_hash: str = "c" * 64,
+    raw_hash: str | None = None,
+) -> JobSource:
+    """An unsaved JobSource with both hashes filled for tests that need a posting row."""
+    return JobSource(
+        company_id=company.id,
+        job_id=job.id if job is not None else None,
+        source=source,
+        source_job_id=source_job_id,
+        raw_hash=raw_hash or content_hash,
+        content_hash=content_hash,
     )
 
 

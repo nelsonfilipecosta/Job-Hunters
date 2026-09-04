@@ -6,7 +6,7 @@ One run does, per active company:
     2. If the fetch failed, record why and touch nothing else.
     3. If the fetch succeeded, upsert every posting into `job_sources` (keyed on
        `(source, source_job_id)`, so a second run updates `last_seen` instead of
-       inserting again) and attach each to a `jobs` row via `dedup.resolve_job`.
+       inserting again) and attach it to a `jobs` row via `dedup.resolve_job`.
     4. Only if the fetch succeeded and returned at least one posting, mark every
        posting from this source that was not in the response as closed.
 
@@ -125,6 +125,7 @@ def _upsert_posting(
         hints=posting.location_hints,
     )
     payload_hash = raw_hash(posting.raw)
+    text_hash = content_hash(company.name, posting.title, posting.location_raw, posting.description)
 
     source = session.scalar(
         select(JobSource).where(
@@ -148,7 +149,8 @@ def _upsert_posting(
             source_job_id=posting.source_job_id,
             url=posting.url,
             raw_json=posting.raw,
-            content_hash=payload_hash,
+            raw_hash=payload_hash,
+            content_hash=text_hash,
             first_seen=now,
             last_seen=now,
             is_open=True,
@@ -159,11 +161,13 @@ def _upsert_posting(
     else:
         source.last_seen = now
         source.is_open = True  # a posting that vanished and came back is open again
-        if source.content_hash != payload_hash:
+        if source.raw_hash != payload_hash:
             source.raw_json = posting.raw
-            source.content_hash = payload_hash
+            source.raw_hash = payload_hash
             source.url = posting.url
             report.updated_sources += 1
+        if source.content_hash != text_hash:
+            source.content_hash = text_hash
 
     current = session.get(Job, source.job_id) if source.job_id is not None else None
     job, created = resolve_job(
@@ -178,7 +182,7 @@ def _upsert_posting(
     # Only the primary sighting is allowed to rewrite the job's displayed fields.
     # Otherwise two boards describing one role would take turns overwriting it.
     if job.primary_source_id == source.id:
-        _refresh_job(job, company, posting, parsed, now)
+        _refresh_job(job, posting, parsed, now, text_hash)
     else:
         job.last_seen = now
         if posting.posted_at and (job.posted_at is None or posting.posted_at < as_utc(job.posted_at)):
@@ -186,16 +190,15 @@ def _upsert_posting(
 
 
 def _refresh_job(
-    job: Job, company: Company, posting: RawPosting, parsed, now: datetime
+    job: Job, posting: RawPosting, parsed, now: datetime, text_hash: str
 ) -> None:
     """Copies the primary posting's fields onto the job, but only if its text changed.
 
-    Guarding on `content_hash` keeps the job untouched when a board returns the same words
-    again, so the judge does not pay to rescore an unchanged role.
+    Guarding on `content_hash` keeps the job's displayed fields untouched when a
+    board returns the same words again.
     """
     job.last_seen = now
-    new_hash = content_hash(company.name, posting.title, posting.location_raw, posting.description)
-    if job.content_hash != new_hash:
+    if job.content_hash != text_hash:
         job.title = posting.title
         job.location_raw = posting.location_raw
         job.region = parsed.region
@@ -203,7 +206,7 @@ def _refresh_job(
         job.work_mode = parsed.work_mode
         job.description = posting.description
         job.apply_url = posting.url
-        job.content_hash = new_hash
+        job.content_hash = text_hash
     if posting.posted_at and (job.posted_at is None or posting.posted_at < as_utc(job.posted_at)):
         job.posted_at = posting.posted_at
 
