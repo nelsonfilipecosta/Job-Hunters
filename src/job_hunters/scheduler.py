@@ -18,7 +18,9 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
+from . import paths
 from .config import ConfigError, load_system_config
+from .db import init_db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,6 +38,12 @@ def main() -> int:
     except ConfigError as exc:
         log.error("Cannot start: %s", exc)
         return 1
+
+    # Whichever of `web` and `scheduler` starts first creates the schema in the
+    # otherwise empty Docker volume. Both calls are idempotent and `create_all`
+    # issues "create table if not exists", so the two racing is harmless.
+    paths.ensure_runtime_dirs()
+    init_db()
 
     scheduler = BlockingScheduler(timezone=timezone)
 

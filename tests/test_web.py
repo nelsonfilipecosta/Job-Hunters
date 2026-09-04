@@ -35,6 +35,24 @@ def test_startup_refuses_a_broken_config(monkeypatch) -> None:
         pass  # pragma: no cover - startup raises before the body runs
 
 
+def test_startup_creates_the_database_schema(tmp_path, monkeypatch) -> None:
+    """Starting the app creates the schema since the container's volume starts empty."""
+    from sqlalchemy import inspect
+
+    from job_hunters import db as db_module
+
+    db_module.reset_engine()
+    monkeypatch.setattr("job_hunters.paths.DB_PATH", tmp_path / "fresh.db")
+    monkeypatch.setattr("job_hunters.paths.DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr("job_hunters.paths.DRAFTS_DIR", tmp_path / "data" / "drafts")
+    monkeypatch.setattr("job_hunters.paths.BACKUP_DIR", tmp_path / "backups")
+
+    with TestClient(app):
+        tables = set(inspect(db_module.get_engine()).get_table_names())
+    db_module.reset_engine()
+    assert {"jobs", "job_sources", "scores"} <= tables
+
+
 def test_unknown_routes_404() -> None:
     """Only the routes we declared exist."""
     with TestClient(app) as client:
