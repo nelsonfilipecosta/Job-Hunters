@@ -44,6 +44,10 @@ REGION_GROUPS: dict[str, frozenset[str]] = {
     "eea_efta": frozenset({"switzerland", "norway", "iceland"}),
 }
 
+# Emitted when a location parsed confidently to a real country that is not in
+# COUNTRIES (Tokyo, Singapore, Dubai).
+OTHER = "other"
+
 # Emitted when a location string cannot be parsed confidently. Routes to the
 # "Worth checking" digest section rather than being silently dropped.
 UNKNOWN = "unknown"

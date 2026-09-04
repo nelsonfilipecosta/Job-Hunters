@@ -1,0 +1,257 @@
+# Real location strings from live boards on the watchlist, with what the parser
+# must make of each. `hints` mirror what the adapter passes alongside the text.
+
+# --- Greenhouse: multi-location strings joined with | ; , & -----------------
+- raw: "San Francisco, CA"
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "San Francisco, CA | New York City, NY | Seattle, WA"
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "New York City, NY; San Francisco, CA | New York City, NY | Seattle, WA"
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "Memphis, Tennessee; Southaven, Mississippi"
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "Washington DC"
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "Washington, D.C."
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "New York, New York"
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "Remote-Friendly, United States"
+  regions: [us]
+  region: us
+  work_mode: remote
+- raw: "Remote-Friendly (Travel-Required) | San Francisco, CA | Seattle, WA"
+  regions: [us]
+  region: us
+  work_mode: remote
+- raw: "Austin, TX | Remote-Friendly, United States"
+  regions: [us]
+  region: us
+  work_mode: remote
+- raw: "London, UK; San Francisco, CA"
+  regions: [uk, us]
+  region: uk
+  work_mode: onsite
+- raw: "Dublin, IE; London, UK; New York City, NY; Remote-Friendly, United States"
+  regions: [ireland, uk, us]
+  region: ireland
+  work_mode: remote
+- raw: "London, England, United Kingdom"
+  regions: [uk]
+  region: uk
+  work_mode: onsite
+- raw: "Dublin, IE"
+  regions: [ireland]
+  region: ireland
+  work_mode: onsite
+- raw: "Zürich, CH"
+  regions: [switzerland]
+  region: switzerland
+  work_mode: onsite
+- raw: "Munich, Germany"
+  regions: [germany]
+  region: germany
+  work_mode: onsite
+- raw: "Amsterdam "
+  regions: [netherlands]
+  region: netherlands
+  work_mode: onsite
+- raw: "London & Amsterdam"
+  regions: [uk, netherlands]
+  region: uk
+  work_mode: onsite
+- raw: "San Francisco or NYC"
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "Ontario, CAN"
+  regions: [canada]
+  region: canada
+  work_mode: onsite
+- raw: "Alberta, CAN | Remote-Friendly, Canada"
+  regions: [canada]
+  region: canada
+  work_mode: remote
+- raw: "Remote International"
+  regions: []
+  region: unknown
+  work_mode: remote
+- raw: "Remote"
+  regions: []
+  region: unknown
+  work_mode: remote
+- raw: "Tokyo, Japan"
+  regions: []
+  region: other
+  work_mode: onsite
+- raw: "Pune or Bangalore, India"
+  regions: []
+  region: other
+  work_mode: onsite
+- raw: "Sydney, Australia | Remote-Friendly, Australia"
+  regions: [australia]
+  region: australia
+  work_mode: remote
+
+# --- Ashby: bare cities, bare countries, "X - Remote" -----------------------
+- raw: "San Francisco"
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "US - Remote"
+  regions: [us]
+  region: us
+  work_mode: remote
+- raw: "US, UK, Remote"
+  regions: [us, uk]
+  region: us
+  work_mode: remote
+- raw: "UK, Remote"
+  regions: [uk]
+  region: uk
+  work_mode: remote
+- raw: "Ontario - Remote"
+  regions: [canada]
+  region: canada
+  work_mode: remote
+- raw: "India - Remote"
+  regions: []
+  region: other
+  work_mode: remote
+- raw: "Toronto"
+  regions: [canada]
+  region: canada
+  work_mode: onsite
+- raw: "Zurich, Switzerland"
+  regions: [switzerland]
+  region: switzerland
+  work_mode: onsite
+- raw: "Switzerland"
+  regions: [switzerland]
+  region: switzerland
+  work_mode: onsite
+- raw: "Europe"
+  regions: []
+  region: unknown
+  work_mode: unknown
+  note: a real place but not a country; a human should look
+- raw: "Middle East"
+  regions: []
+  region: unknown
+  work_mode: unknown
+- raw: "UAE "
+  regions: []
+  region: other
+  work_mode: onsite
+- raw: "Belgrade"
+  regions: []
+  region: other
+  work_mode: onsite
+- raw: "Singapore"
+  regions: []
+  region: other
+  work_mode: onsite
+- raw: "Berlin"
+  regions: [germany]
+  region: germany
+  work_mode: onsite
+- raw: "Madrid"
+  regions: [spain]
+  region: spain
+  work_mode: onsite
+# Ashby's structured hints: workplaceType wins over isRemote (isRemote is True
+# for Hybrid roles).
+- raw: "San Francisco"
+  hints: {workplace_type: Hybrid, is_remote: true}
+  regions: [us]
+  region: us
+  work_mode: hybrid
+- raw: "San Francisco"
+  hints: {workplace_type: OnSite, is_remote: false}
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "US, UK, Remote"
+  hints: {workplace_type: Remote, is_remote: true}
+  regions: [us, uk]
+  region: us
+  work_mode: remote
+- raw: "India"
+  hints: {extra: ["India"]}
+  regions: []
+  region: other
+  work_mode: onsite
+
+# --- Lever: "City, Country" plus an ISO code and a workplaceType ------------
+- raw: "London, United Kingdom"
+  hints: {country_code: GB, workplace_type: hybrid}
+  regions: [uk]
+  region: uk
+  work_mode: hybrid
+- raw: "Palo Alto, CA"
+  hints: {country_code: US, workplace_type: onsite}
+  regions: [us]
+  region: us
+  work_mode: onsite
+- raw: "Tokyo, Japan"
+  hints: {country_code: JP, workplace_type: hybrid}
+  regions: []
+  region: other
+  work_mode: hybrid
+- raw: "Vilnius, Lithuania"
+  hints: {country_code: LT, workplace_type: onsite}
+  regions: [lithuania]
+  region: lithuania
+  work_mode: onsite
+# The ISO code is trusted even when the text says nothing useful.
+- raw: "Remote"
+  hints: {country_code: PT, workplace_type: remote}
+  regions: [portugal]
+  region: portugal
+  work_mode: remote
+
+# --- Portugal, spelled every way a board might -------------------------------
+- raw: "Lisbon, Portugal"
+  regions: [portugal]
+  region: portugal
+  work_mode: onsite
+- raw: "Lisboa"
+  regions: [portugal]
+  region: portugal
+  work_mode: onsite
+- raw: "Porto, Portugal"
+  regions: [portugal]
+  region: portugal
+  work_mode: onsite
+- raw: "Lisbon (Hybrid)"
+  regions: [portugal]
+  region: portugal
+  work_mode: hybrid
+
+# --- Workday's uninformative string and nothing at all ---------------------
+- raw: "2 Locations"
+  regions: []
+  region: unknown
+  work_mode: unknown
+- raw: ""
+  regions: []
+  region: unknown
+  work_mode: unknown
+- raw: null
+  regions: []
+  region: unknown
+  work_mode: unknown
