@@ -142,6 +142,14 @@ def resolve_job(
         return current, False
 
     normalized = normalize_title(posting.title, company_name)
+
+    if (
+        current is not None
+        and parsed.region == current.region
+        and titles_match(normalized, normalize_title(current.title, company_name))
+    ):
+        return current, False
+
     match = session.scalar(select(Job).where(Job.canonical_key == key))
     if match is None:
         match = find_fuzzy_match(

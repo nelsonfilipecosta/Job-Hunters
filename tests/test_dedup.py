@@ -153,6 +153,24 @@ def test_a_retitle_that_lands_on_an_existing_job_merges_them(
     assert all(s.job_id is not None for s in session.scalars(select(JobSource)))
 
 
+def test_two_fuzzily_equal_siblings_do_not_flip_their_jobs_key(
+    session: Session, company: Company
+) -> None:
+    """Postings whose titles fuzzy-match keep one stable key instead of rewriting it each run."""
+    adapter = FakeAdapter.returning(
+        "greenhouse",
+        make_posting("gh-1", "Post-Training Research Scientist"),
+        make_posting("gh-2", "Research Scientist, Post-Training"),
+    )
+    keys = []
+    for run in range(3):
+        ingest_company(session, company, adapter, NOW + timedelta(hours=2 * run))
+        session.commit()
+        assert _count(session, Job) == 1
+        keys.append(session.scalar(select(Job)).canonical_key)
+    assert len(set(keys)) == 1, f"the key moved between runs: {keys}"
+
+
 def _job(session: Session, company: Company, key: str, first_seen: datetime) -> Job:
     """A saved Job row with the given canonical key and first-seen time."""
     job = Job(canonical_key=key, company_id=company.id, title="Research Scientist",
