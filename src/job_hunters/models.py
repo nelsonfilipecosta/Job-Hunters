@@ -8,7 +8,7 @@ these classes into real tables.
     companies           organizations whose job boards are polled
     job_sources         postings as each board returned them
     jobs                deduplicated openings: one row per real opening
-    scores              LLM judgements of how well a job matches the search
+    scores              LLM judgements of how well a posting matches the search
     applications        current state of every job applied to
     application_events  dated history behind each application
     digest_appearances  which jobs were included in which digest email
@@ -19,6 +19,10 @@ row per board a posting appeared on. `jobs` keeps one row per real opening after
 deduplication. Separating them is what lets the same board be fetched repeatedly
 without creating duplicates and one opening listed on three boards collapse
 into a single entry.
+
+Scores attach to `job_sources`, not to `jobs`. Two postings on one board can
+share a title and a city and still be different roles, so a judgement is made
+about one posting's text and a job's score is the best among its open postings.
 
 The StrEnum classes below (AtsType, WorkMode and the rest) list the allowed
 values for individual columns. They are Python constants, not database CHECK
@@ -60,6 +64,18 @@ def utcnow() -> datetime:
     are naive - treat them as UTC.
     """
     return datetime.now(UTC)
+
+
+def as_utc(value: datetime | None) -> datetime | None:
+    """Makes a datetime comparable regardless of where it came from.
+
+    Values read back from SQLite are naive (see `utcnow`), while values built
+    in code are aware. Python refuses to compare the two, so anything that
+    compares timestamps calls this first and treats naive as UTC.
+    """
+    if value is None or value.tzinfo is not None:
+        return value
+    return value.replace(tzinfo=UTC)
 
 
 class Base(DeclarativeBase):
@@ -222,8 +238,11 @@ class JobSource(Base):
     # and replayed without re-fetching every board.
     raw_json: Mapped[dict] = mapped_column(JSON, default=dict)
 
-    # Hash of the *raw* payload. It answers "did the source change?" and is
-    # distinct from Job.content_hash, which answers "must we rescore?".
+    # Two hashes with two jobs. `raw_hash` covers the payload exactly as the
+    # board sent it and answers "did the source change?". `content_hash` covers
+    # the normalized text the judge reads (company, title, location and
+    # description) and answers "must this posting be rescored?".
+    raw_hash: Mapped[str] = mapped_column(String(64), index=True)
     content_hash: Mapped[str] = mapped_column(String(64), index=True)
 
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -236,6 +255,11 @@ class JobSource(Base):
     company: Mapped[Company | None] = relationship(back_populates="job_sources")
     job: Mapped[Job | None] = relationship(
         back_populates="sources", foreign_keys=[job_id]
+    )
+    # A posting owns its judgements. When dedup moves a posting to another job,
+    # its scores go with it and nothing has to be re-pointed.
+    scores: Mapped[list[Score]] = relationship(
+        back_populates="source", cascade="all, delete-orphan"
     )
 
     # Avoid a duplicate sighting when a second fetch returns the same posting.
@@ -269,6 +293,9 @@ class Job(Base):
 
     location_raw: Mapped[str | None] = mapped_column(Text)
     region: Mapped[str] = mapped_column(String(30), default="unknown", index=True)
+    # Every country token the location string resolved to. `region` above is the
+    # first of them or "other"/"unknown" when none did.
+    regions: Mapped[list] = mapped_column(JSON, default=list)
     work_mode: Mapped[str] = mapped_column(String(20), default=WorkMode.UNKNOWN)
 
     description: Mapped[str | None] = mapped_column(Text)
@@ -276,8 +303,7 @@ class Job(Base):
 
     # Hash of everything the judge reads: title, company, location and description.
     # Computed over normalized text, with whitespace collapsed and boilerplate
-    # stripped, so a recruiter fixing a typo does not trigger a rescore. See plan
-    # section 3.6.
+    # stripped, so a recruiter fixing a typo does not trigger a rescore.
     content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
 
     # Which sighting is canonical for display and apply_url. Deliberately not a
@@ -286,6 +312,7 @@ class Job(Base):
     # create_all unorderable. The real relation lives on JobSource.job_id.
     primary_source_id: Mapped[int | None] = mapped_column(Integer)
 
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -293,8 +320,14 @@ class Job(Base):
     sources: Mapped[list[JobSource]] = relationship(
         back_populates="job", foreign_keys=[JobSource.job_id]
     )
+    # Every judgement of every posting of this job, read through `job_sources`.
+    # Read-only on purpose: a score belongs to a posting and the posting's
+    # `job_id` is the only thing that ties it to a job.
     scores: Mapped[list[Score]] = relationship(
-        back_populates="job", cascade="all, delete-orphan"
+        secondary="job_sources",
+        primaryjoin="Job.id == JobSource.job_id",
+        secondaryjoin="JobSource.id == Score.source_id",
+        viewonly=True,
     )
     application: Mapped[Application | None] = relationship(
         back_populates="job", uselist=False
@@ -305,17 +338,20 @@ class Job(Base):
 
 
 class Score(Base):
-    """LLM judgements of how well a job matches the search.
+    """LLM judgements of how well a posting matches the search.
 
-    Each row shows one judgement of one job against the search profile, kept as
-    a 0-100 score plus a short written explanation. A job is judged again only
-    when its text changes or the scoring prompt is revised.
+    Each row shows one judgement of one posting's text against the search
+    profile, kept as a 0-100 score plus a short written explanation. A posting
+    is judged again only when its text changes or the scoring prompt is revised.
+    A job's score is the best among its open postings.
     """
 
     __tablename__ = "scores"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"), index=True)
+    # The posting whose text was judged, not the job. Two postings of one job
+    # can carry different text and each must be read on its own.
+    source_id: Mapped[int] = mapped_column(ForeignKey("job_sources.id"), index=True)
 
     score: Mapped[int] = mapped_column(Integer, index=True)
     summary: Mapped[str | None] = mapped_column(Text)
@@ -333,19 +369,19 @@ class Score(Base):
     content_hash: Mapped[str] = mapped_column(String(64))
     scored_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
-    job: Mapped[Job] = relationship(back_populates="scores")
+    source: Mapped[JobSource] = relationship(back_populates="scores")
 
     # Avoid a duplicate judgement when a second scoring run returns the same result.
-    # The unique constraint enforces 'score once per (job_id, content_hash, prompt_version)'
-    # in the database to avoid accidental duplicates. See plan section 3.6.
+    # The unique constraint enforces 'score once per (source_id, content_hash, prompt_version)'
+    # in the database to avoid accidental duplicates.
     __table_args__ = (
         UniqueConstraint(
-            "job_id", "content_hash", "prompt_version", name="uq_scores_once_per_version"
+            "source_id", "content_hash", "prompt_version", name="uq_scores_once_per_version"
         ),
     )
 
     def __repr__(self) -> str:
-        return f"<Score job={self.job_id} {self.score} v{self.prompt_version}>"
+        return f"<Score source={self.source_id} {self.score} v{self.prompt_version}>"
 
 
 class Application(Base):

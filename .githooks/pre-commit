@@ -1,5 +1,5 @@
 #!/bin/sh
-# Refuses the commit if `profile/`, `data/` or `.env` are git-tracked.
+# Refuses the commit if `profile/`, `data/`, `backups/` or `.env` are git-tracked.
 #
 # git runs this automatically after files are staged but before the commit
 # is created. A non-zero exit here aborts the commit and leaves the staging

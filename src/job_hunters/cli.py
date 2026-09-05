@@ -4,8 +4,10 @@ Defines the subcommands available at the terminal and connects each
 one to the code that does the actual work:
 
     job-hunters show-config  loads, validates and summarises the config
-    job-hunters check-git    refuses if `profile/`, `data/` or `.env` are git-tracked
+    job-hunters check-git    refuses if `profile/`, `data/`, `backups/` or `.env` are git-tracked
     job-hunters init-db      creates the data directories and the database schema
+    job-hunters ingest       fetches every watched board into the database
+    job-hunters discover     finds which ATS and slug host a company's board
     
 This file does no work of its own. `build_parser()` registers each subcommand
 under a name. `main()` reads what was typed and calls whichever `cmd_*`
@@ -21,6 +23,8 @@ from . import paths
 from .config import ConfigError, load_all
 from .db import init_db
 from .gitcheck import GitSafetyError, check_git_safety
+from .ingest import run_ingest
+from .discover import probe
 
 
 def cmd_show_config(_args: argparse.Namespace) -> int:
@@ -86,12 +90,55 @@ def cmd_init_db(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ingest(args: argparse.Namespace) -> int:
+    """Handle `job-hunters ingest`: fetch every watched board into the database."""
+    report = run_ingest(only=args.only or None)
+    width = max((len(c.slug) for c in report.companies), default=8)
+    for c in report.companies:
+        if c.failed:
+            print(f"  {c.slug:<{width}}  FAILED  {c.error}")
+        else:
+            print(f"  {c.slug:<{width}}  ok      {c.fetched:4} fetched  "
+                  f"{c.new_sources:3} new  {c.updated_sources:3} updated  "
+                  f"{c.closed:3} closed  {c.new_jobs:3} new jobs")
+    print()
+    print(f"{len(report.companies)} companies, {len(report.failures)} failed | "
+          f"{report.total('fetched')} postings fetched, {report.total('new_sources')} new, "
+          f"{report.total('closed')} closed and {report.total('new_jobs')} new jobs.")
+    return 1 if report.failures else 0
+
+
+def cmd_discover(args: argparse.Namespace) -> int:
+    """Handle `job-hunters discover <name>`: find which ATS and slug host a company's job board."""
+    hits = probe(args.name)
+    if not hits:
+        print(f"No Greenhouse, Lever or Ashby board found for {args.name!r}.")
+        print("It may use Workday or a proprietary careers site.")
+        return 1
+    slug = args.name.strip().lower().replace(" ", "-")
+    for hit in hits:
+        note = "  (board exists but has no postings)" if hit.job_count == 0 else ""
+        print(f"  {hit.ats:<11} {hit.token:<20} {hit.job_count:4} jobs  {hit.url}{note}")
+    with_postings = [h for h in hits if h.job_count > 0]
+    if not with_postings:
+        # A board that exists but has nothing on it is usually a squatted or
+        # abandoned slug, not the company you are looking for. Do not suggest it.
+        print()
+        print("Every board found is empty, so none is worth adding yet.")
+        return 1
+    print()
+    print("Add to config/companies_watchlist.yaml:")
+    best = max(with_postings, key=lambda h: h.job_count)
+    print("  " + best.watchlist_line(slug, args.name.strip()))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the `job-hunters` command-line parser and register its subcommands.
 
     Each subcommand is a name (e.g., "init-db"), some help text and the function
     that should run when it is typed. Adding a new command later means adding
-    one more block like the two below. No other part of this file changes.
+    one more block like the ones below. No other part of this file changes.
     """
     parser = argparse.ArgumentParser(prog="job-hunters", description=__doc__)
     # `required=True` means running `job-hunters` with no subcommand is an
@@ -108,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # `job-hunters check-git`
     check_git = subparsers.add_parser(
-        "check-git", help="refuse if `profile/`, `data/` or `.env` are git-tracked"
+        "check-git", help="refuse if `profile/`, `data/`, `backups/` or `.env` are git-tracked"
     )
     check_git.set_defaults(func=cmd_check_git)
 
@@ -117,6 +164,26 @@ def build_parser() -> argparse.ArgumentParser:
         "init-db", help="create the data directories and the database schema"
     )
     init.set_defaults(func=cmd_init_db)
+
+    # `job-hunters ingest [--only SLUG ...]`
+    ingest = subparsers.add_parser(
+        "ingest", help="fetch every watched board into the database"
+    )
+    ingest.add_argument(
+        "--only", action="append", metavar="SLUG",
+        help="fetch only this company (repeatable)"
+    )
+    ingest.set_defaults(func=cmd_ingest)
+
+    # `job-hunters discover NAME`
+    discover = subparsers.add_parser(
+        "discover", help="find which ATS and slug host a company's job board"
+    )
+    discover.add_argument(
+        "name",
+        help="company name, e.g. 'Scale AI'"
+    )
+    discover.set_defaults(func=cmd_discover)
 
     return parser
 

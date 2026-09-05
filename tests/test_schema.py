@@ -20,6 +20,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from conftest import make_source
 from job_hunters import db as db_module
 from job_hunters.models import (
     Application,
@@ -67,14 +68,7 @@ def test_foreign_keys_are_enforced(session: Session) -> None:
 def test_source_identity_is_unique(session: Session, company: Company) -> None:
     """The same posting fetched twice is stored once, so re-ingest is idempotent."""
     for _ in range(2):
-        session.add(
-            JobSource(
-                company_id=company.id,
-                source="greenhouse",
-                source_job_id="4001",
-                content_hash="a" * 64,
-            )
-        )
+        session.add(make_source(company, source="greenhouse", source_job_id="4001"))
     with pytest.raises(IntegrityError):
         session.commit()
 
@@ -83,14 +77,8 @@ def test_same_id_from_different_sources_is_allowed(
     session: Session, company: Company
 ) -> None:
     """Identical job ids on two different boards stay two separate postings."""
-    session.add(
-        JobSource(company_id=company.id, source="greenhouse", source_job_id="1",
-                  content_hash="a" * 64)
-    )
-    session.add(
-        JobSource(company_id=company.id, source="lever", source_job_id="1",
-                  content_hash="b" * 64)
-    )
+    session.add(make_source(company, source="greenhouse", source_job_id="1"))
+    session.add(make_source(company, source="lever", source_job_id="1"))
     session.commit()
     assert session.query(JobSource).count() == 2
 
@@ -104,7 +92,7 @@ def test_canonical_key_is_unique(session: Session, company: Company) -> None:
 
 
 def _make_job(session: Session, company: Company, key: str = "k") -> Job:
-    """Save one job for the tests below to hang scores and applications off."""
+    """Save one job for the tests below to hang postings and applications off."""
     job = Job(canonical_key=key, company_id=company.id, title="Research Scientist",
               content_hash="c" * 64)
     session.add(job)
@@ -112,14 +100,25 @@ def _make_job(session: Session, company: Company, key: str = "k") -> Job:
     return job
 
 
-def test_a_job_is_scored_once_per_content_and_prompt_version(
+def _make_source(
+    session: Session, company: Company, job: Job, source_job_id: str = "1",
+    content_hash: str = "c" * 64,
+) -> JobSource:
+    """Save one posting of a job for the scoring tests to hang judgements off."""
+    source = make_source(company, job, source_job_id=source_job_id, content_hash=content_hash)
+    session.add(source)
+    session.commit()
+    return source
+
+
+def test_a_posting_is_scored_once_per_content_and_prompt_version(
     session: Session, company: Company
 ) -> None:
-    """Unchanged job text is never judged twice under the same prompt version."""
-    job = _make_job(session, company)
+    """Unchanged posting text is never judged twice under the same prompt version."""
+    source = _make_source(session, company, _make_job(session, company))
     for _ in range(2):
         session.add(
-            Score(job_id=job.id, score=80, prompt_version=1,
+            Score(source_id=source.id, score=80, prompt_version=1,
                   model="claude-haiku-4-5", content_hash="c" * 64)
         )
     with pytest.raises(IntegrityError):
@@ -129,14 +128,30 @@ def test_a_job_is_scored_once_per_content_and_prompt_version(
 def test_a_new_prompt_version_can_rescore_the_same_content(
     session: Session, company: Company
 ) -> None:
-    """Bumping the prompt version lets the same job text be judged again."""
-    job = _make_job(session, company)
-    session.add(Score(job_id=job.id, score=80, prompt_version=1,
+    """Bumping the prompt version lets the same posting text be judged again."""
+    source = _make_source(session, company, _make_job(session, company))
+    session.add(Score(source_id=source.id, score=80, prompt_version=1,
                       model="claude-haiku-4-5", content_hash="c" * 64))
-    session.add(Score(job_id=job.id, score=65, prompt_version=2,
+    session.add(Score(source_id=source.id, score=65, prompt_version=2,
                       model="claude-haiku-4-5", content_hash="c" * 64))
     session.commit()
     assert session.query(Score).count() == 2
+
+
+def test_each_posting_of_a_job_is_judged_on_its_own_row(
+    session: Session, company: Company
+) -> None:
+    """Two postings of one job are scored separately, even with identical text, and both reach `job.scores`."""
+    job = _make_job(session, company)
+    first = _make_source(session, company, job, source_job_id="1")
+    second = _make_source(session, company, job, source_job_id="2")
+    session.add(Score(source_id=first.id, score=45, prompt_version=1,
+                      model="claude-haiku-4-5", content_hash="c" * 64))
+    session.add(Score(source_id=second.id, score=80, prompt_version=1,
+                      model="claude-haiku-4-5", content_hash="c" * 64))
+    session.commit()
+    session.refresh(job)
+    assert sorted(s.score for s in job.scores) == [45, 80]
 
 
 def test_at_most_one_application_per_job(session: Session, company: Company) -> None:
@@ -199,10 +214,8 @@ def test_many_sightings_collapse_to_one_job(session: Session, company: Company) 
     job = _make_job(session, company)
     session.add_all(
         [
-            JobSource(company_id=company.id, job_id=job.id, source="greenhouse",
-                      source_job_id="1", content_hash="a" * 64),
-            JobSource(company_id=company.id, job_id=job.id, source="remoteok",
-                      source_job_id="9", content_hash="b" * 64),
+            make_source(company, job, source="greenhouse", source_job_id="1"),
+            make_source(company, job, source="remoteok", source_job_id="9"),
         ]
     )
     session.commit()
