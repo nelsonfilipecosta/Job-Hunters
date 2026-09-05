@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 import httpx2
@@ -117,10 +117,16 @@ def get_json(client: httpx2.Client, url: str) -> Any:
 
 
 def parse_iso_datetime(value: Any) -> datetime | None:
-    """Parses the ISO-8601 timestamps boards use or None when absent or unparseable."""
+    """Parses the ISO-8601 timestamps boards use or None when absent or unparseable.
+
+    Always returns an aware datetime. A board that omits the offset gets UTC,
+    because everything downstream stores and compares UTC and one naive value
+    reaching a comparison raises `TypeError` and fails that company's ingest.
+    """
     if not value or not isinstance(value, str):
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)

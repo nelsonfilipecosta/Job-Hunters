@@ -185,8 +185,7 @@ def _upsert_posting(
         _refresh_job(job, posting, parsed, now, text_hash)
     else:
         job.last_seen = now
-        if posting.posted_at and (job.posted_at is None or posting.posted_at < as_utc(job.posted_at)):
-            job.posted_at = posting.posted_at
+        _keep_earliest_posted_at(job, posting)
 
 
 def _refresh_job(
@@ -207,8 +206,21 @@ def _refresh_job(
         job.description = posting.description
         job.apply_url = posting.url
         job.content_hash = text_hash
-    if posting.posted_at and (job.posted_at is None or posting.posted_at < as_utc(job.posted_at)):
-        job.posted_at = posting.posted_at
+    _keep_earliest_posted_at(job, posting)
+
+
+def _keep_earliest_posted_at(job: Job, posting: RawPosting) -> None:
+    """Keeps the earliest date any posting of this job claims it went up.
+
+    Both sides go through `as_utc` because SQLite returns naive datetimes while
+    adapters build aware ones and comparing the two raises `TypeError`.
+    """
+    incoming = as_utc(posting.posted_at)
+    if incoming is None:
+        return
+    existing = as_utc(job.posted_at)
+    if existing is None or incoming < existing:
+        job.posted_at = incoming
 
 
 def ingest_company(

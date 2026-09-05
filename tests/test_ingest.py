@@ -14,7 +14,8 @@ from conftest import FakeAdapter, failed, make_posting, ok
 from job_hunters.config import CompanyEntry
 from job_hunters import ingest as ingest_module
 from job_hunters.ingest import ingest_company, run_ingest, sync_companies
-from job_hunters.models import Company, FetchRun, FetchStatus, Job, JobSource
+from job_hunters.models import Company, FetchRun, FetchStatus, Job, JobSource, as_utc
+from job_hunters.sources.base import parse_iso_datetime
 
 NOW = datetime(2026, 9, 1, tzinfo=UTC)
 LATER = NOW + timedelta(hours=2)
@@ -297,6 +298,23 @@ def test_posted_at_survives_a_round_trip_through_sqlite(session: Session, compan
     session.commit()
     job = session.scalar(select(Job))
     assert job.posted_at.replace(tzinfo=UTC) == posted
+
+
+def test_a_posting_dated_without_an_offset_does_not_crash_the_second_run(
+    session: Session, company: Company
+) -> None:
+    """A board timestamp with no timezone is treated as UTC instead of raising TypeError."""
+    naive = parse_iso_datetime("2026-08-01T10:00:00")
+    assert naive is not None and naive.tzinfo is not None, "adapters must return aware datetimes"
+
+    adapter = FakeAdapter.returning("greenhouse", make_posting("1", posted_at=naive))
+    ingest_company(session, company, adapter, NOW)
+    session.commit()
+    session.expire_all()
+    report = ingest_company(session, company, adapter, LATER)  # must not raise
+    session.commit()
+    assert not report.failed
+    assert as_utc(session.scalar(select(Job)).posted_at) == naive
 
 
 def test_a_crash_while_reconciling_one_company_does_not_abort_the_others(
