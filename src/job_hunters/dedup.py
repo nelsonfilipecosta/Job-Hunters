@@ -2,13 +2,14 @@
 
 Two stages:
 
-1. Canonical key: `sha256(company | normalized title | region)`. Two postings
-   with the same key are the same job. This catches everything that differs only
-   in punctuation, a case, a suffix or a requisition id (see `normalize_title`).
-2. Fuzzy pass: when the key finds nothing, compare the normalized title
-   against existing jobs at the same company in the same region using
-   `token_sort_ratio`. This catches reordering ("Post-Training Research
-   Scientist" vs "Research Scientist, Post-Training").
+    1. Canonical key: `sha256(company | normalized title | region)`. Two
+       postings with the same key are the same job. This catches everything
+       that differs only in punctuation, a case, a suffix or a requisition
+       id (see `normalize_title`).
+    2. Fuzzy pass: when the key finds nothing, compare the normalized title
+       against existing jobs at the same company in the same region using
+       `token_sort_ratio`. This catches reordering ("Post-Training Research
+       Scientist" vs "Research Scientist, Post-Training").
 
 Then a merge policy for when two rows that already exist turn out to be one
 job. The survivor is the row with an application, else the row with a score
