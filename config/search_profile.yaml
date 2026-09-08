@@ -4,7 +4,7 @@
 # different search. Nothing here is secret. Secrets live in `.env`.
 
 titles:
-  # Tier 1 keeps a job if the title matches OR the keywords match - deliberately
+  # The prefilter keeps a job if the title matches OR the keywords match - deliberately
   # generous. Letting junk through costs a fraction of a cent for the judge to
   # reject. Missing a role costs a job you never knew existed.
   include:
