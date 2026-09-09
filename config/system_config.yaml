@@ -24,10 +24,9 @@ models:
   tailor:  claude-opus-5
 
 email:
-  to: nffacosta@gmail.com
+  # The mail server only. The email adress is set in `.env`.
   smtp_host: smtp.gmail.com
   smtp_port: 587
-  smtp_username: nffacosta@gmail.com
 
 digest:
   # An application older than this with no subsequent event gets a nudge.
