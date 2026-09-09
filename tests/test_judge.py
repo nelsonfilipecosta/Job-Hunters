@@ -67,6 +67,42 @@ def test_the_system_prompt_is_stable_and_carries_profile_rubric_and_declared_fac
     assert "Do not reason about immigration" in first
 
 
+def test_the_scoring_guide_comes_from_config_and_not_from_this_module() -> None:
+    """Bands, guidance and examples are editable in `search_profile.yaml`."""
+    profile = load_search_profile()
+    prompt = build_system_prompt(profile, "# CV\nPhD in NLP.")
+
+    band = profile.scoring.bands[0]
+    assert f"- {band.low} to {band.high}: {band.meaning.strip()}" in prompt
+    assert profile.scoring.guidance.strip() in prompt
+    example = profile.scoring.examples[0]
+    assert f"Score {example.score}: {example.reason.strip()}" in prompt
+
+
+def test_bands_and_examples_are_ordered_by_score_not_by_file_order() -> None:
+    """Reordering the YAML must not change the prefix, which would throw the cache away."""
+    profile = load_search_profile()
+    shuffled = profile.model_copy(deep=True)
+    shuffled.scoring.bands.reverse()
+    shuffled.scoring.examples.reverse()
+
+    assert build_system_prompt(shuffled, "# CV") == build_system_prompt(profile, "# CV")
+
+
+def test_an_empty_guidance_and_examples_leave_no_dangling_heading() -> None:
+    """Both are optional, so a profile without them still renders a clean prompt."""
+    profile = load_search_profile()
+    bare = profile.model_copy(deep=True)
+    bare.scoring.guidance = ""
+    bare.scoring.examples = []
+
+    prompt = build_system_prompt(bare, "# CV")
+
+    assert "# Calibration examples" not in prompt
+    assert "\n\n\n" not in prompt, "an omitted section must not leave a blank gap"
+    assert "# How to score" in prompt and "# The answer" in prompt
+
+
 def test_the_posting_is_rendered_into_the_user_turn_and_long_descriptions_are_cut() -> None:
     """Company, title, parsed location lead and a very long body is truncated with a marker."""
     rendered = render_posting(TEXT)

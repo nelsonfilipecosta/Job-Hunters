@@ -4,7 +4,7 @@
 # different search. Nothing here is secret. Secrets live in `.env`.
 
 titles:
-  # The prefilter keeps a job if the title matches OR the keywords match - deliberately
+  # The prefilter keeps a job if the title matches or the keywords match - deliberately
   # generous. Letting junk through costs a fraction of a cent for the judge to
   # reject. Missing a role costs a job you never knew existed.
   include:
@@ -14,7 +14,7 @@ titles:
     - applied scientist
     - post-training
     - model evaluation
-  # Hard elimination: these never reach the judge.
+  # Hard prefilter. These never reach the judge.
   exclude:
     - sales
     - account executive
@@ -35,7 +35,7 @@ keywords:
     - SFT
     - supervised fine-tuning
     - preference optimization
-  # Weaker signals to widen recall - the judge sorts out the noise later.
+  # Weaker signals to widen recall. The judge sorts out the noise later.
   supporting:
     - fine-tuning
     - evaluation
@@ -67,12 +67,16 @@ location:
     need_sponsorship: [uk, us]
 
 scoring:
-  # Below this, a job is stored but never shown in the digest.
-  threshold: 70
-  # Cap per run. The remainder carries to the next run, oldest-unscored first.
+  # Below this value a job is stored but never shown in the digest.
+  threshold: 60
+  # Cap per run. The remainder carries to the next run, with oldest-unscored first.
   max_llm_scores_per_run: 300
-  # Bump whenever the rubric below changes - it invalidates every prior score.
+  # Bump whenever anything below changes. It invalidates every prior score.
   prompt_version: 1
+
+  # Everything from here down is pasted into the judge's prompt. Rewrite it to
+  # fine-tune the search. The rubric tells the judge what to look for and how to weight
+  # it. Required.
   rubric: |
     Weight post-training and evaluation work most heavily: RLHF/RLAIF, DPO and
     other preference optimization, reward modelling, supervised fine-tuning and
@@ -87,3 +91,79 @@ scoring:
     Do not penalize a job for being at a small company. A four-person lab doing
     post-training research is a better match than a large company's generic ML
     engineering opening.
+
+  # How the judge turns its opinion into a number. Bands must cover 0 to 100
+  # with no gap and no overlap. A gap leaves the model to invent its own meaning
+  # for the scores that fall in it. Required.
+  bands:
+    - low: 85
+      high: 100
+      meaning: >
+        The core of the search. Post-training or evaluation research on language
+        models (RLHF, RLAIF, DPO and other preference optimization, reward
+        modelling, supervised fine-tuning, RL environments, benchmark and
+        evaluation design) where the candidate's background is a direct match.
+    - low: 70
+      high: 84
+      meaning: >
+        Research adjacent to the core, with real experiments: alignment,
+        interpretability, red-teaming, training-data quality, model behaviour or
+        post-training in another modality. The candidate could credibly do the
+        work.
+    - low: 40
+      high: 69
+      meaning: >
+        A technical role that touches the domain but is centred on something
+        else: training or inference infrastructure, platform or product
+        engineering around fine-tuning and evals, applied deployment,
+        pretraining. Or a research role where the candidate's background is a
+        stretch.
+    - low: 10
+      high: 39
+      meaning: >
+        Engineering or research clearly outside the domain, or a role the
+        candidate is not looking for: internships, roles that are principally
+        people management, director level and above.
+    - low: 0
+      high: 9
+      meaning: >
+        Not a technical research or engineering role at all: sales, marketing,
+        legal, finance, recruiting, support or operations.
+
+  # How to read a posting (appended after the bands). Optional.
+  guidance: >
+    Judge the work the role actually consists of, not the team it sits in or the
+    words in the title: a post-training team can be hiring a Kubernetes engineer.
+    Do not reward or penalize company size or prestige. A four-person lab doing
+    post-training research outranks a large company's generic machine-learning
+    opening. When the posting covers several possible teams or tracks, score the
+    best fit among them and say which in the rationale.
+
+  # Worked examples anchoring the scale. Optional, but a handful of them is the
+  # cheapest way to correct a judge that scores too high or too low.
+  examples:
+    - posting: >
+        "Research Scientist, Preference Learning" at a twelve-person lab: designs
+        reward models and DPO variants and runs the ablations.
+      score: 93
+      reason: >
+        The core of the search and a direct match for the candidate's work preferences.
+    - posting: >
+        "Research Engineer, Red Teaming": builds adversarial evaluations and runs
+        robustness experiments on production models.
+      score: 76
+      reason: Adjacent research with real experiments.
+    - posting: >
+        "Machine Learning Engineer, Training Platform": maintains the distributed
+        training stack that post-training teams use, with no experiments of its own.
+      score: 61
+      reason: Infrastructure next to the domain, not research in it.
+    - posting: >
+        "Research Program Manager": plans compute allocation and coordinates
+        research programs.
+      score: 32
+      reason: Not a research or engineering role.
+    - posting: >
+        "Enterprise Account Executive" at an AI lab: sells to enterprise accounts.
+      score: 1
+      reason: Sales, however technical the product.

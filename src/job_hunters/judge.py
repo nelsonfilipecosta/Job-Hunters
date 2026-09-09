@@ -18,7 +18,7 @@ import anthropic
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from . import paths, regions
-from .config import ConfigError, SearchProfile
+from .config import ConfigError, ScoreBand, ScoreExample, SearchProfile
 
 log = logging.getLogger("job_hunters.judge")
 
@@ -164,12 +164,35 @@ def _describe_regions(tokens: list[str]) -> str:
     return "; ".join(parts)
 
 
-def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
-    """The stable prefix: candidate profile, rubric, declared facts and the scoring guide."""
+def _describe_bands(bands: list[ScoreBand]) -> list[str]:
+    """The scale as the model reads it. Highest band first whatever order config lists them in."""
+    return [
+        f"- {band.low} to {band.high}: {band.meaning.strip()}"
+        for band in sorted(bands, key=lambda band: band.low, reverse=True)
+    ]
 
+
+def _describe_examples(examples: list[ScoreExample]) -> list[str]:
+    """The worked examples. Highest score first whatever order config lists them in."""
+    return [
+        f"- {example.posting.strip()} Score {example.score}: {example.reason.strip()}"
+        for example in sorted(examples, key=lambda example: example.score, reverse=True)
+    ]
+
+
+def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
+    """The stable prefix: candidate profile, rubric, declared facts and the scoring guide.
+
+    The judgement content (rubric, bands, guidance and examples) comes from
+    `search_profile.yaml`. What stays here is the scaffolding and the rules that
+    must not be tuned away. Bands and examples are rendered in score order rather
+    than file order, so reordering the YAML cannot change the prefix and invalidate
+    the cache.
+    """
     location = profile.location
     auth = location.work_authorization
     seniority = profile.seniority
+    scoring = profile.scoring
     lines = [
         "You screen job postings for one specific candidate. For each posting you are "
         "given, judge how well the role fits this candidate and the search rubric "
@@ -183,7 +206,7 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
         "",
         "# What the candidate is looking for",
         "",
-        profile.scoring.rubric.strip() or "Roles matching the profile above.",
+        scoring.rubric.strip(),
         "",
         f"Seniority sought: {', '.join(seniority.include) or 'any'}. "
         f"Not sought: {', '.join(seniority.exclude) or 'none'}.",
@@ -219,48 +242,13 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
         "",
         "Give a score from 0 to 100 for how well the role fits the rubric and the "
         "candidate's background:",
-        "- 85 to 100: the core of the search. Post-training or evaluation research "
-        "on language models (RLHF, RLAIF, DPO and other preference optimization, "
-        "reward modelling, supervised fine-tuning, RL environments, benchmark and "
-        "evaluation design) where the candidate's background is a direct match.",
-        "- 70 to 84: research adjacent to the core, with real experiments: "
-        "alignment, interpretability, red-teaming, training-data quality, model "
-        "behaviour, or post-training in another modality. The candidate could "
-        "credibly do the work.",
-        "- 40 to 69: a technical role that touches the domain but is centred on "
-        "something else: training or inference infrastructure, platform or "
-        "product engineering around fine-tuning and evals, applied deployment, "
-        "pretraining. Or a research role where the candidate's background is a "
-        "stretch.",
-        "- 10 to 39: engineering or research clearly outside the domain, or a role "
-        "the candidate is not looking for: internships, roles that are principally "
-        "people management, director level and above.",
-        "- 0 to 9: not a technical research or engineering role at all: sales, "
-        "marketing, legal, finance, recruiting, support, operations.",
-        "",
-        "Judge the work the role actually consists of, not the team it sits in or "
-        "the words in the title: a post-training team can be hiring a Kubernetes "
-        "engineer. Do not reward or penalize company size or prestige. A four-person "
-        "lab doing post-training research outranks a large company's generic "
-        "machine-learning opening. When the posting covers several possible teams "
-        "or tracks, score the best fit among them and say which in the rationale.",
-        "",
-        "# Calibration examples",
-        "",
-        "- 'Research Scientist, Preference Learning' at a twelve-person lab: designs "
-        "reward models and DPO variants and runs the ablations. Score 93: the core "
-        "of the search and a direct match for the candidate's work on learning from "
-        "disagreeing human labels.",
-        "- 'Research Engineer, Red Teaming': builds adversarial evaluations and runs "
-        "robustness experiments on production models. Score 76: adjacent research "
-        "with real experiments.",
-        "- 'Machine Learning Engineer, Training Platform': maintains the distributed "
-        "training stack that post-training teams use, with no experiments of its "
-        "own. Score 45: infrastructure next to the domain, not research in it.",
-        "- 'Research Program Manager': plans compute allocation and coordinates "
-        "research programs. Score 15: not a research or engineering role.",
-        "- 'Enterprise Account Executive' at an AI lab: sells to enterprise accounts. "
-        "Score 2: sales, however technical the product.",
+        *_describe_bands(scoring.bands),
+    ]
+    if scoring.guidance.strip():
+        lines += ["", scoring.guidance.strip()]
+    if scoring.examples:
+        lines += ["", "# Calibration examples", "", *_describe_examples(scoring.examples)]
+    lines += [
         "",
         "# The answer",
         "",
