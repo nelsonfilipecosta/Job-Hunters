@@ -45,10 +45,10 @@ PROFILE = SearchProfile.model_validate(
             "acceptable": [{"work_modes": ["remote"], "regions": ["eu", "uk", "us"]}],
             "work_authorization": {"have": ["eu", "switzerland"], "need_sponsorship": ["uk", "us"]},
         },
-        "scoring": {"threshold": 60, "max_llm_scores_per_run": 300, "prompt_version": 1,
+        "scoring": {"threshold": 70, "max_llm_scores_per_run": 300, "prompt_version": 1,
                     "rubric": "Weight post-training.",
-                    "bands": [{"low": 60, "high": 100, "meaning": "A fit."},
-                              {"low": 0, "high": 59, "meaning": "Not a fit."}]},
+                    "bands": [{"low": 70, "high": 100, "meaning": "A fit."},
+                              {"low": 0, "high": 69, "meaning": "Not a fit."}]},
     }
 )
 

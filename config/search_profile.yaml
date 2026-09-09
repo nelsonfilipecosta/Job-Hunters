@@ -68,7 +68,7 @@ location:
 
 scoring:
   # Below this value a job is stored but never shown in the digest.
-  threshold: 60
+  threshold: 70
   # Cap per run. The remainder carries to the next run, with oldest-unscored first.
   max_llm_scores_per_run: 300
   # Bump whenever anything below changes. It invalidates every prior score.
