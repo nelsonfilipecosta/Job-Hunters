@@ -17,7 +17,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, ClassVar
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -367,13 +367,31 @@ class Secrets(BaseSettings):
             )
         return value.get_secret_value().strip()
 
+    DISPLAYABLE: ClassVar[frozenset[str]] = frozenset(
+        {"digest_to", "digest_from", "smtp_username"}
+    )
+
     def present(self) -> dict[str, bool]:
         """Which secrets are set by variable name. Never their values."""
         return {
-            name.upper(): getattr(self, name) is not None
-            and bool(getattr(self, name).get_secret_value().strip())
-            for name in type(self).model_fields
+            name.upper(): bool(self._plain(name)) for name in type(self).model_fields
         }
+
+    def summary(self) -> dict[str, str]:
+        """One line per secret for `show-config`: email addresses by value and credentials masked."""
+        lines = {}
+        for name in type(self).model_fields:
+            plain = self._plain(name)
+            if not plain:
+                lines[name.upper()] = "missing"
+            else:
+                lines[name.upper()] = plain if name in self.DISPLAYABLE else "present"
+        return lines
+
+    def _plain(self, name: str) -> str:
+        """The stripped value of one field or an empty string when it is unset."""
+        value: SecretStr | None = getattr(self, name)
+        return value.get_secret_value().strip() if value is not None else ""
 
 
 def load_secrets(env_file: Path | None = None) -> Secrets:
