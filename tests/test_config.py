@@ -377,6 +377,21 @@ def test_secret_values_never_appear_when_printed(tmp_path: Path, no_secret_env) 
     assert "sk-ant-hidden" not in repr(secrets)
     assert "sk-ant-hidden" not in str(secrets)
     assert "sk-ant-hidden" not in str(secrets.present())
+    assert "sk-ant-hidden" not in str(secrets.summary())
+
+
+def test_the_summary_shows_addresses_but_masks_credentials(tmp_path: Path, no_secret_env) -> None:
+    """An address is shown so a typo in it can be spotted. A key has no such use."""
+    env = tmp_path / ".env"
+    env.write_text(
+        "ANTHROPIC_API_KEY=sk-ant-hidden\nDIGEST_TO=me@example.com\n", encoding="utf-8"
+    )
+
+    summary = load_secrets(env).summary()
+
+    assert summary["DIGEST_TO"] == "me@example.com"
+    assert summary["ANTHROPIC_API_KEY"] == "present"
+    assert summary["SMTP_PASSWORD"] == "missing"
 
 
 def test_load_all_includes_the_secrets() -> None:
