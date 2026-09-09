@@ -8,6 +8,8 @@ one to the code that does the actual work:
     job-hunters init-db      creates the data directories and the database schema
     job-hunters ingest       fetches every watched board into the database
     job-hunters discover     finds which ATS and slug host a company's board
+    job-hunters score        judges unscored postings with the LLM (prefilter then judge)
+    job-hunters eval-scoring evaluates the scorer against hand-labeled postings
     
 This file does no work of its own. `build_parser()` registers each subcommand
 under a name. `main()` reads what was typed and calls whichever `cmd_*`
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from . import paths
 from .config import ConfigError, load_all
@@ -25,6 +28,17 @@ from .db import init_db
 from .gitcheck import GitSafetyError, check_git_safety
 from .ingest import run_ingest
 from .discover import probe
+from .evaluate import run_evaluation
+from .judge import Usage, Verdict, cache_minimum_tokens
+from .scoring import Candidate, group_by_text, run_scoring
+
+
+def _positive_int(value: str) -> int:
+    """An argparse type for a count that must be positive and at least one."""
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be 1 or more, got {number}")
+    return number
 
 
 def cmd_show_config(_args: argparse.Namespace) -> int:
@@ -47,13 +61,18 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
           f"{', '.join(profile.location.work_authorization.need_sponsorship) or '-'}")
     print(f"  threshold            {profile.scoring.threshold} "
           f"(prompt version {profile.scoring.prompt_version})")
+    scoring = profile.scoring
+    print(f"  judge prompt         {len(scoring.rubric.split()) } rubric words, "
+          f"{len(scoring.bands)} score band(s), {len(scoring.examples)} example(s)"
+          f"{'' if scoring.guidance.strip() else ', no guidance'}")
     # Summarise the system configuration in `system_config.yaml`
     system = config.system
     print()
     print("system_config.yaml")
     print(f"  timezone             {system.timezone}")
     print(f"  ingest / score       {system.schedules.ingest} / {system.schedules.score}")
-    print(f"  digest               {system.schedules.digest} -> {system.email.to}")
+    print(f"  digest               {system.schedules.digest} via "
+          f"{system.email.smtp_host}:{system.email.smtp_port}")
     print(f"  judge / tailor       {system.models.judge} / {system.models.tailor}")
     suppression = system.digest.repeat_suppression
     if suppression.enabled:
@@ -72,6 +91,12 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
         by_ats[entry.ats.value] = by_ats.get(entry.ats.value, 0) + 1
     for ats, count in sorted(by_ats.items()):
         print(f"    {ats:<18} {count}")
+    # What `.env` provides. Addresses are shown so they can be checked for
+    # typos. Keys and passwords are only ever reported as present.
+    print()
+    print(".env")
+    for name, value in config.secrets.summary().items():
+        print(f"  {name:<20} {value}")
     return 0
 
 
@@ -133,6 +158,112 @@ def cmd_discover(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_verdict(candidate: Candidate, verdict: Verdict, usage: Usage) -> None:
+    """Prints one judged posting: score, title, company, fit and what the call cost."""
+    print(f"  {verdict.score:3}  {candidate.text.title} @ {candidate.text.company}  "
+          f"[{candidate.location_fit}, {verdict.work_authorization}; "
+          f"cache read {usage.cache_read_input_tokens:,}, "
+          f"written {usage.cache_creation_input_tokens:,}, "
+          f"uncached {usage.input_tokens:,}, out {usage.output_tokens:,}]")
+    print(f"       {verdict.summary}")
+
+
+def cmd_score(args: argparse.Namespace) -> int:
+    """Handle `job-hunters score`: prefilter every open posting and then the judge up to the cap."""
+    report = run_scoring(
+        limit=args.limit,
+        dry_run=args.dry_run,
+        on_verdict=_print_verdict if args.verbose else None,
+    )
+    if args.verbose and report.judged:
+        print()
+    print(f"open postings          {report.open_postings}")
+    print(f"  already judged       {report.already_judged}")
+    print(f"  excluded by title    {report.eliminated_title}")
+    print(f"  excluded by location {report.eliminated_location}")
+    print(f"  no title or keyword  {report.unmatched}")
+    if report.stale:
+        print(f"  stale text           {report.stale}  (run `job-hunters ingest` first)")
+    print(f"  candidates           {len(report.candidates)} postings, "
+          f"{report.distinct_texts} distinct texts")
+    if args.dry_run:
+        groups = group_by_text(report.candidates)[: report.cap]
+        print()
+        print(f"Dry run. The first {len(groups)} of {report.distinct_texts} texts "
+              f"that would be judged (cap {report.cap}):")
+        for siblings in groups:
+            lead = siblings[0]
+            extra = f" (+{len(siblings) - 1} identical)" if len(siblings) > 1 else ""
+            print(f"  {lead.text.title} @ {lead.text.company}  "
+                  f"[{lead.location_fit}; matched on {lead.matched_on!r}]{extra}")
+        return 0
+    print()
+    print(f"judged {report.judged} texts (cap {report.cap}), {report.scored} scores written, "
+          f"{report.failed} failed, {report.carried_over} carried over")
+    usage = report.usage
+    print(f"tokens: cache written {usage.cache_creation_input_tokens:,}, "
+          f"cache read {usage.cache_read_input_tokens:,}, "
+          f"uncached input {usage.input_tokens:,}, output {usage.output_tokens:,}")
+    if report.cold_calls:
+        # Name the configured model, and its minimum only when it is known.
+        minimum = cache_minimum_tokens(report.model)
+        target = (f" ({minimum:,} tokens for {report.model})" if minimum is not None
+                  else f" for {report.model}")
+        print(f"Warning: {report.cold_calls} call(s) after the first read nothing from the "
+              f"cache. The prefix is probably shorter than the minimum cacheable length"
+              f"{target}. Add Markdown records to profile/ or set models.judge to a model "
+              f"with a lower minimum.", file=sys.stderr)
+    if report.aborted:
+        print(f"Error: stopped early: {report.aborted}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_eval_scoring(args: argparse.Namespace) -> int:
+    """Handle `job-hunters eval-scoring`: precision, recall and f1-score against the labeled postings."""
+    report = run_evaluation(args.labels, skip_llm=args.skip_llm)
+    llm = report.llm_used
+    print(f"  {'label':<5} {'prefilter':<30} {'score':>5}  {'outcome':<11} posting")
+    for row in report.rows:
+        if row.excluded_by:
+            prefilter = f"excluded ({row.excluded_by})"
+        elif row.matched_on is None:
+            prefilter = "no title or keyword match"
+        else:
+            prefilter = f"kept ({row.matched_on})"
+        if row.error:
+            score = "err"
+        else:
+            score = "-" if row.verdict is None else str(row.verdict.score)
+        label = "REL" if row.job.relevant else "---"
+        print(f"  {label:<5} {prefilter[:30]:<30} {score:>5}  "
+              f"{row.outcome(report.threshold, llm):<11} "
+              f"{row.job.title} @ {row.job.company}  [{row.location_fit}]")
+    kept = sum(1 for row in report.rows if row.reached_judge)
+    kept_relevant = sum(1 for row in report.rows if row.reached_judge and row.job.relevant)
+    counts = report.counts()
+    print()
+    print(f"{len(report.rows)} labeled postings, {report.relevant} relevant.")
+    print(f"prefilter kept {kept} of {len(report.rows)} ({kept_relevant} of {report.relevant} "
+          f"relevant, recall {report.prefilter_recall:.0%})")
+    if llm:
+        print(f"at threshold {report.threshold}: precision {report.precision:.2f}, "
+              f"recall {report.recall:.2f}, f1 {report.f1:.2f} "
+              f"(hits {counts['hit']}, misses {counts['miss']}, "
+              f"false alarms {counts['false alarm']})")
+        usage = report.usage
+        print(f"tokens: cache written {usage.cache_creation_input_tokens:,}, "
+              f"cache read {usage.cache_read_input_tokens:,}, "
+              f"uncached input {usage.input_tokens:,}, output {usage.output_tokens:,}")
+        errors = sum(1 for row in report.rows if row.error)
+        if errors:
+            print(f"Warning: {errors} posting(s) could not be judged", file=sys.stderr)
+    else:
+        print(f"judge skipped (--skip-llm): if the judge accepted everything the prefilter kept, "
+              f"precision would be {report.precision:.2f} and recall {report.recall:.2f}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the `job-hunters` command-line parser and register its subcommands.
 
@@ -184,6 +315,40 @@ def build_parser() -> argparse.ArgumentParser:
         help="company name, e.g. 'Scale AI'"
     )
     discover.set_defaults(func=cmd_discover)
+
+    # `job-hunters score [--limit N] [--dry-run] [--verbose]`
+    score = subparsers.add_parser(
+        "score", help="judge unscored postings with the LLM (prefilter then judge)"
+    )
+    score.add_argument(
+        "--limit", type=_positive_int, metavar="N",
+        help="judge at most N distinct texts this run "
+             "(default: scoring.max_llm_scores_per_run)"
+    )
+    score.add_argument(
+        "--dry-run", action="store_true",
+        help="run the prefilter only: list what would be judged, but call and write nothing"
+    )
+    score.add_argument(
+        "--verbose", action="store_true",
+        help="print every verdict with its token usage as it arrives"
+    )
+    score.set_defaults(func=cmd_score)
+
+    # `job-hunters eval-scoring [--skip-llm] [--labels PATH]`
+    evaluate = subparsers.add_parser(
+        "eval-scoring",
+        help="evaluate the scorer against hand-labeled postings in tests/fixtures/labeled_jobs.yaml"
+    )
+    evaluate.add_argument(
+        "--skip-llm", action="store_true",
+        help="report the prefilter alone without calling the judge"
+    )
+    evaluate.add_argument(
+        "--labels", type=Path, metavar="PATH",
+        help="a different labeled file"
+    )
+    evaluate.set_defaults(func=cmd_eval_scoring)
 
     return parser
 

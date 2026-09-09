@@ -52,6 +52,18 @@ else
 fi
 echo
 echo "Still manual, not handled by this script:"
-echo "  - create a .env file with: SMTP_PASSWORD, ACTION_TOKEN_SECRET, ANTHROPIC_API_KEY"
-echo "    (not needed until Phase 2; the stack starts fine without it)"
-echo "  - add your CV and achievement records to profile/ (input to Phase 6)"
+echo
+echo "1. Edit the three files in config/ to describe your search:"
+echo "     search_profile.yaml"
+echo "     system_config.yaml"
+echo "     companies_watchlist.yaml"
+echo
+echo "2. Create .env for your secrets and addresses:  cp .env.example .env"
+echo
+echo "3. Put your CV in profile/ as markdown (profile/cv.md)."
+echo
+echo "Then check it worked:"
+echo "  uv run job-hunters show-config                 validate config"
+echo "  uv run job-hunters ingest                      fill the database"
+echo "  uv run job-hunters score --dry-run             what would be judged (free)"
+echo "  uv run job-hunters score --limit 20 --verbose  the first paid run"

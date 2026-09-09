@@ -9,9 +9,6 @@ file that reads it, checks it against that model and returns either a fully
 typed object or a `ConfigError` naming exactly what is wrong and where. Every
 model forbids unknown keys, so a typo in the file is a startup error rather
 than a setting that silently never took effect.
-
-Nothing secret lives here. SMTP passwords and API keys come from the
-environment (`.env`), which is gitignored and checked at startup.
 """
 
 from __future__ import annotations
@@ -20,7 +17,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, ClassVar
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -28,11 +25,13 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    SecretStr,
     TypeAdapter,
     ValidationError,
     field_validator,
     model_validator,
 )
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from . import paths, regions
 from .models import AtsType, Tier, WorkMode
@@ -125,11 +124,62 @@ class LocationConfig(StrictModel):
         return self
 
 
+class ScoreBand(StrictModel):
+    """One stretch of the 0-100 scale and what the judge should put in it."""
+
+    low: int = Field(ge=0, le=100)
+    high: int = Field(ge=0, le=100)
+    meaning: NonEmptyStr
+
+    @model_validator(mode="after")
+    def _bounds_in_order(self) -> ScoreBand:
+        """Rejects a band written back to front, which would silently match nothing."""
+        if self.low > self.high:
+            raise ValueError(f"band {self.low}-{self.high} has its bounds reversed")
+        return self
+
+
+class ScoreExample(StrictModel):
+    """One worked example anchoring a point on the scale."""
+
+    posting: NonEmptyStr
+    score: int = Field(ge=0, le=100)
+    reason: NonEmptyStr
+
+
 class ScoringConfig(StrictModel):
     threshold: int = Field(ge=0, le=100)
     max_llm_scores_per_run: int = Field(gt=0)
     prompt_version: int = Field(ge=1, default=1)
-    rubric: str = ""
+    rubric: NonEmptyStr
+    bands: list[ScoreBand] = Field(min_length=1)
+    guidance: str = ""
+    examples: list[ScoreExample] = []
+
+    @field_validator("rubric")
+    @classmethod
+    def _rubric_says_something(cls, value: str) -> str:
+        """Rejects a rubric of only whitespace, which a length check alone would let through."""
+        if not value.strip():
+            raise ValueError("Rubric must not be blank: the judge needs criteria to score against.")
+        return value
+
+    @model_validator(mode="after")
+    def _bands_cover_the_scale(self) -> ScoringConfig:
+        """Rejects bands that leave a gap or overlap, which would leave scores unguided."""
+        ordered = sorted(self.bands, key=lambda band: band.low)
+        if ordered[0].low != 0 or ordered[-1].high != 100:
+            raise ValueError(
+                f"Bands must cover 0 to 100, but they run "
+                f"{ordered[0].low} to {ordered[-1].high}"
+            )
+        for lower, upper in zip(ordered, ordered[1:]):
+            if upper.low != lower.high + 1:
+                raise ValueError(
+                    f"Bands must be contiguous, but {lower.low}-{lower.high} is "
+                    f"followed by {upper.low}-{upper.high}"
+                )
+        return self
 
 
 class SearchProfile(StrictModel):
@@ -173,20 +223,14 @@ class ModelsConfig(StrictModel):
     tailor: NonEmptyStr = "claude-opus-5"
 
 
+_EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+
+
 class EmailConfig(StrictModel):
-    to: NonEmptyStr
-    from_address: str | None = None
+    """How the digest is sent, but never to or from whom."""
+
     smtp_host: NonEmptyStr = "smtp.gmail.com"
     smtp_port: int = Field(default=587, gt=0, lt=65536)
-    smtp_username: str | None = None  # password comes from SMTP_PASSWORD in `.env`
-
-    @field_validator("to", "from_address")
-    @classmethod
-    def _looks_like_email(cls, value: str | None) -> str | None:
-        """Rejects a value that does not look like an email address."""
-        if value is not None and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value):
-            raise ValueError(f"{value!r} does not look like an email address")
-        return value
 
 
 class RepeatSuppressionConfig(StrictModel):
@@ -197,7 +241,7 @@ class RepeatSuppressionConfig(StrictModel):
 
     @model_validator(mode="after")
     def _ordered(self) -> RepeatSuppressionConfig:
-        """Rejects a suppress_after threshold lower than demote_after."""
+        """Rejects a `suppress_after` threshold lower than `demote_after`."""
         if self.suppress_after < self.demote_after:
             raise ValueError(
                 f"The suppress_after ({self.suppress_after}) value must be >= than "
@@ -216,7 +260,7 @@ class SystemConfig(StrictModel):
     timezone: NonEmptyStr = "Europe/Lisbon"
     schedules: SchedulesConfig = SchedulesConfig()
     models: ModelsConfig = ModelsConfig()
-    email: EmailConfig
+    email: EmailConfig = EmailConfig()
     digest: DigestConfig = DigestConfig()
 
     @field_validator("timezone")
@@ -281,6 +325,85 @@ class CompanyEntry(StrictModel):
 
 
 # ---------------------------------------------------------------------------
+# .env
+# ---------------------------------------------------------------------------
+
+
+class Secrets(BaseSettings):
+    """The private secrets read from the environment first and from `.env` second."""
+
+    model_config = SettingsConfigDict(
+        env_file=paths.PROJECT_ROOT / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    anthropic_api_key: SecretStr | None = None  # Phase 2: the judge
+    smtp_password: SecretStr | None = None  # Phase 3: the digest email
+    action_token_secret: SecretStr | None = None  # Phase 4: signed action links
+
+    # Phase 3: who the digest goes to, what it is sent as and the account it authenticates with.
+    digest_to: SecretStr | None = None
+    digest_from: SecretStr | None = None
+    smtp_username: SecretStr | None = None
+
+    @field_validator("digest_to", "digest_from", "smtp_username")
+    @classmethod
+    def _looks_like_email(cls, value: SecretStr | None) -> SecretStr | None:
+        """Rejects an address that could never deliver, naming no value."""
+        if value is not None:
+            plain = value.get_secret_value().strip()
+            if plain and not _EMAIL_RE.fullmatch(plain):
+                raise ValueError("Does not look like an email address.")
+        return value
+
+    def require(self, name: str) -> str:
+        """The plain value of one secret or a ConfigError naming the variable."""
+        value: SecretStr | None = getattr(self, name)
+        if value is None or not value.get_secret_value().strip():
+            raise ConfigError(
+                f"{name.upper()} is not set. Add it to .env (copy .env.example) "
+                f"or export it in the environment."
+            )
+        return value.get_secret_value().strip()
+
+    DISPLAYABLE: ClassVar[frozenset[str]] = frozenset(
+        {"digest_to", "digest_from", "smtp_username"}
+    )
+
+    def present(self) -> dict[str, bool]:
+        """Which secrets are set by variable name. Never their values."""
+        return {
+            name.upper(): bool(self._plain(name)) for name in type(self).model_fields
+        }
+
+    def summary(self) -> dict[str, str]:
+        """One line per secret for `show-config`: email addresses by value and credentials masked."""
+        lines = {}
+        for name in type(self).model_fields:
+            plain = self._plain(name)
+            if not plain:
+                lines[name.upper()] = "missing"
+            else:
+                lines[name.upper()] = plain if name in self.DISPLAYABLE else "present"
+        return lines
+
+    def _plain(self, name: str) -> str:
+        """The stripped value of one field or an empty string when it is unset."""
+        value: SecretStr | None = getattr(self, name)
+        return value.get_secret_value().strip() if value is not None else ""
+
+
+def load_secrets(env_file: Path | None = None) -> Secrets:
+    """Reads the secrets from a specific `.env` when given (tests) or the project's."""
+    target = env_file if env_file is not None else paths.PROJECT_ROOT / ".env"
+    try:
+        return Secrets() if env_file is None else Secrets(_env_file=env_file)
+    except ValidationError as exc:
+        raise ConfigError(_format_validation_error(target, exc)) from exc
+
+
+# ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
 
@@ -290,6 +413,7 @@ class AppConfig:
     search_profile: SearchProfile
     system: SystemConfig
     watchlist: list[CompanyEntry]
+    secrets: Secrets
 
 
 def _read_yaml(path: Path) -> Any:
@@ -348,10 +472,11 @@ def load_watchlist(path: Path | None = None) -> list[CompanyEntry]:
 
 
 def load_all(config_dir: Path | None = None) -> AppConfig:
-    """Load and validate all three files. Raises ConfigError with a readable message."""
+    """Load and validate the three files plus the secrets. Raises ConfigError with a readable message."""
     base = config_dir or paths.CONFIG_DIR
     return AppConfig(
         search_profile=load_search_profile(base / "search_profile.yaml"),
         system=load_system_config(base / "system_config.yaml"),
         watchlist=load_watchlist(base / "companies_watchlist.yaml"),
+        secrets=load_secrets()
     )

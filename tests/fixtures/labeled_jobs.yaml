@@ -1,0 +1,1020 @@
+# Hand-labeled postings for `job-hunters eval-scoring`.
+#
+# Each entry is a real posting sampled from the first live ingest (September
+# 2026), trimmed to its first ~2,000 characters. `relevant` says whether the
+# candidate would want to see it in the digest. The labels encode one person's
+# judgement of the role and not of the location. The location is reported by the
+# command but never applied. `work_mode` is the board's own hint where it gave
+# one, passed to the location parser exactly as an adapter would pass it.
+#
+# Add entries relevant to your search criteria and align them with the rubric
+# in `config/search_profile.yaml`. A wrong label here makes the precision and
+# recall numbers wrong. The borderline ones (see `note`) are exactly where the
+# rubric needs a human's opinion.
+#
+# Fields: id (unique), company, title, location, work_mode, relevant, note and
+# description.
+
+
+- id: anthropic-research-engineer-production-model-post-training
+  company: Anthropic
+  title: Research Engineer, Production Model Post-Training
+  location: Zürich, CH
+  work_mode: onsite
+  relevant: true
+  note: Core post-training role. On-site in Zürich, a priority location.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the role Anthropic's production
+    models undergo sophisticated post-training processes to enhance their capabilities, alignment,
+    and safety. As a Research Engineer on our Post-Training team, you'll train our base models
+    through the complete post-training stack to deliver the production Claude models that users
+    interact with. You'll work at the intersection of cutting-edge research and production
+    engineering, implementing, scaling, and improving post-training techniques like Constitutional
+    AI, RLHF, and other alignment methodologies. Your work will directly impact the quality, safety,
+    and capabilities of our production models. Note: For this role, we conduct all interviews in
+    Python. This role may require responding to incidents on short-notice, including on weekends.
+    Responsibilities: - Implement and optimize post-training techniques at scale on frontier models
+    - Conduct research to develop and optimize post-training recipes that directly improve
+    production model quality - Design, build, and run robust, efficient pipelines for model fine-
+    tuning and evaluation - Develop tools to measure and improve model performance across various
+    dimensions - Collaborate with research teams to translate emerging techniques into production-
+    ready implementations - Debug complex issues in training pipelines and model behavior - Help
+    establish best practices for reliable, reproducible model post-training You may be a good fit if
+    you: - Thrive in controlled chaos and are energised, rather than overwhelmed, when juggling
+    multiple urgent priorities - Adapt quickly to changing priorities - Maintain clarity when
+    debugging complex, time-sensitive issues - Have strong software engineering skills with
+    experience building complex ML systems - Are comfortable working with large-scale distributed
+    systems and high-performance co
+
+- id: anthropic-research-engineer-scientist-alignment
+  company: Anthropic
+  title: Research Engineer / Scientist, Alignment
+  location: San Francisco, CA
+  work_mode: onsite
+  relevant: true
+  note: Alignment research with real experiments, the rubric's second tier.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the role: You want to build and
+    run elegant and thorough machine learning experiments to help us understand and steer the
+    behavior of powerful AI systems. You care about making AI helpful, honest, and harmless, and are
+    interested in the ways that this could be challenging in the context of human-level
+    capabilities. You could describe yourself as both a scientist and an engineer. As a Research
+    Engineer on Alignment Science, you'll contribute to exploratory experimental research on AI
+    safety, with a focus on risks from powerful future systems (like those we would designate as
+    ASL-3 or ASL-4 under our Responsible Scaling Policy), often in collaboration with other teams
+    including Interpretability, Fine-Tuning, and the Frontier Red Team. Our blog provides an
+    overview of topics that the Alignment Science team is either currently exploring or has
+    previously explored. Our current topics of focus include... - Scalable Oversight: Developing
+    techniques to keep highly capable models helpful and honest, even as they surpass human-level
+    intelligence in various domains. - AI Control: Creating methods to ensure advanced AI systems
+    remain safe and harmless in unfamiliar or adversarial scenarios. - Alignment Stress-testing:
+    Creating model organisms of misalignment to improve our empirical understanding of how alignment
+    failures might arise. - Automated Alignment Research: Building and aligning a system that can
+    speed up & improve alignment research. - Alignment Assessments: Understanding and documenting
+    the highest-stakes and most concerning emerging properties of models through pre-deployment
+    alignment and welfare assessments (see our Claude 4 System Card), misalignment-risk safety
+    cases, and coordination with third-party evaluators.
+
+- id: anthropic-research-engineer-model-evaluations
+  company: Anthropic
+  title: Research Engineer, Model Evaluations
+  location: Remote-Friendly (Travel-Required) | San Francisco, CA | New York City, NY
+  work_mode: remote
+  relevant: true
+  note: Evaluation design and the infrastructure to run it for a frontier model.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the role We're looking for
+    Research Engineers to build the evaluations that tell us — and the world — what Claude can
+    actually do. Your work will turn ambiguous notions of "intelligence" into clear, defensible
+    metrics that researchers, leadership, and the public can rely on. You'll design and implement
+    evaluations across the full spectrum of Claude's capabilities and personality, and build the
+    infrastructure that runs them reliably at scale. You'll partner closely with researchers
+    throughout the lifecycle of a new capability — from defining what to measure, to running the
+    eval against live training checkpoints, to interpreting the results. The goal is to make
+    Anthropic the leader in extremely well-characterized AI systems, with performance that is
+    exhaustively measured and validated across the tasks that matter. Key responsibilities - Design
+    and run new evaluations of Claude's capabilities — reasoning, agentic behavior, knowledge,
+    safety properties — and produce visualizations that make the results legible to researchers and
+    decision-makers - Build and harden the distributed eval execution platform so hundreds of evals
+    run reliably against checkpoints throughout production RL training runs - Own the dashboards
+    researchers and leadership use to monitor model health during training, improving signal-to-
+    noise, reducing latency, and making regressions impossible to miss - Debug anomalous eval
+    results mid-training-run, determine whether the cause is a model change or an infrastructure
+    issue, and communicate the answer clearly under time pressure - Improve the tooling, libraries,
+    and workflows researchers use to implement and iterate on evaluations - Partner with research
+    teams across the full lifecycle of a new capability — from defining what to measure to
+    interpreting results as training progresses - Run experiments
+
+- id: baseten-post-training-research-scientist
+  company: Baseten
+  title: Post-Training Research Scientist
+  location: San Francisco
+  work_mode: hybrid
+  relevant: true
+  note: Post-training methodology research at a small lab.
+  description: |
+    ABOUT BASETEN Baseten powers mission-critical inference for the world's most dynamic AI
+    companies, like Cursor, Notion, OpenEvidence, Abridge, Clay, Gamma, and Writer. By uniting
+    applied AI research, flexible infrastructure, and seamless developer tooling, we enable
+    companies operating at the frontier of AI to bring cutting-edge models into production. We're
+    growing quickly and recently raised our $1.5B Series F https://www.baseten.co/blog/announcing-
+    our-series-f/, led by Altimeter Capital, Conviction Partners, and Spark Capital. Join us and
+    help build the platform engineers turn to ship AI products. THE ROLE This role sits at the
+    frontier of our research agenda. You will pursue open problems at the intersection of post-
+    training methodology and performant inference, and then collaborate with research engineering to
+    translate findings into production systems. A meaningful portion of your time will be dedicated
+    to research that deepens our understanding of how models learn, alignment, and architectural
+    efficiency — questions that may not have immediate product application. The remainder will be
+    directed toward research that solves concrete problems for Baseten's platform and customers, who
+    are the fastest growing AI companies in the world like Cursor, Lovable, and Notion. We are
+    looking for someone with sharp research taste and genuine creative instinct for problem
+    selection. Someone who can identify questions that matter, design clean experiments to answer
+    them, and push the state of the art. The environment here is not theoretical, but rather
+    research that can be validated with eager customers who are serving billions of tokens a second.
+
+- id: cohere-member-of-technical-staff-post-training
+  company: Cohere
+  title: Member of Technical Staff, Post-Training
+  location: London
+  work_mode: hybrid
+  relevant: true
+  note: SFT and RL post-training at a lab, London hybrid.
+  description: |
+    Who are we? Cohere is the leading security-first enterprise AI company. We build cutting-edge
+    foundation AI models and end-to-end products that are designed to solve real-world business
+    problems. We’re training and deploying frontier models for enterprises who are building AI
+    systems. We believe that our work is instrumental to the widespread adoption of AI and we are
+    looking for folks that want to be part of that. We obsess over what we build. Each one of us is
+    responsible for contributing to increasing the capabilities of our models and the value they
+    drive for our customers. Cohere is a team of researchers, engineers, designers, and more, who
+    are all passionate about their craft. We are a global technology company headquartered in
+    Toronto with key offices in London, New York City, San Francisco, Montreal, Paris, Berlin and
+    Seoul. Join us! Role Overview: Advance the state of the art for model post training, ship state
+    of the art models to production, and bridge the gap between research and production. We have one
+    of the highest ratio of compute to engineers in the world. We do not delineate strongly between
+    engineering and research. Everyone will contribute to writing production code and supporting our
+    research effort depending on individual interest and organisational needs. We have all the
+    compute, data, and talent available for you to do your best work. Please Note: We have offices
+    in London, Paris, Toronto, San Francisco and New York but also embrace being remote-friendly!
+    Key Responsibilities: - Design and write high-performant and scalable software for training
+    models. - Consistently post-train the models to reach SOTA level performance. - Coordinate with
+    other specialist teams (Agentic, Code…) to produce models that have strong all encompassing
+    performance. - Craft and implement techniques to improve the performance and results of our
+    training cycles both on the SFT and the RL regime. - Research, implement, and experiment with
+    ideas on our supercompute and data infrastructure. - Learn from and work with the best
+    researchers in the field. Qualifications: - Extremely strong software engineering skills.
+
+- id: cohere-senior-research-scientist-model-evaluation
+  company: Cohere
+  title: Senior Research Scientist, Model Evaluation
+  location: Toronto
+  work_mode: hybrid
+  relevant: true
+  note: 'Evaluation research: benchmarks, LLM judges, data quality.'
+  description: |
+    Who are we? Cohere is the leading security-first enterprise AI company. We build cutting-edge
+    foundation AI models and end-to-end products that are designed to solve real-world business
+    problems. We’re training and deploying frontier models for enterprises who are building AI
+    systems. We believe that our work is instrumental to the widespread adoption of AI and we are
+    looking for folks that want to be part of that. We obsess over what we build. Each one of us is
+    responsible for contributing to increasing the capabilities of our models and the value they
+    drive for our customers. Cohere is a team of researchers, engineers, designers, and more, who
+    are all passionate about their craft. We are a global technology company headquartered in
+    Toronto with key offices in London, New York City, San Francisco, Montreal, Paris, Berlin and
+    Seoul. Join us! Role Overview: Evaluation is critical to making progress in scaling
+    intelligence. As models continue to become superhuman in many real-world use cases, we must
+    continue to develop new evaluation techniques that accurately reflect what models are already
+    capable of, as well as set the agenda for what future models should be capable of. In this role,
+    you are responsible for creating these next-generation evaluation methods and infrastructure to
+    measure LLM progress. Key Responsibilities: - Create ambitious new evaluation benchmarks that
+    push the limits of what our models can accomplish. - Work on highly cross-functional teams to
+    translate model feedback into trustworthy, repeatable evaluations. - Conduct research to advance
+    the state-of-the-art in LLM evaluation methods, including training LLM judges; refining LLM-
+    based data synthesis pipelines; and improving evaluation efficiency. - Build scalable and
+    reusable tools for digging into model performance. Qualifications: - You enjoy rapidly building
+    prototypes that demonstrate the boundaries of what LLMs are capable of, and you have developed
+    resources to measure those capabilities. - You have spent dozens of hours reviewing complex data
+    and LLM outputs to ensure high data quality.
+
+- id: cohere-member-of-technical-staff-data-analysis-and-eval
+  company: Cohere
+  title: Member of Technical Staff, Data Analysis and Evaluation
+  location: London
+  work_mode: remote
+  relevant: true
+  note: Annotation quality and evaluation statistics, close to the thesis work on annotator disagreement.
+  description: |
+    Who are we? Cohere is the leading security-first enterprise AI company. We build cutting-edge
+    foundation AI models and end-to-end products that are designed to solve real-world business
+    problems. We’re training and deploying frontier models for enterprises who are building AI
+    systems. We believe that our work is instrumental to the widespread adoption of AI and we are
+    looking for folks that want to be part of that. We obsess over what we build. Each one of us is
+    responsible for contributing to increasing the capabilities of our models and the value they
+    drive for our customers. Cohere is a team of researchers, engineers, designers, and more, who
+    are all passionate about their craft. We are a global technology company headquartered in
+    Toronto with key offices in London, New York City, San Francisco, Montreal, Paris, Berlin and
+    Seoul. Join us! Role Overview: As a Member of Technical Staff in Data Analysis and Evaluation,
+    you will play a pivotal role in ensuring the quality, reliability, and performance of our large
+    language models (LLMs). Your primary focus will be on designing and conducting data collection
+    tasks, assessing and evaluating dataset quality, and analysing the robustness and
+    generalisability of our models. You will work closely with cross-functional teams, including
+    researchers, engineers, and data annotators, to conduct data-driven decision-making and improve
+    the overall effectiveness of our AI systems. This role combines expertise in statistics,
+    experimental design incl. human annotators, and machine learning to ensure that our models are
+    trained on high-quality data and perform reliably across diverse scenarios. You will contribute
+    to Cohere’s mission of advancing AI by ensuring our systems are robust, scalable, and impactful.
+    Please Note: We have offices in London, Paris, Toronto, San Francisco, and New York, but we also
+    embrace being remote-friendly! There are no restrictions on where you can be located for this
+    role. Key Responsibilities: - Design and oversee data collection tasks, including supporting
+    human annotators and ensuring data quality.
+
+- id: cartesia-researcher-post-training
+  company: Cartesia
+  title: Researcher, Post Training
+  location: '*HQ - San Francisco, CA'
+  work_mode: onsite
+  relevant: true
+  note: Preference optimization, evaluation and feedback-driven learning.
+  description: |
+    ABOUT CARTESIA Our mission is to architect AI that learns from and interacts with the world like
+    humans do. We're pioneering the model architectures that will make this possible. Our founding
+    team met as PhDs at the Stanford AI Lab, where we invented State Space Models or SSMs, a new
+    primitive for training efficient, large-scale foundation models. Our team combines deep
+    expertise in model innovation and systems engineering paired with a design-minded product
+    engineering team to build and ship cutting edge models and experiences. We're funded by leading
+    investors at Index Ventures and Lightspeed Venture Partners, along with Factory, Conviction, A
+    Star, General Catalyst, SV Angel, Databricks and others. We're fortunate to have the support of
+    many amazing advisors, and 90+ angels across many industries, including the world's foremost
+    experts in AI. ABOUT THE ROLE The next leap in model intelligence won’t come from scale alone —
+    it will come from better post-training and alignment. Cartesia’s Post-Training team is
+    developing the methods and systems that make multimodal models truly adaptive, aligned, and
+    grounded in human intent. As a Researcher on the Post-Training team, you’ll work at the
+    intersection of machine learning research, alignment, and infrastructure, designing new
+    techniques for preference optimization, model evaluation, and feedback-driven learning. You’ll
+    explore how feedback signals can guide models to reason more effectively across modalities, and
+    you’ll build the infrastructure to measure and improve these behaviors at scale. Your work will
+    directly shape how Cartesia’s foundation models learn, improve, and ultimately connect with
+    people.
+
+- id: cartesia-researcher-evals
+  company: Cartesia
+  title: Researcher, Evals
+  location: '*HQ - San Francisco, CA'
+  work_mode: onsite
+  relevant: true
+  note: Evaluation research for frontier models.
+  description: |
+    ABOUT CARTESIA Our mission is to architect AI that learns from and interacts with the world like
+    humans do. We're pioneering the model architectures that will make this possible. Our founding
+    team met as PhDs at the Stanford AI Lab, where we invented State Space Models or SSMs, a new
+    primitive for training efficient, large-scale foundation models. Our team combines deep
+    expertise in model innovation and systems engineering paired with a design-minded product
+    engineering team to build and ship cutting edge models and experiences. We're funded by leading
+    investors at Index Ventures and Lightspeed Venture Partners, along with Factory, Conviction, A
+    Star, General Catalyst, SV Angel, Databricks and others. We're fortunate to have the support of
+    many amazing advisors, and 90+ angels across many industries, including the world's foremost
+    experts in AI. ABOUT THE ROLE The New Horizons Evaluations team is reimagining how we measure
+    progress in interactive machine intelligence. As Evaluations Lead, you will design evaluation
+    frameworks that capture not just what models know — but how they reason, remember, and interact
+    over time. You’ll work at the intersection of research, product, and infrastructure to develop
+    metrics, systems, and studies that define what “intelligence” means in the next generation of
+    AI. This role is ideal for someone who combines scientific rigor with technical execution, and
+    who’s deeply curious about how people use — and want to use — intelligent systems. Your work
+    will shape how Cartesia builds and evaluates frontier models, ensuring that progress isn’t
+    measured solely by static benchmarks, but by deeper qualities like understanding, naturalness,
+    and adaptability in real-world interaction. YOUR IMPACT - Identify and define key model
+    capabilities and behaviors that matter for next-generation model evals - Develop and implement
+    new evaluation pipelines with robust statistical analysis and clear reporting - Partner closely
+    with model training and research teams to embed evaluation systems directly into model
+    development loops - Prototype new user studies and behavioral experiments to ground evaluations
+    in real-world use.
+
+- id: cartesia-applied-researcher-audio-post-training
+  company: Cartesia
+  title: Applied Researcher, Audio Post-Training
+  location: '*HQ - San Francisco, CA'
+  work_mode: onsite
+  relevant: true
+  note: Post-training and evals, but for audio models. Borderline on modality.
+  description: |
+    ABOUT CARTESIA Our mission is to architect AI that learns from and interacts with the world like
+    humans do. We're pioneering the model architectures that will make this possible. Our founding
+    team met as PhDs at the Stanford AI Lab, where we invented State Space Models or SSMs, a new
+    primitive for training efficient, large-scale foundation models. Our team combines deep
+    expertise in model innovation and systems engineering paired with a design-minded product
+    engineering team to build and ship cutting edge models and experiences. We're funded by leading
+    investors at Index Ventures and Lightspeed Venture Partners, along with Factory, Conviction, A
+    Star, General Catalyst, SV Angel, Databricks and others. We're fortunate to have the support of
+    many amazing advisors, and 90+ angels across many industries, including the world's foremost
+    experts in AI. ABOUT THE ROLE On the Audio Post-Training team, you’ll be building and improving
+    the capabilities that define how the rest of the world interacts with our generative audio
+    models. This team is where customer needs meet research, and covers the full spectrum of
+    modeling from ideation through productionization. On any given day, you might design evaluations
+    to reliably measure new capabilities, build processing pipelines to improve data quality,
+    experiment with finetuning and reinforcement learning approaches to refine model behavior, and
+    more. This role is broad, and cross functional. Members of this team should combine broad
+    research experience with a deep care about building to solve for customer needs and a strong
+    sense of end-to-end ownership. You should be excited to synthesize customer complaints into a
+    holistic understanding of capability gaps, to drive research efforts across data, model
+    training, and evaluation to close those gaps, and to communicate those improvements to product
+    and customer stakeholders. Ultimately, you will be responsible for creating the model experience
+    that the rest of the world sees.
+
+- id: harvey-research-engineer-post-training
+  company: Harvey
+  title: Research Engineer, Post-Training
+  location: San Francisco
+  work_mode: hybrid
+  relevant: true
+  note: Post-training experiments and training recipes for a legal product.
+  description: |
+    WHY HARVEY At Harvey, we’re transforming how legal and professional services operate. By
+    combining frontier agentic AI, an enterprise-grade platform, and deep domain expertise, we’re
+    reshaping how critical knowledge work gets done for decades to come. This is a rare chance to
+    help build a generational company at a true inflection point. We have strong product-market fit
+    and world-class investor support. We’re scaling fast and defining a new category in real time.
+    The work is ambitious, the bar is high, and the opportunity for growth — personal, professional,
+    and financial — is unmatched. Our team moves fast, takes ownership, and is deeply committed to
+    the mission — operating with intensity, staying close to our customers, and pushing each other
+    for excellence. We live by three values: Decisiveness, Simplicity, and Job's Not Finished. We
+    act quickly on clear judgment over perfect information, we believe simplicity is what scales,
+    and we're never satisfied with where we are. If you want to do the best work of your career
+    alongside people who share that drive, we'd love to build with you. At Harvey, the future of
+    professional services is being written today — and we’re just getting started. ROLE OVERVIEW
+    Post-training is how Harvey turns expert feedback and agent traces into models that are
+    meaningfully better at legal work. We are looking for a research engineer who can help scale
+    that loop: defining and running model training experiments, interpreting results, and working
+    with internal and external research partners to build better data, environments, graders, and
+    training recipes. This role is for someone who can self-manage model training and applied
+    research projects. You will work closely with internal and external research collaborators on
+    post-training efforts that matter to our product roadmap. The ideal candidate has extensive
+    hands-on experience training open weight models, either in a research or production setting, and
+    enough engineering depth to run and debug experiments efficiently.
+
+- id: openai-agent-post-training-personality
+  company: OpenAI
+  title: Agent Post-Training, Personality
+  location: San Francisco
+  work_mode: onsite
+  relevant: true
+  note: Post-training through evals, training data and reward signals.
+  description: |
+    ABOUT THE TEAM The Agent Post-Training team creates the frontier agents OpenAI ships to the
+    world. We are training the models behind our agents in Codex, ChatGPT, the API, and other
+    frontier products: persistent, proactive intelligence that can operate computers, collaborate
+    with people and other agents, and expand what people and organizations can imagine, attempt, and
+    achieve. We define what the next generation of agents should be able to do, build the training
+    signal that teaches those abilities, and run the experiments that make them real. Our work spans
+    coding, tool use, computer use, multi-agent coordination, long-horizon execution, factuality,
+    instruction following, calibrated reasoning, and taste. Our team builds the data, environments,
+    graders, training methods, and feedback loops that shape what OpenAI’s next agents can do and
+    what they are like to work with, then carries those improvements through major training runs and
+    into products used by people every day. ABOUT THE ROLE As a member of the Agent Post-training
+    Personality team, you will help make OpenAI’s agents exceptional collaborators. You will study
+    what makes an agent thoughtful, clear, perceptive, appropriately proactive, and genuinely easy
+    to work with, then translate those insights into evals, training data, reward signals, and model
+    improvements. We use “personality” to mean much more than writing style or general likability.
+    It includes whether an agent understands what the user is trying to accomplish, communicates
+    with good judgment, adapts to context, asks useful questions, handles disagreement honestly and
+    takes initiative at the right moments. The goal is to create a strong, tasteful default that can
+    adapt to different people and situations. This work combines behavioral research, product
+    thinking, research and communication taste. You will collaborate with product teams, human
+    experts, and researchers across post-training and pretraining to ensure that improvements
+    survive the full training stack and reach the models people use every day.
+
+- id: anthropic-anthropic-fellows-program-ml-systems-reinforceme
+  company: Anthropic
+  title: Anthropic Fellows Program, ML Systems & Reinforcement Learning
+  location: London, UK; Ontario, CAN; Remote-Friendly, United States; San Francisco, CA
+  work_mode: remote
+  relevant: true
+  note: A four-month funded research fellowship rather than a permanent job, but squarely RL research. A
+    title-only filter misses it.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. Anthropic Fellows Program overview The
+    Anthropic Fellows Program is designed to foster AI research and engineering talent. We provide
+    funding and mentorship to promising technical talent - regardless of previous experience.
+    Fellows will primarily use external infrastructure (e.g. open-source models, public APIs) to
+    work on an empirical project aligned with our research priorities, with the goal of producing a
+    public output (e.g. a paper submission). In one of our earlier cohorts, over 80% of fellows
+    produced papers. We run multiple cohorts of Fellows each year and review applications on a
+    rolling basis. This page is specific to one of the Anthropic Fellows workstreams; see also the
+    main Anthropic Fellows posting. Apply at the bottom of this page. We are accepting applications
+    on a rolling basis for the next cohort expected to start in January 2027. In some circumstances,
+    we can accommodate fellows starting outside the usual cohort timelines — please note in your
+    application if the January 2027 start date doesn't work for you. What to expect - 4 months of
+    full-time research - Direct mentorship from Anthropic researchers - Access to a shared workspace
+    (in either Berkeley, California or London, UK) - Connection to the broader AI safety and
+    security research community - Weekly stipend of 3,850 USD / 2,310 GBP / 4,300 CAD + benefits
+    (these vary by country) - Funding for compute (~$15k/month) and other research expenses
+    Interview process The interview process will include an initial application & reference check,
+    technical assessments & interviews, and a research discussion. We encourage you to apply even if
+    you do not believe you meet every single qualification. Not all strong candidates will meet
+    every single qualification as listed.
+
+- id: cohere-member-of-technical-staff-rl-environments
+  company: Cohere
+  title: Member of Technical Staff - RL Environments
+  location: London
+  work_mode: hybrid
+  relevant: true
+  note: Building RL environments and training and evaluating agents in them.
+  description: |
+    Who are we? Cohere is the leading security-first enterprise AI company. We build cutting-edge
+    foundation AI models and end-to-end products that are designed to solve real-world business
+    problems. We’re training and deploying frontier models for enterprises who are building AI
+    systems. We believe that our work is instrumental to the widespread adoption of AI and we are
+    looking for folks that want to be part of that. We obsess over what we build. Each one of us is
+    responsible for contributing to increasing the capabilities of our models and the value they
+    drive for our customers. Cohere is a team of researchers, engineers, designers, and more, who
+    are all passionate about their craft. We are a global technology company headquartered in
+    Toronto with key offices in London, New York City, San Francisco, Montreal, Paris, Berlin and
+    Seoul. Join us! Role Overview: Building AI agents that can assist with any kind of enterprise
+    work is a challenging, open-ended problem. One key piece of solving it is replicating real work
+    environments as realistically as possible - filling them with hard tasks to solve, creating
+    plausible input data, and defining clear rewards for completing the work the right way. We build
+    many of these reinforcement learning (RL) environments, then drop our agents into them to
+    evaluate or train them. In this role, you are responsible for creating these RL environments,
+    running AI agents inside them, and improving both the agents and the environments in the
+    process. The results reach customers, whose feedback feeds back in - and the agent/environment
+    improvement loop continues. Key Responsibilities: There are many open problems in this space.
+
+- id: perplexity-member-of-technical-staff-ai-researcher
+  company: Perplexity
+  title: Member of Technical Staff (AI Researcher)
+  location: San Francisco
+  work_mode: onsite
+  relevant: true
+  note: SFT, DPO and GRPO post-training of production models.
+  description: |
+    Perplexity is seeking top-tier AI Research Scientists and Engineers to advance our AI products
+    and capabilities. We're building the future of AI-powered search and agent experiences through
+    our Sonar models, Deep Research Agent, Comet Agent, and Search products. Join us in creating
+    SOTA experiences that handle hundreds of millions of queries and continue to scale rapidly. Team
+    Structure Depending on your interests and expertise, you'll work on one of three specialized
+    teams: 1. Core Research Team (Horizontal) Focus on generating and improving base models that
+    power all our products. This team works on foundational model capabilities, post-training
+    techniques, building RL infra and infrastructure that benefits the entire organization. 2. Agent
+    Products Team (Vertical) Concentrate on fine-tuning and optimizing models for our Deep Research
+    Agent and Labs/Canvas products. This team bridges research and product, ensuring our agent
+    capabilities deliver exceptional user experiences. 3. Comet Agent Team (Vertical) Dedicated to
+    developing and enhancing our Comet Agent product. This specialized team focuses on the unique
+    requirements and optimizations needed for Comet's specific use cases. Responsibilities Research
+    & Development - Post-train SOTA LLMs using the latest supervised and reinforcement learning
+    techniques (SFT/DPO/GRPO) - Leverage our rich query/answer dataset to scale model performance
+    across Sonar, Deep Research, Comet, and Search products - Stay current with the latest LLM
+    research, especially in model training, optimization, and personalization techniques - Implement
+    preference optimization and personalization capabilities to enhance user experience - Invent in-
+    house improvements and optimizations to enhance SOTA models - Turn research ideas into
+    algorithms and run experiments to launch new models Infrastructure & Implementation - Own full-
+    stack data, training, and evaluation pipelines required for model development - Build robust and
+    effective training frameworks (on top of Megatron/PyTorch) for post-training LLMs - Implement
+    necessary infrastructure and components to support cutting-edge model training at scale -
+    Integrate m
+
+- id: openai-research-engineer-research-scientist-personal-ag
+  company: OpenAI
+  title: Research Engineer / Research Scientist - Personal AGI, Memory
+  location: San Francisco
+  work_mode: onsite
+  relevant: true
+  note: Post-training, evaluation and RL research on memory.
+  description: |
+    About the Team The Personalization-Memory team, within OpenAI's broader Personal AGI
+    organization, is focused on developing agents that can learn from prior interactions in order to
+    become more helpful and efficient over time. We build general-purpose memory and personalization
+    capabilities that transfer across ChatGPT and other agentic products, and we collaborate with
+    applied engineering on the product surfaces that allow users to interact with memory. About the
+    Role As a Research Engineer / Research Scientist on the Personalization-Memory team, your work
+    will span memory architecture, post-training, and developing long-horizon tasks for training and
+    evaluations. We're looking for individuals who have a background in reinforcement learning
+    research, are able to iterate quickly, and who can convert scientific rigor and long-term
+    research into realized product impact. This role is based in San Francisco, CA. We use a hybrid
+    work model of 3 days in the office per week and offer relocation assistance to new employees. In
+    this role, you will: - Own and pursue a research agenda for improving long-horizon memory and
+    personalization in frontier models. - Build robust evaluations for tracking modeling
+    improvements. - Design, implement, test, and debug code across our research stack. - Collaborate
+    closely with the research and product teams to influence the shape of technical solutions in the
+    product. You might thrive in this role if you: - Love being on the cutting edge of RL and
+    frontier model research. - Value principled approaches and research craftsmanship. - Are
+    passionate about long-horizon tasks, memory, and turning your research into product impact. -
+    Are comfortable diving into a large ML codebase to debug. - Thrive in a fast-paced, dynamic, and
+    technically complex environment. About OpenAI OpenAI is an AI research and deployment company
+    dedicated to ensuring that general-purpose artificial intelligence benefits all of humanity. We
+    push the boundaries of the capabilities of AI systems and seek to safely deploy them to the
+    world through our products.
+
+- id: anthropic-ml-research-engineer-safeguards
+  company: Anthropic
+  title: ML/Research Engineer, Safeguards
+  location: San Francisco, CA | New York City, NY
+  work_mode: onsite
+  relevant: true
+  note: 'Classifier training, evaluations and automated red-teaming research. Borderline: closer to applied
+    safety engineering than to post-training.'
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the role We are looking for ML
+    Engineers and Research Engineers to help detect and mitigate misuse of our AI systems. As a
+    member of the Safeguards ML team, you will build systems that identify harmful use—from
+    individual policy violations to sophisticated, coordinated attacks—and develop defenses that
+    keep our products safe as capabilities advance. You will also work on systems that protect user
+    wellbeing and ensure our models behave appropriately across a wide range of contexts. This work
+    feeds directly into Anthropic's Responsible Scaling Policy commitments. Responsibilities -
+    Develop classifiers to detect misuse and anomalous behavior at scale. This includes developing
+    synthetic data pipelines for training classifiers and methods to automatically source
+    representative evaluations to iterate on - Build systems to monitor for harms that span multiple
+    exchanges, such as coordinated cyber attacks and influence operations, and develop new methods
+    for aggregating and analyzing signals across contexts - Evaluate and improve the safety of
+    agentic products—developing both threat models and environments to test for agentic risks, and
+    developing and deploying mitigations for prompt injection attacks - Conduct research on
+    automated red-teaming, adversarial robustness, and other research that helps test for or find
+    misuse You may be a good fit if you - Have 4+ years of experience in ML engineering, research
+    engineering, or applied research, in academia or industry - Have proficiency in Python and
+    experience building ML systems - Are comfortable working across the research-to-deployment
+    pipeline, from exploratory experiments to production systems - Are worried about misuse risks of
+    AI systems, and want to work to mitigate them - Have strong communication skills and ability to
+    explain complex technical concepts to non-tec
+
+- id: anthropic-research-engineer-rl-engineering
+  company: Anthropic
+  title: Research Engineer, RL Engineering
+  location: San Francisco, CA | New York City, NY | Seattle, WA
+  work_mode: onsite
+  relevant: false
+  note: Systems engineering serving RLHF researchers. The rubric penalizes infrastructure without a research
+    component.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the role: You want to build the
+    cutting-edge systems that train AI models like Claude. You're excited to work at the frontier of
+    machine learning, implementing and improving advanced techniques to create ever more capable,
+    reliable and steerable AI. As an ML Systems Engineer on our Reinforcement Learning Engineering
+    team, you'll be responsible for the critical algorithms and infrastructure that our researchers
+    depend on to train models. Your work will directly enable breakthroughs in AI capabilities and
+    safety. You'll focus obsessively on improving the performance, robustness, and usability of
+    these systems so our research can progress as quickly as possible. You're energized by the
+    challenge of supporting and empowering our research team in the mission to build beneficial AI
+    systems. Our finetuning researchers train our production Claude models, and internal research
+    models, using RLHF and other related methods. Your job will be to build, maintain, and improve
+    the algorithms and systems that these researchers use to train models. You’ll be responsible for
+    improving the speed, reliability, and ease-of-use of these systems.
+
+- id: baseten-post-training-research-engineer
+  company: Baseten
+  title: Post-Training Research Engineer
+  location: San Francisco
+  work_mode: hybrid
+  relevant: false
+  note: 'Sits in a post-training team, but the role is training infrastructure: Kubernetes, storage, GPU
+    kernels.'
+  description: |
+    ABOUT BASETEN Baseten powers mission-critical inference for the world's most dynamic AI
+    companies, like Cursor, Notion, OpenEvidence, Abridge, Clay, Gamma, and Writer. By uniting
+    applied AI research, flexible infrastructure, and seamless developer tooling, we enable
+    companies operating at the frontier of AI to bring cutting-edge models into production. We're
+    growing quickly and recently raised our $1.5B Series F https://www.baseten.co/blog/announcing-
+    our-series-f/, led by Altimeter Capital, Conviction Partners, and Spark Capital. Join us and
+    help build the platform engineers turn to ship AI products. We are looking for an engineer with
+    strong experience in machine learning and solid foundations in maths and computer science to
+    join our growing Post-Training team at Baseten. THE ROLE Custom models are instrumental to the
+    success of Baseten customers. By inference volume, the overwhelming majority of traffic at
+    Baseten is to and from models that have been post-trained in some way, whether that be through
+    reinforcement learning, supervised finetuning, a recent technique from the literature, or an in-
+    house research technique from Baseten. The Post-Training team is responsible for the success of
+    our customers’ post-trained models, and we employ a wide array of techniques to produce models
+    that are more efficient and higher quality than even the biggest closed source models for the
+    customer’s specific needs. Your role as a research engineer is to build the in-house tooling to
+    support all of this. We care about training a wide spectrum of different model architectures
+    with a variety of techniques efficiently and at scale. At times this involves zooming deep into
+    a particular technical topic, but more often if involves working across the stack as a whole -
+    systems-level concepts like Kubernetes, cgroups, storage systems, and networking topologies, as
+    well as PyTorch distributed tensor computation, and GPU kernels.
+
+- id: fireworks-ai-member-of-technical-staff-evals-post-training-pr
+  company: Fireworks AI
+  title: Member of Technical Staff, Evals & Post-Training Product
+  location: San Mateo
+  work_mode: onsite
+  relevant: false
+  note: Evaluation and fine-tuning infrastructure and product surfaces, not research.
+  description: |
+    ABOUT US: Fireworks is the platform for specialized intelligence, enabling companies to build,
+    train, and serve AI models tailored to their own data, workflows, and products. Founded by the
+    team behind PyTorch and backed by AMD, Atreides, Benchmark Capital, Index Ventures, Lightspeed,
+    NVIDIA, Sequoia Capital, and TCV, Fireworks powers production AI with hundreds of state-of-the-
+    art open models across text, image, embedding, audio, and multimodal workloads. Today, Fireworks
+    is a Series D company valued at $17.5 billion, bringing together an ambitious, collaborative
+    team that's building the future of enterprise AI. We are seeking a Member of Technical Staff,
+    Evals & Post-Training Product to help define how developers improve models on Fireworks. This
+    role sits at a unique intersection of scalable system design, deep data science, and model
+    quality. You will build the infrastructure and workflows that connect evaluation and post-
+    training. Our evaluation setup has grown past its original scope, and we need someone who can
+    take it to the next stage, improving programmatic access and scale. You will work across backend
+    systems, sandbox infrastructure, and user-facing surfaces to make it easier to author evals,
+    understand results, and iterate quickly. KEY RESPONSIBILITIES - Scale Eval Infrastructure: Take
+    ownership of our internal eval setup and evolve it for the future. You will design systems to
+    eliminate single-host coordination bottlenecks, resolve log-syncing latency, and build seamless
+    programmatic access. - Benchmark Obsession & Reproduction: Act as a "metrics obsessive." Track
+    state-of-the-art (SOTA) benchmarks, read the latest research papers, dig deep into data
+    discrepancies, and insist on rigorously reproducing published results internally. - Pioneer New
+    Benchmarks: Design and build entirely new benchmarks to measure model performance on complex,
+    emerging, or domain-specific use cases. - Own Fine-Tuning Product Experiences: Build and improve
+    user-facing workflows for post-training, including fine-tuning experiences across SFT, RFT, and
+    related model-improvement capabilities.
+
+- id: anthropic-technical-program-manager-research
+  company: Anthropic
+  title: Technical Program Manager, Research
+  location: San Francisco, CA | New York City, NY
+  work_mode: onsite
+  relevant: false
+  note: Program management.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the Role Anthropic's research
+    organization works across the full model development lifecycle, from pre-training and post-
+    training to alignment, interpretability, and safety, each operating at the frontier of AI
+    development. As a Technical Program Manager for Research, you'll define and build the programs
+    that research teams need most. You'll move across research areas like compute, evals, RL
+    environments, and emerging research initiatives, going deep enough in each to understand how
+    researchers work and what they need. You'll identify where the biggest opportunities for impact
+    lie, find the highest-leverage gaps, and build the programs, processes, and tooling that allow
+    researchers to focus on research. This is a 0-to-1 role: you'll explore new domains as
+    priorities shift, determine what each one needs, and create lasting impact where none existed
+    before. Note: This role may require responding to incidents on short-notice, including on
+    weekends.
+
+- id: anthropic-product-designer-evals-prompts
+  company: Anthropic
+  title: Product Designer, Evals & Prompts
+  location: San Francisco, CA
+  work_mode: onsite
+  relevant: false
+  note: Product design.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the role Prompts spec out what
+    Claude does. Evals measure whether it did. The Product Prompt and Eval Design team does both for
+    product design: the system prompt that greets a new user, the tool descriptions that decide
+    whether Claude searches, the instructions that keep a slide deck from tipping into slop, and the
+    evals that test all of it. The point is to keep the model and the product aligned with what
+    users expect, what the product strategy calls for, and what safety requires, on every surface
+    and through every model launch. This role is a foundational member of that work on the eval
+    side: building the evals that check the prompts, the harness that runs them, and the tools that
+    let designers do this work themselves. It sits on the Product Prompt and Eval Design team in
+    Product Design, works day to day with the team's surface owners and the engineers in each
+    product team, and pairs per surface with the prompt engineering team at model releases.
+
+- id: anthropic-research-engineer-pretraining
+  company: Anthropic
+  title: Research Engineer, Pretraining
+  location: London, UK
+  work_mode: onsite
+  relevant: false
+  note: Pretraining, not post-training or evaluation.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. Anthropic is at the forefront of AI
+    research, dedicated to developing safe, ethical, and powerful artificial intelligence. Our
+    mission is to ensure that transformative AI systems are aligned with human interests. We are
+    seeking a Research Engineer to join our Pretraining team, responsible for developing the next
+    generation of large language models. In this role, you will work at the intersection of cutting-
+    edge research and practical engineering, contributing to the development of safe, steerable, and
+    trustworthy AI systems. Key Responsibilities: - Conduct research and implement solutions in
+    areas such as model architecture, algorithms, data processing, and optimizer development -
+    Independently lead small research projects while collaborating with team members on larger
+    initiatives - Design, run, and analyze scientific experiments to advance our understanding of
+    large language models - Optimize and scale our training infrastructure to improve efficiency and
+    reliability - Develop and improve dev tooling to enhance team productivity - Contribute to the
+    entire stack, from low-level optimizations to high-level model design Qualifications: - Advanced
+    degree (MS or PhD) in Computer Science, Machine Learning, or a related field - Strong software
+    engineering skills with a proven track record of building complex systems - Expertise in Python
+    and experience with deep learning frameworks (PyTorch preferred) - Familiarity with large-scale
+    machine learning, particularly in the context of language models - Ability to balance research
+    goals with practical engineering constraints - Strong problem-solving skills and a results-
+    oriented mindset - Excellent communication skills and ability to work in a collaborative
+    environment - Care about the societal impacts of your work Preferred Experience: - Work on high-
+    perfor
+
+- id: anthropic-cyber-evaluations-engineer
+  company: Anthropic
+  title: Cyber Evaluations Engineer
+  location: San Francisco, CA | Washington, DC
+  work_mode: onsite
+  relevant: false
+  note: Requires hands-on offensive security experience.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the role We're hiring Cyber
+    Evaluations Engineers to build and run the evaluations that measure cyber-relevant capabilities
+    and safeguard robustness in our models. You'll design new evals, run per-release robustness
+    testing, and dig into data on jailbreaks and prompt bypasses to understand where our safeguards
+    hold up and where they don't. You'll also design many of the probes that detect cyber abuse in
+    production and help shape the overall detection architecture alongside the policy team. Key
+    responsibilities - Design and run capability, uplift, and safety evaluations to assess cyber-
+    relevant risk in new models - Execute per-release safeguard-robustness testing ahead of major
+    model launches - Analyze evaluation results and communicate findings clearly to the team and to
+    stakeholders - Design, prototype, and tune detection probes for cyber misuse - Work with the
+    cyber policy team to turn policy lines into a layered, robust abuse-detection architecture, and
+    measure its precision and coverage over time - Build and maintain internal tooling used to run
+    and score evaluations - Collaborate with policy and engineering partners to translate eval
+    findings into safeguard improvements Minimum qualifications - Experience building or running
+    evaluations, benchmarks, or test suites for software or ML systems, including delivering results
+    on short, fixed timelines - Hands-on cybersecurity experience (e.g., CTF participation,
+    vulnerability research, exploit development, or security research) - Proficiency in Python -
+    Strong ability to communicate evaluation results with multiple cross-functional stakeholders or
+    potential policy stakeholders Preferred qualifications - Deep offensive-security or security-
+    research experience, including experience building AI security benchmarks - Experience analyzing
+    adversaria
+
+- id: luma-ai-research-scientist-world-model
+  company: Luma AI
+  title: Research Scientist - World Model
+  location: Redwood City, CA
+  work_mode: hybrid
+  relevant: false
+  note: Generative video world models, outside the search domain.
+  description: |
+    You'll turn Luma's industry-leading generative video models into world models: interactive,
+    controllable, physically faithful, and useful as a substrate for embodied reasoning. This is the
+    role at the center of the thesis. You'll invent next-generation world-model architectures and
+    the controllability that lets an agent step into a generated world, and own the metrics that
+    define success. It fits a researcher with deep generative-modeling or model-based-RL expertise
+    who has trained models to the limits of a multi-node cluster. If you want a narrow, well-scoped
+    research problem, this is broader and more open-ended than that. What You'll Own - Invent next-
+    generation world-model architectures (diffusion, transformer, autoregressive, or hybrid),
+    focused on controllability and physical consistency. - Develop controllability mechanisms —
+    action conditioning, view conditioning, long-horizon rollouts — that let an agent step into the
+    world. - Define and own the metrics: physical fidelity, long-horizon coherence, action-
+    following, and downstream usefulness for policy training. - Run scaling studies that show where
+    compute, data, and architecture pay off. - Publish at the frontier and contribute to the open-
+    source release that is the long-term deliverable. First 90 Days One way the first 90 could
+    unfold. - Days 1–30 — Immerse & Diagnose: Get deep on the current video models and where they
+    fall short as world models. - Days 30–60 — Ship & Validate: Prototype a controllability
+    mechanism or architecture change and measure it against physical-fidelity and action-following
+    metrics. - Days 60–90 — Scale & Systemize: Run scaling studies and push the most promising
+    direction toward the open release. What You Bring - PhD or equivalent research record in ML,
+    computer vision, robotics, or a related field. - Deep expertise in at least one of: large-scale
+    generative modeling (video/3D/world), self-supervised representation learning, or model-based
+    RL. - Strong PyTorch and large-scale training experience, to the limits of a multi-node cluster.
+    - A research record the field knows (top-venue publications and/or widely used open releases).
+
+- id: cohere-staff-research-engineer-model-efficiency
+  company: Cohere
+  title: Staff Research Engineer, Model Efficiency
+  location: New York
+  work_mode: remote
+  relevant: false
+  note: Inference efficiency engineering.
+  description: |
+    Who are we? Cohere is the leading security-first enterprise AI company. We build cutting-edge
+    foundation AI models and end-to-end products that are designed to solve real-world business
+    problems. We’re training and deploying frontier models for enterprises who are building AI
+    systems. We believe that our work is instrumental to the widespread adoption of AI and we are
+    looking for folks that want to be part of that. We obsess over what we build. Each one of us is
+    responsible for contributing to increasing the capabilities of our models and the value they
+    drive for our customers. Cohere is a team of researchers, engineers, designers, and more, who
+    are all passionate about their craft. We are a global technology company headquartered in
+    Toronto with key offices in London, New York City, San Francisco, Montreal, Paris, Berlin and
+    Seoul. Join us! Role Overview: Large Language Models (LLMs) continue to push the boundaries of
+    what AI systems can do — but inference is still the bottleneck. The Model Efficiency team is
+    responsible for pushing the limits of LLM inference efficiency across our foundation models. We
+    explore and ship breakthroughs across the model execution stack, including: - model architecture
+    and MoE routing optimization - decoding and inference-time algorithm improvements -
+    software/hardware co-design for GPU acceleration - performance optimization without compromising
+    model quality Please Note: We have offices in Toronto, Montreal, San Francisco, New York, Paris,
+    Seoul and London. We embrace a remote-friendly environment, and as part of this approach, we
+    strategically distribute teams based on interests, expertise, and time zones to promote
+    collaboration and flexibility. You'll find the Model Efficiency team concentrated in the EST and
+    PST time zones, these are our preferred locations. Key Responsibilities: As a Staff Research
+    Engineer, you will develop, prototype, and deploy techniques that materially improve how fast
+    and efficiently our models run in production.
+
+- id: harvey-senior-product-operations-manager-evaluation
+  company: Harvey
+  title: Senior Product Operations Manager, Evaluation
+  location: San Francisco
+  work_mode: hybrid
+  relevant: false
+  note: Operations role.
+  description: |
+    WHY HARVEY At Harvey, we’re transforming how legal and professional services operate. By
+    combining frontier agentic AI, an enterprise-grade platform, and deep domain expertise, we’re
+    reshaping how critical knowledge work gets done for decades to come. This is a rare chance to
+    help build a generational company at a true inflection point. We have strong product-market fit
+    and world-class investor support. We’re scaling fast and defining a new category in real time.
+    The work is ambitious, the bar is high, and the opportunity for growth — personal, professional,
+    and financial — is unmatched. Our team moves fast, takes ownership, and is deeply committed to
+    the mission — operating with intensity, staying close to our customers, and pushing each other
+    for excellence. We live by three values: Decisiveness, Simplicity, and Job's Not Finished. We
+    act quickly on clear judgment over perfect information, we believe simplicity is what scales,
+    and we're never satisfied with where we are. If you want to do the best work of your career
+    alongside people who share that drive, we'd love to build with you. At Harvey, the future of
+    professional services is being written today — and we’re just getting started. ROLE OVERVIEW
+    We’re looking for a technical, systems-minded operator to build and scale the evaluation engine
+    behind Harvey’s platform. As we expand globally, ensuring our models behave reliably,
+    accurately, and jurisdictionally correctly is mission-critical—and evaluation complexity is
+    increasing 10x. As a member of our Product Operations team, you’ll work closely with Applied
+    Legal Researchers, Product, Engineering, AI Research, and human data providers to operationalize
+    evaluation methodologies and embed them into our product development lifecycle. You’ll create
+    the workflows, systems, and tooling that make evaluation a first-class product capability at
+    Harvey. This is a high-ownership role for someone who thrives in ambiguity, loves building
+    structure, and wants to help scale the evaluation infrastructure of a global AI company.
+
+- id: scale-ai-senior-manager-research-scientist
+  company: Scale AI
+  title: Senior Manager, Research Scientist
+  location: San Francisco, CA; New York, NY
+  work_mode: onsite
+  relevant: false
+  note: People management of a research team.
+  description: |
+    Scale AI accelerates the development of AI systems by providing the data, infrastructure, and
+    tooling that power the most advanced models in the world. Our teams operate at the intersection
+    of cutting-edge research, large-scale engineering, and real-world deployment, partnering with
+    leading frontier labs, enterprises, and government agencies to push Generative AI into new
+    capabilities and applications. As AI rapidly evolves from static models to dynamic, agentic
+    systems, Scale is building the foundational research, evaluation methodologies, and agent/RL
+    infrastructure that will define this next era. You’ll join a high-impact research organization
+    driving advances in large-language models, post-training, evaluation, and agentic/RL
+    environments, helping shape how next-generation AI is built, measured, and deployed. As a
+    Research Scientist Manager, you will lead a world-class team of research scientists and
+    engineers, define the research roadmap, and drive execution from early prototyping to
+    deployment. You’ll thrive in a fast-moving environment, balancing deep technical leadership with
+    people management, vision setting, and delivery. You will: - Lead, mentor and grow a team of
+    research scientists and engineers working on GenAI research initiatives (e.g., evaluation, post-
+    training, agents, RL environments). - Define and drive a multi-year research roadmap: identify
+    key scientific questions, set milestones, allocate resources, and ensure rigorous execution. -
+    Collaborate cross-functionally with engineering, product, client-facing teams and external
+    academic or industry partners to translate research into components, insights, and actionable
+    outcomes. - Communicate compellingly: publish research, present at conferences, engage in open-
+    source contributions, and represent the team externally. - Drive an inclusive, high-performing
+    culture: help your team through technical challenges, provide growth opportunities, and attract
+    top talent. - Stay deeply connected to the research community, understanding major trends, and
+    helping set them.
+
+- id: anthropic-strategic-account-executive-cybersecurity
+  company: Anthropic
+  title: Strategic Account Executive, Cybersecurity
+  location: San Francisco, CA
+  work_mode: onsite
+  relevant: false
+  note: Sales.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the Role As a Strategic Account
+    Executive focused on cybersecurity, you'll own some of Anthropic's most strategic cybersecurity
+    relationships—companies building the next generation of AI-powered security products. These
+    aren't typical enterprise accounts; they're partners shaping how AI transforms the entire
+    security industry. You'll drive multi-million dollar commitments by expanding Claude's footprint
+    across customer product portfolios (AI-powered SOC, threat detection, security copilots) and
+    internal operations (Claude Code for engineering teams). You'll work at the intersection of
+    executive relationships and technical depth—one week you're in a CTO strategy session, the next
+    you're helping an engineering team scope an agentic deployment. This role requires someone who
+    can think like a partner, not just a seller. You'll collaborate closely with our Applied AI team
+    on custom deployments, work with Product on cybersecurity-specific capabilities, and help shape
+    Anthropic's go-to-market in one of our highest-potential verticals. Responsibilities: - Win
+    business and drive revenue within a book of strategic cybersecurity accounts.Own the full sales
+    cycle from prospecting to close - Drive expansion across multiple buying centers within
+    strategic accounts—product teams building customer-facing AI features, platform teams deploying
+    Claude Code to engineering orgs, and security research teams exploring frontier capabilities -
+    Navigate complex organizational structures across security, product, engineering, and executive
+    teams.
+
+- id: anthropic-staff-senior-software-engineer-inference-infrast
+  company: Anthropic
+  title: Staff + Senior Software Engineer, Inference Infrastructure
+  location: San Francisco, CA | New York City, NY | Seattle, WA
+  work_mode: onsite
+  relevant: false
+  note: Inference infrastructure engineering.
+  description: |
+    About Anthropic Anthropic’s mission is to create reliable, interpretable, and steerable AI
+    systems. We want AI to be safe and beneficial for our users and for society as a whole. Our team
+    is a quickly growing group of committed researchers, engineers, policy experts, and business
+    leaders working together to build beneficial AI systems. About the role Our Inference team is
+    responsible for building and maintaining the critical systems that serve Claude to millions of
+    users worldwide. We bring Claude to life by serving our models via the industry’s largest
+    compute-agnostic inference deployments. We are responsible for the entire stack from intelligent
+    request routing to fleet-wide orchestration across diverse AI accelerators. The team has a dual
+    mandate: maximizing compute efficiency to reliably serve our explosive customer growth, while
+    enabling breakthrough research by giving our scientists the high-performance inference
+    infrastructure they need to develop next-generation models. We tackle complex, distributed
+    systems challenges across multiple accelerator families and emerging AI hardware running in
+    multiple cloud platforms. Inference systems are highly performance sensitive distributed
+    systems. Inference serves hundreds of thousands of customers every day, and the size & span of
+    the inference fleet requires sophisticated routing, scaling, and networking systems.
+
+- id: cohere-early-careers-interns-specialist
+  company: Cohere
+  title: Early Careers & Interns Specialist
+  location: United States
+  work_mode: onsite
+  relevant: false
+  note: Recruiting.
+  description: |
+    Who are we? Cohere is the leading security-first enterprise AI company. We build cutting-edge
+    foundation AI models and end-to-end products that are designed to solve real-world business
+    problems. We’re training and deploying frontier models for enterprises who are building AI
+    systems. We believe that our work is instrumental to the widespread adoption of AI and we are
+    looking for folks that want to be part of that. We obsess over what we build. Each one of us is
+    responsible for contributing to increasing the capabilities of our models and the value they
+    drive for our customers. Cohere is a team of researchers, engineers, designers, and more, who
+    are all passionate about their craft. We are a global technology company headquartered in
+    Toronto with key offices in London, New York City, San Francisco, Montreal, Paris, Berlin and
+    Seoul. Join us! Why this role? Cohere is in a unique and exciting position to grow our go-to-
+    market teams globally! We are expanding our Talent Team and are looking for a dedicated Early
+    Careers & Interns Specialist to help us build a world-class pipeline of future AI talent. In
+    this role, you will design and execute comprehensive early careers programs that attract,
+    develop, and retain top student and recent graduate talent, positioning Cohere as the premier
+    destination for ambitious early-career professionals in AI.
+
+- id: perplexity-internship-search-machine-learning-engineer
+  company: Perplexity
+  title: Internship - Search Machine Learning Engineer
+  location: Belgrade
+  work_mode: onsite
+  relevant: false
+  note: Internship for students enrolled at a Serbian university.
+  description: |
+    Perplexity is looking for a Search Machine Learning Engineer Intern to help build the next
+    generation of advanced search technologies, with a focus on retrieval and ranking. You will work
+    closely with experienced engineers to improve search quality, experiment with new models, and
+    ship features that directly impact how users search and discover information. Internship
+    program: 12 - 24 weeks, full-time, part-time, in-person in the Belgrade office.
+    Responsibilities: - Contribute to experiments that improve search quality through better models,
+    data usage, and evaluation tools, under the guidance of senior engineers. - Design and implement
+    components of the search platform and model stack, including retrieval, ranking, and
+    classification models. - Train evaluating models (including LLM-based approaches) for retrieval,
+    ranking, and classification tasks. - Support deployment and monitoring of search and ranking
+    models in a scalable and performant way. - Help build and iterate on RAG pipelines for grounding
+    and answer generation. - Collaborate with Data, AI, Infrastructure and Product teams to deliver
+    improvements quickly and learn best practices in production ML. Qualifications: - Strong
+    foundation in machine learning and statistics, with coursework or projects related to
+    information retrieval, ranking, or recommender systems. - Experience with Python and common ML
+    frameworks (e.g. PyTorch, TensorFlow, JAX) through academic, open source, or personal projects.
+    - Familiarity with evaluating model quality using offline metrics and/or A/B testing is a plus,
+    but not required. - Previous experience (internships, research, or significant projects) working
+    on search, recommendation, or NLP is a plus, but not required. - Self-driven and curious, with a
+    strong sense of ownership, willingness to learn, and comfort working in a fast-paced environment
+    - Experience with Rust will be a plus What we're looking for: - You’ve built something you’re
+    proud of: Not just a class assignment - we want to see a project you genuinely cared about and
+    took the initiative to build and finish.
+
+- id: crusoe-senior-director-developer-advocacy
+  company: Crusoe
+  title: Senior Director, Developer Advocacy
+  location: Bellevue, WA - US
+  work_mode: onsite
+  relevant: false
+  note: Developer advocacy at director level.
+  description: |
+    Crusoe is on a mission to accelerate the abundance of energy and intelligence. As the only
+    vertically integrated AI infrastructure company built from the ground up, we own and operate
+    each layer of the stack — from electrons to tokens — to power the world's most ambitious AI
+    workloads. When you join Crusoe, you join a team that is building the future, faster. We're in
+    the midst of the greatest industrial revolution of our time. The demand for AI compute is
+    boundless, and power is a bottleneck. We're solving that — with an energy-first approach that
+    makes AI infrastructure better for the world and faster for the people innovating with AI. We're
+    looking for problem-solving, opportunity-finding teammates with a sense of urgency, who believe
+    in the scale of our ambition and thrive on a path not fully paved — people who want to grow
+    their careers alongside a team of experts across energy, manufacturing, data center
+    construction, and cloud services. If you want to do the most meaningful work of your career,
+    help our customers and partners advance their AI strategies, and be part of a high-performing
+    team that believes in each other, come build with us at Crusoe. About the Role: As our Senior
+    Director, Developer Advocacy, you are the public face of Crusoe Cloud to the developers, ML
+    engineers, and technical builders who shape where AI infrastructure goes next. You carry that
+    same voice to the architects, technical decision makers, and executives who shape AI
+    infrastructure decisions. This is a rare role for someone who is equally at home in front of a
+    camera and inside a terminal. You have real technical credibility, you know how to earn the
+    trust of practitioners, and you know how to turn that trust into awareness, interest, and
+    adoption. You don't market at developers. You build with them, talk like one of them, and show
+    up where they already are. You will define how Crusoe Cloud engages developers across social
+    platforms and technical communities, helping us cut through the noise with a cohesive narrative.

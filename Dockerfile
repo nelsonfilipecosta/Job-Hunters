@@ -27,6 +27,9 @@ COPY src/ ./src/
 COPY config/ ./config/
 RUN uv sync --frozen --no-dev
 
+# The labeled postings `job-hunters eval-scoring` measures the judge against.
+COPY tests/fixtures/labeled_jobs.yaml ./tests/fixtures/labeled_jobs.yaml
+
 # Put the virtualenv first on PATH so `uvicorn`, `python` and `job-hunters`
 # all resolve to the installed project without needing `uv run`.
 ENV PATH="/app/.venv/bin:$PATH"

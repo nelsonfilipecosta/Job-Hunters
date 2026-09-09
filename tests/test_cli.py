@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from job_hunters import paths
 from job_hunters.cli import main
 
 
@@ -89,3 +90,98 @@ def test_a_git_safety_error_exits_1_without_a_traceback(capsys, monkeypatch) -> 
     captured = capsys.readouterr()
     assert "error:" in captured.err.lower()
     assert "data/secret.db" in captured.err
+
+
+def test_show_config_reports_secrets_without_their_values(capsys) -> None:
+    """The summary says whether each secret is set and never what it is."""
+    main(["show-config"])
+    out = capsys.readouterr().out
+    assert ".env" in out and "ANTHROPIC_API_KEY" in out
+    assert "sk-ant" not in out
+
+
+def test_score_dry_run_needs_no_key_and_writes_nothing(session, capsys) -> None:
+    """`score --dry-run` runs the prefilter on the database and exits 0 without an API key."""
+    assert main(["score", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "candidates" in out and "Dry run" in out
+
+
+def test_score_without_a_key_fails_by_name(session, monkeypatch, capsys) -> None:
+    """A missing key is a config error naming the variable and not a traceback from the SDK."""
+    from dataclasses import replace
+
+    from job_hunters import scoring
+    from job_hunters.config import Secrets
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    real_load_all = scoring.load_all
+
+    def without_dotenv():
+        """The real config, but with secrets read from the environment alone."""
+        return replace(real_load_all(), secrets=Secrets(_env_file=None))
+
+    monkeypatch.setattr(scoring, "load_all", without_dotenv)
+
+    assert main(["score"]) == 1
+    err = capsys.readouterr().err
+    assert "ANTHROPIC_API_KEY" in err and "Traceback" not in err
+
+
+def test_a_cache_warning_names_the_configured_model_not_a_hardcoded_one(capsys, monkeypatch) -> None:
+    """The judge model comes from `system_config.yaml`, so the warning must quote that model's minimum."""
+    from job_hunters import cli
+    from job_hunters.scoring import ScoringReport
+
+    def canned(**_kwargs):
+        """A run that judged two texts and never read the cache back."""
+        return ScoringReport(judged=2, scored=2, cold_calls=1, model="claude-sonnet-5")
+
+    monkeypatch.setattr(cli, "run_scoring", canned)
+
+    assert main(["score"]) == 0
+    err = capsys.readouterr().err
+    assert "1,024 tokens for claude-sonnet-5" in err
+    assert "Haiku" not in err and "4,096" not in err
+
+
+def test_a_cache_warning_omits_the_number_for_an_unrecognised_model(capsys, monkeypatch) -> None:
+    """A model the table does not know is reported by name, without inventing a minimum for it."""
+    from job_hunters import cli
+    from job_hunters.scoring import ScoringReport
+
+    def canned(**_kwargs):
+        """A run on a model published after this table was last updated."""
+        return ScoringReport(judged=2, scored=2, cold_calls=1, model="claude-haiku-9")
+
+    monkeypatch.setattr(cli, "run_scoring", canned)
+
+    assert main(["score"]) == 0
+    err = capsys.readouterr().err
+    assert "for claude-haiku-9" in err and "tokens for" not in err
+
+
+@pytest.mark.parametrize("limit", ["-2", "0"])
+def test_a_limit_below_one_is_refused_before_anything_is_judged(limit: str, capsys) -> None:
+    """A negative limit would slice from the end and judge nearly everything, so argparse refuses it."""
+    with pytest.raises(SystemExit) as exc:
+        main(["score", "--limit", limit])
+    assert exc.value.code != 0
+    assert "1 or more" in capsys.readouterr().err
+
+
+def test_the_labeled_fixture_is_where_the_container_will_look_for_it() -> None:
+    """`eval-scoring` reads this path and the Dockerfile copies exactly it into the image."""
+    from job_hunters.evaluate import DEFAULT_LABELS_PATH
+
+    assert DEFAULT_LABELS_PATH.is_file()
+    relative = DEFAULT_LABELS_PATH.relative_to(paths.PROJECT_ROOT).as_posix()
+    dockerfile = (paths.PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert relative in dockerfile, f"The Dockerfile must copy {relative} for the container to evaluate."
+
+
+def test_eval_scoring_can_report_the_prefilter_alone(capsys) -> None:
+    """`eval-scoring --skip-llm` measures the prefilter against the labels without a key."""
+    assert main(["eval-scoring", "--skip-llm"]) == 0
+    out = capsys.readouterr().out
+    assert "prefilter kept" in out and "judge skipped" in out
