@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import html
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
 
+import anthropic
+import httpx
 import pytest
 from sqlalchemy.orm import Session
 
 from job_hunters import db as db_module
+from job_hunters.judge import Verdict
 from job_hunters.models import Company, Job, JobSource
 
 
@@ -62,16 +67,47 @@ def make_posting(
     **hints,
 ) -> RawPosting:
     """A RawPosting with sensible defaults for building fetch results by hand."""
+    url = url or f"https://example.test/{source}/{source_job_id}"
     return RawPosting(
         source=source,
         source_job_id=source_job_id,
         title=title,
-        url=url or f"https://example.test/{source}/{source_job_id}",
+        url=url,
         location_raw=location,
         description=description,
-        raw=raw or {"id": source_job_id, "title": title, "location": location, "body": description},
+        raw=raw or _raw_payload(source, source_job_id, title, url, location, description, hints),
         **hints,
     )
+
+
+def _raw_payload(
+    source: str, source_job_id: str, title: str, url: str, location: str | None,
+    description: str, hints: dict,
+) -> dict:
+    """A payload shaped as the board would return it, so `replay_posting` rebuilds the same posting.
+
+    Scoring reads each posting's text back from `raw_json` through the real
+    adapters, so a fake posting has to store what those adapters expect.
+    """
+    if source == "lever":
+        return {
+            "id": source_job_id, "text": title, "hostedUrl": url,
+            "categories": {"location": location, "allLocations": [location] if location else []},
+            "descriptionPlain": description,
+            "country": hints.get("country_code"), "workplaceType": hints.get("workplace_type"),
+        }
+    if source == "ashby":
+        return {
+            "id": source_job_id, "title": title, "jobUrl": url, "location": location,
+            "descriptionPlain": description, "workplaceType": hints.get("workplace_type"),
+            "isRemote": hints.get("is_remote"), "isListed": True,
+        }
+    # Greenhouse: HTML that has itself been HTML-escaped.
+    return {
+        "id": source_job_id, "title": title, "absolute_url": url,
+        "location": {"name": location},
+        "content": html.escape(f"<p>{html.escape(description)}</p>"),
+    }
 
 
 def make_source(
@@ -127,3 +163,44 @@ def ok(*postings: RawPosting) -> FetchResult:
 def failed(error: str = "HTTP 429 for https://example.test") -> FetchResult:
     """A failed FetchResult with a plausible default error message."""
     return FetchResult.failed(error)
+
+
+def verdict(score: int = 80, **overrides) -> Verdict:
+    """A complete Verdict with one score and boring defaults for everything else."""
+    fields = dict(
+        score=score, summary="A role. It fits.", rationale="Because.",
+        matched_areas=["post-training"], concerns=[], work_authorization="eligible",
+    )
+    fields.update(overrides)
+    return Verdict(**fields)
+
+
+def api_error(kind: type[anthropic.APIStatusError], status: int, message: str = "nope") -> anthropic.APIStatusError:
+    """A real SDK status error since the judge classifies them by type."""
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    return kind(message, response=httpx.Response(status, request=request), body=None)
+
+
+class FakeAnthropic:
+    """Stands in for `anthropic.Anthropic`. Records every request and answers from a script."""
+
+    def __init__(self, *script) -> None:
+        """Scripts one answer per call, defaulting to a verdict of 80 for everything."""
+        self.requests: list[dict] = []
+        self._script = list(script) or [verdict()]
+        self.messages = self  # so `client.messages.parse(...)` lands on `parse` below
+
+    def parse(self, **kwargs):
+        """Returns the next scripted answer, shaped like the SDK's parsed message."""
+        self.requests.append(kwargs)
+        item = self._script[min(len(self.requests), len(self._script)) - 1]
+        if isinstance(item, BaseException):
+            raise item
+        answer = item(kwargs) if callable(item) else item
+        first = len(self.requests) == 1
+        usage = SimpleNamespace(
+            input_tokens=1500, output_tokens=200,
+            cache_creation_input_tokens=4300 if first else 0,
+            cache_read_input_tokens=0 if first else 4300,
+        )
+        return SimpleNamespace(parsed_output=answer, usage=usage, stop_reason="end_turn")
