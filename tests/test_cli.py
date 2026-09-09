@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from job_hunters import paths
 from job_hunters.cli import main
 
 
@@ -158,6 +159,25 @@ def test_a_cache_warning_omits_the_number_for_an_unrecognised_model(capsys, monk
     assert main(["score"]) == 0
     err = capsys.readouterr().err
     assert "for claude-haiku-9" in err and "tokens for" not in err
+
+
+@pytest.mark.parametrize("limit", ["-2", "0"])
+def test_a_limit_below_one_is_refused_before_anything_is_judged(limit: str, capsys) -> None:
+    """A negative limit would slice from the end and judge nearly everything, so argparse refuses it."""
+    with pytest.raises(SystemExit) as exc:
+        main(["score", "--limit", limit])
+    assert exc.value.code != 0
+    assert "1 or more" in capsys.readouterr().err
+
+
+def test_the_labeled_fixture_is_where_the_container_will_look_for_it() -> None:
+    """`eval-scoring` reads this path and the Dockerfile copies exactly it into the image."""
+    from job_hunters.evaluate import DEFAULT_LABELS_PATH
+
+    assert DEFAULT_LABELS_PATH.is_file()
+    relative = DEFAULT_LABELS_PATH.relative_to(paths.PROJECT_ROOT).as_posix()
+    dockerfile = (paths.PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert relative in dockerfile, f"The Dockerfile must copy {relative} for the container to evaluate."
 
 
 def test_eval_scoring_can_report_the_prefilter_alone(capsys) -> None:

@@ -33,6 +33,14 @@ from .judge import Usage, Verdict, cache_minimum_tokens
 from .scoring import Candidate, group_by_text, run_scoring
 
 
+def _positive_int(value: str) -> int:
+    """An argparse type for a count that must be positive and at least one."""
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"must be 1 or more, got {number}")
+    return number
+
+
 def cmd_show_config(_args: argparse.Namespace) -> int:
     """Handle `job-hunters show-config`: load, validate and summarise the config."""
     config = load_all()
@@ -313,7 +321,7 @@ def build_parser() -> argparse.ArgumentParser:
         "score", help="judge unscored postings with the LLM (prefilter then judge)"
     )
     score.add_argument(
-        "--limit", type=int, metavar="N",
+        "--limit", type=_positive_int, metavar="N",
         help="judge at most N distinct texts this run "
              "(default: scoring.max_llm_scores_per_run)"
     )
