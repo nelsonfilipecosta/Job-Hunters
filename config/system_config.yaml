@@ -7,6 +7,13 @@
 
 timezone: Europe/Lisbon
 
+# Every link in the digest email is built from this. The code that writes those
+# links runs inside the container, where `localhost` means the container itself
+# and not the computer reading the email. Change it if the stack ever moves to
+# another host. The port binding in `docker-compose.yml` is what keeps this
+# reachable from your machine only.
+base_url: http://localhost:8000
+
 schedules:
   # Accepted forms: "every <N><m|h|d>", "daily HH:MM", "weekly <dow> HH:MM"
   ingest:    every 2h

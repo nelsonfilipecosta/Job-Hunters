@@ -18,6 +18,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, ClassVar
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -258,6 +259,7 @@ class DigestConfig(StrictModel):
 
 class SystemConfig(StrictModel):
     timezone: NonEmptyStr = "Europe/Lisbon"
+    base_url: NonEmptyStr = "http://localhost:8000"
     schedules: SchedulesConfig = SchedulesConfig()
     models: ModelsConfig = ModelsConfig()
     email: EmailConfig = EmailConfig()
@@ -272,6 +274,17 @@ class SystemConfig(StrictModel):
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown timezone {value!r}") from exc
         return value
+
+    @field_validator("base_url")
+    @classmethod
+    def _absolute_url(cls, value: str) -> str:
+        """Rejects anything a mail client could not turn into a working link."""
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError(
+                f"base_url must be an absolute http:// or https:// URL, but got {value!r}"
+            )
+        return value.rstrip("/")
 
 
 # ---------------------------------------------------------------------------
@@ -366,6 +379,10 @@ class Secrets(BaseSettings):
                 f"or export it in the environment."
             )
         return value.get_secret_value().strip()
+
+    def optional(self, name: str) -> str:
+        """The plain value of one secret or an empty string when it is not set."""
+        return self._plain(name)
 
     DISPLAYABLE: ClassVar[frozenset[str]] = frozenset(
         {"digest_to", "digest_from", "smtp_username"}

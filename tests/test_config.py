@@ -237,6 +237,24 @@ def test_accepted_schedule_forms(tmp_path: Path, spec: str) -> None:
     assert load_system_config(_write(tmp_path, "system_config.yaml", system))
 
 
+@pytest.mark.parametrize("value", ["localhost:8000", "/dashboard", "ftp://localhost", "not a url"])
+def test_a_base_url_a_mail_client_could_not_open_is_rejected(tmp_path: Path, value: str) -> None:
+    """Every link in the digest is built from this, so a relative one would be dead on arrival."""
+    system = _valid_system()
+    system["base_url"] = value
+    with pytest.raises(ConfigError, match="base_url"):
+        load_system_config(_write(tmp_path, "system_config.yaml", system))
+
+
+def test_a_trailing_slash_on_the_base_url_is_dropped(tmp_path: Path) -> None:
+    """Links are built by appending a path and `//a/...` is a different URL."""
+    system = _valid_system()
+    system["base_url"] = "http://localhost:8000/"
+    assert load_system_config(
+        _write(tmp_path, "system_config.yaml", system)
+    ).base_url == "http://localhost:8000"
+
+
 def test_suppress_after_below_demote_after_is_rejected(tmp_path: Path) -> None:
     """Thresholds that would hide a job before it was ever demoted are refused."""
     system = _valid_system()
