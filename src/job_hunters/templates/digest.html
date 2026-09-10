@@ -1,0 +1,109 @@
+{# The HTML half of the digest email.
+
+   Written with inline `style` attributes rather than a stylesheet on purpose.
+   Several mail clients (Gmail's web client among them) strip a <style> block
+   entirely and an entry that loses its layout is harder to read than one that
+   never had any. Everything is a single column for the same reason.
+#}
+<div style="margin:0;padding:0;background:#f4f4f5;">
+<div style="max-width:680px;margin:0 auto;padding:24px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#18181b;line-height:1.5;">
+
+  <div style="padding-bottom:16px;border-bottom:2px solid #18181b;">
+    <div style="font-size:20px;font-weight:700;">Job-Hunters</div>
+    <div style="font-size:13px;color:#52525b;padding-top:2px;">
+      {{ digest.digest_date.strftime('%A %d %B %Y') }} &middot;
+      {% if digest.is_empty %}
+        Nothing new above a score of {{ digest.threshold }}.
+      {% else %}
+        {{ digest.total }} role{{ '' if digest.total == 1 else 's' }} scoring
+        {{ digest.threshold }} or above.
+      {% endif %}
+    </div>
+  </div>
+
+  {% if digest.is_empty %}
+    <p style="font-size:14px;color:#52525b;padding:24px 0;">
+      No new roles cleared the threshold today. This email is sent anyway: a
+      quiet morning and a broken pipeline look identical from an empty inbox.
+    </p>
+  {% endif %}
+
+  {% for section in digest.sections %}
+    {% if section.entries %}
+      <div style="padding-top:28px;">
+        <div style="font-size:16px;font-weight:700;">
+          {{ section.spec.icon }} {{ section.spec.title }}
+          <span style="font-weight:400;color:#71717a;">({{ section.entries | length }})</span>
+        </div>
+        <div style="font-size:12px;color:#71717a;padding-top:2px;">{{ section.spec.blurb }}</div>
+      </div>
+
+      {% for entry in section.entries %}
+        <div style="background:{{ '#fafafa' if entry.demoted else '#ffffff' }};border:1px solid #e4e4e7;border-radius:8px;padding:16px;margin-top:12px;">
+
+          <div style="font-size:15px;font-weight:600;">
+            <span style="display:inline-block;min-width:32px;font-size:13px;font-weight:700;color:#3f3f46;">{{ entry.score }}</span>
+            {% if entry.apply_url %}
+              <a href="{{ entry.apply_url }}" style="color:#18181b;text-decoration:none;">{{ entry.title }}</a>
+            {% else %}
+              {{ entry.title }}
+            {% endif %}
+          </div>
+
+          <div style="font-size:12px;color:#52525b;padding-top:4px;">
+            {{ entry.company }} &middot; {{ entry.location }} &middot; {{ entry.work_mode }}
+            {% if entry.work_authorization != 'eligible' %}
+              &middot; <span style="color:#b45309;">Work Authorization: {{ entry.work_authorization }}</span>
+            {% endif %}
+            {% if entry.repeat_note %}
+              &middot; <span style="color:#b45309;">{{ entry.repeat_note }}</span>
+            {% endif %}
+          </div>
+
+          {% if entry.summary %}
+            <div style="font-size:14px;padding-top:10px;">{{ entry.summary }}</div>
+          {% endif %}
+
+          {% if entry.concerns %}
+            <div style="font-size:12px;color:#71717a;padding-top:6px;">
+              Concerns: {{ entry.concerns | join('; ') }}
+            </div>
+          {% endif %}
+
+          <div style="font-size:12px;padding-top:12px;">
+            {% if entry.apply_url %}
+              <a href="{{ entry.apply_url }}" style="color:#3f3f46;text-decoration:underline;">Open posting</a>
+              <span style="color:#d4d4d8;">&nbsp;|&nbsp;</span>
+            {% endif %}
+            {% for link in entry.links %}
+              <a href="{{ link.url }}" style="color:#3f3f46;text-decoration:underline;">{{ link.label }}</a>
+              {% if not loop.last %}<span style="color:#d4d4d8;">&nbsp;|&nbsp;</span>{% endif %}
+            {% endfor %}
+          </div>
+
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+
+  {% if digest.still_open %}
+    <div style="font-size:13px;color:#71717a;padding-top:24px;">
+      <a href="{{ digest.still_open_url }}" style="color:#71717a;">
+        Still Open ({{ digest.still_open }}) &rarr;
+      </a>
+      <div style="font-size:12px;padding-top:2px;">
+        Shown often enough already and neither applied to nor dismissed. They
+        are still in the dashboard and they come back here if the posting or
+        the score changes.
+      </div>
+    </div>
+  {% endif %}
+
+  <div style="font-size:11px;color:#a1a1aa;padding-top:28px;border-top:1px solid #e4e4e7;margin-top:28px;">
+    Built {{ digest.generated_at.strftime('%Y-%m-%d %H:%M') }} UTC.
+    The action links are signed and expire. Nothing happens until you confirm
+    on the page they open.
+  </div>
+
+</div>
+</div>
