@@ -48,7 +48,13 @@ services:
 
   scheduler:
     build: .
-    command: ["python", "-m", "job_hunters.scheduler"]
+    # Restarted by `watchfiles` whenever anything under `/app/src` changes, which
+    # is the same as `--reload` for `web` above.
+    command:
+      - watchfiles
+      - --target-type=command
+      - python -m job_hunters.scheduler
+      - /app/src
     environment:
       TZ: Europe/Lisbon
     env_file:
