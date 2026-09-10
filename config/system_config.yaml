@@ -30,6 +30,10 @@ schedules:
   discovery: weekly mon 06:00
   backup:    weekly sun 02:00
 
+  # How late a missed run may still start.
+  misfire_grace_minutes: 60
+  digest_misfire_grace_minutes: 360
+
 models:
   # Cheap, fast and good enough to triage. Runs on hundreds of jobs.
   judge:   claude-haiku-4-5

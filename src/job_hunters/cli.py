@@ -76,6 +76,8 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     print(f"  base url             {system.base_url}  (every digest link is built from this)")
     print(f"  action links last    {system.actions.token_ttl_days} days")
     print(f"  ingest / score       {system.schedules.ingest} / {system.schedules.score}")
+    print(f"  misfire grace        {system.schedules.misfire_grace_minutes} min "
+          f"({system.schedules.digest_misfire_grace_minutes} min for the digest)")
     print(f"  digest               {system.schedules.digest} via "
           f"{system.email.smtp_host}:{system.email.smtp_port}")
     print(f"  judge / tailor       {system.models.judge} / {system.models.tailor}")

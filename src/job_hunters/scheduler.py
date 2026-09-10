@@ -43,13 +43,7 @@ log = logging.getLogger("job_hunters.scheduler")
 
 _UNITS = {"m": "minutes", "h": "hours", "d": "days"}
 
-# How late a run may start and still be worth starting. A laptop that slept
-# through the night wakes with several fires overdue. `coalesce` collapses each
-# job's backlog to one run and these decide whether that run happens at all.
-# The digest gets most of a working day, because an 08:00 digest read at 14:00
-# is still the day's digest.
-MISFIRE_GRACE_SECONDS = 60 * 60
-DIGEST_MISFIRE_GRACE_SECONDS = 6 * 60 * 60
+SECONDS_PER_MINUTE = 60
 
 
 def build_trigger(spec: str, timezone: tzinfo) -> BaseTrigger:
@@ -113,10 +107,12 @@ def main() -> int:
     try:
         config = load_system_config()
         timezone = ZoneInfo(config.timezone)
+        interval_grace = config.schedules.misfire_grace_minutes * SECONDS_PER_MINUTE
+        digest_grace = config.schedules.digest_misfire_grace_minutes * SECONDS_PER_MINUTE
         jobs = (
-            ("ingest", scheduled_ingest, config.schedules.ingest, MISFIRE_GRACE_SECONDS),
-            ("score", scheduled_score, config.schedules.score, MISFIRE_GRACE_SECONDS),
-            ("digest", scheduled_digest, config.schedules.digest, DIGEST_MISFIRE_GRACE_SECONDS),
+            ("ingest", scheduled_ingest, config.schedules.ingest, interval_grace),
+            ("score", scheduled_score, config.schedules.score, interval_grace),
+            ("digest", scheduled_digest, config.schedules.digest, digest_grace),
         )
         triggers = [
             (name, func, spec, build_trigger(spec, timezone), grace)
@@ -152,7 +148,7 @@ def main() -> int:
             coalesce=True,
             misfire_grace_time=grace,
         )
-        log.info("Registered %s (%s)", name, spec)
+        log.info("Registered %s (%s, grace %s min)", name, spec, grace // SECONDS_PER_MINUTE)
 
     log.info("Scheduler starting (timezone: %s)", timezone)
     try:

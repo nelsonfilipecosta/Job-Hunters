@@ -255,6 +255,28 @@ def test_an_implausible_token_lifetime_is_rejected(tmp_path: Path, value: int) -
         load_system_config(_write(tmp_path, "system_config.yaml", system))
 
 
+@pytest.mark.parametrize(
+    "keys",
+    [{"misfire_grace_minutes": 0}, {"misfire_grace_minutes": 2000},
+     {"digest_misfire_grace_minutes": -5}, {"digest_misfire_grace_minutes": 1441}],
+)
+def test_an_implausible_misfire_grace_is_rejected(tmp_path: Path, keys: dict) -> None:
+    """Zero means a missed run never happens and over a day means the value is a typo."""
+    system = _valid_system()
+    system["schedules"].update(keys)
+    with pytest.raises(ConfigError, match="misfire_grace_minutes"):
+        load_system_config(_write(tmp_path, "system_config.yaml", system))
+
+
+def test_the_grace_settings_are_not_mistaken_for_schedules(tmp_path: Path) -> None:
+    """`schedules` holds two kinds of value and only one of them is a trigger spec."""
+    schedules = load_system_config(
+        _write(tmp_path, "system_config.yaml", _valid_system())
+    ).schedules
+    assert set(schedules.specs()) == {"ingest", "score", "digest", "discovery", "backup"}
+    assert all(isinstance(spec, str) for spec in schedules.specs().values())
+
+
 def test_a_trailing_slash_on_the_base_url_is_dropped(tmp_path: Path) -> None:
     """Links are built by appending a path and `//a/...` is a different URL."""
     system = _valid_system()

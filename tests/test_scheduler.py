@@ -65,8 +65,10 @@ def test_a_trigger_keeps_the_declared_timezone_and_not_the_machine_one(spec: str
 def test_every_default_schedule_in_the_config_can_be_built() -> None:
     """The config regex and this parser have to keep agreeing about what is legal."""
     defaults = SchedulesConfig()
-    for name in type(defaults).model_fields:
-        assert build_trigger(getattr(defaults, name), LISBON) is not None
+    specs = defaults.specs()
+    assert set(specs) == {"ingest", "score", "digest", "discovery", "backup"}
+    for spec in specs.values():
+        assert build_trigger(spec, LISBON) is not None
 
 
 def test_a_schedule_this_parser_does_not_know_is_a_config_error() -> None:

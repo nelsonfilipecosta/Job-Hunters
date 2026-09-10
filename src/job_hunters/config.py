@@ -217,6 +217,18 @@ class SchedulesConfig(StrictModel):
     discovery: ScheduleSpec = "weekly mon 06:00"
     backup: ScheduleSpec = "weekly sun 03:00"
 
+    # How late a missed run may still start.
+    misfire_grace_minutes: int = Field(default=60, ge=1, le=1440)
+    digest_misfire_grace_minutes: int = Field(default=360, ge=1, le=1440)
+
+    def specs(self) -> dict[str, str]:
+        """Only the schedule strings, so the grace settings are never parsed as one."""
+        return {
+            name: value
+            for name, value in self
+            if isinstance(value, str)
+        }
+
 
 class ModelsConfig(StrictModel):
     judge: NonEmptyStr = "claude-haiku-4-5"
