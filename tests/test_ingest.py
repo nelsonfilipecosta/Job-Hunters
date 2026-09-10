@@ -287,6 +287,96 @@ def test_same_title_siblings_share_a_job_but_keep_their_own_text_hash(
     assert len(hashes) == 2, "each posting is judged on its own text"
 
 
+def test_a_job_moves_off_its_posting_when_that_posting_closes(
+    session: Session, company: Company
+) -> None:
+    """A job shows its primary posting's link, so the primary closing would leave a dead one."""
+    both = [
+        make_posting("1", description="Runs infrastructure programs.",
+                     url="https://example.test/one"),
+        make_posting("2", description="Runs post-training experiments.",
+                     url="https://example.test/two"),
+    ]
+    adapter = FakeAdapter("greenhouse", ok(*both), ok(both[1]))
+    ingest_company(session, company, adapter, NOW)
+    session.commit()
+    job = session.scalar(select(Job))
+    first, second = session.scalars(select(JobSource).order_by(JobSource.source_job_id)).all()
+    assert job.primary_source_id == first.id
+    hash_before = job.content_hash
+
+    report = ingest_company(session, company, adapter, LATER)
+    session.commit()
+    session.expire_all()
+
+    job = session.scalar(select(Job))
+    assert report.closed == 1 and report.repointed == 1
+    assert job.primary_source_id == second.id
+    assert job.apply_url == "https://example.test/two"
+    assert job.description == "Runs post-training experiments."
+    assert job.content_hash != hash_before, "repeat suppression can see the text move again"
+    assert job.content_hash == second.content_hash
+
+
+def test_the_link_moves_even_when_two_postings_read_identically(
+    session: Session, company: Company
+) -> None:
+    """Byte-identical siblings hash the same and the hash does not cover the URL."""
+    both = [
+        make_posting("1", url="https://example.test/one"),
+        make_posting("2", url="https://example.test/two"),
+    ]
+    adapter = FakeAdapter("greenhouse", ok(*both), ok(both[1]))
+    ingest_company(session, company, adapter, NOW)
+    session.commit()
+    first, second = session.scalars(select(JobSource).order_by(JobSource.source_job_id)).all()
+    assert first.content_hash == second.content_hash, "identical text"
+
+    ingest_company(session, company, adapter, LATER)
+    session.commit()
+    session.expire_all()
+    job = session.scalar(select(Job))
+    assert job.primary_source_id == second.id
+    assert job.apply_url == "https://example.test/two"
+
+
+def test_a_job_whose_postings_all_closed_keeps_the_one_it_had(
+    session: Session, company: Company
+) -> None:
+    """With nothing open to move to, there is nothing better to point at."""
+    adapter = FakeAdapter(
+        "greenhouse",
+        ok(make_posting("1"), make_posting("2")),
+        ok(make_posting("3", "Sales Director", location="Lisbon, Portugal")),
+    )
+    ingest_company(session, company, adapter, NOW)
+    session.commit()
+    job = session.scalar(select(Job).order_by(Job.id))
+    primary_before = job.primary_source_id
+
+    report = ingest_company(session, company, adapter, LATER)
+    session.commit()
+    session.expire_all()
+    assert report.closed == 2 and report.repointed == 0
+    assert session.get(Job, job.id).primary_source_id == primary_before
+
+
+def test_an_open_primary_is_left_where_it_is(session: Session, company: Company) -> None:
+    """Closing a sibling must not move a job that is already pointing somewhere open."""
+    both = [make_posting("1", description="One."), make_posting("2", description="Two.")]
+    adapter = FakeAdapter("greenhouse", ok(*both), ok(both[0]))
+    ingest_company(session, company, adapter, NOW)
+    session.commit()
+    job = session.scalar(select(Job))
+    primary_before = job.primary_source_id
+
+    report = ingest_company(session, company, adapter, LATER)
+    session.commit()
+    session.expire_all()
+    assert report.closed == 1 and report.repointed == 0
+    assert session.get(Job, job.id).primary_source_id == primary_before
+
+
 def test_posted_at_survives_a_round_trip_through_sqlite(session: Session, company: Company) -> None:
     """SQLite hands back naive datetimes. Comparing them to aware ones must not crash."""
     posted = datetime(2026, 8, 1, 12, 0, tzinfo=UTC)
