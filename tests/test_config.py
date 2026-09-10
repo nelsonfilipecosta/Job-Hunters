@@ -246,6 +246,15 @@ def test_a_base_url_a_mail_client_could_not_open_is_rejected(tmp_path: Path, val
         load_system_config(_write(tmp_path, "system_config.yaml", system))
 
 
+@pytest.mark.parametrize("value", [0, -1, 4000])
+def test_an_implausible_token_lifetime_is_rejected(tmp_path: Path, value: int) -> None:
+    """Zero days makes every link dead on arrival and ten years is a typo, not a policy."""
+    system = _valid_system()
+    system["actions"] = {"token_ttl_days": value}
+    with pytest.raises(ConfigError, match="token_ttl_days"):
+        load_system_config(_write(tmp_path, "system_config.yaml", system))
+
+
 def test_a_trailing_slash_on_the_base_url_is_dropped(tmp_path: Path) -> None:
     """Links are built by appending a path and `//a/...` is a different URL."""
     system = _valid_system()

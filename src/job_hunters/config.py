@@ -257,6 +257,10 @@ class DigestConfig(StrictModel):
     repeat_suppression: RepeatSuppressionConfig = RepeatSuppressionConfig()
 
 
+class ActionsConfig(StrictModel):
+    token_ttl_days: int = Field(default=90, ge=1, le=3650)
+
+
 class SystemConfig(StrictModel):
     timezone: NonEmptyStr = "Europe/Lisbon"
     base_url: NonEmptyStr = "http://localhost:8000"
@@ -264,6 +268,7 @@ class SystemConfig(StrictModel):
     models: ModelsConfig = ModelsConfig()
     email: EmailConfig = EmailConfig()
     digest: DigestConfig = DigestConfig()
+    actions: ActionsConfig = ActionsConfig()
 
     @field_validator("timezone")
     @classmethod

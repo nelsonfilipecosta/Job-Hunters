@@ -14,6 +14,14 @@ timezone: Europe/Lisbon
 # reachable from your machine only.
 base_url: http://localhost:8000
 
+actions:
+  # How long a signed "Applied" or "Dismiss" link keeps working. Long on purpose.
+  # A digest can sit in an inbox for weeks and a short expiry would break links
+  # you had not got to yet. This is only safe while `base_url` above points at a
+  # loopback-bound port, so shorten the lifetime if the stack ever moves to a
+  # host anyone else can reach.
+  token_ttl_days: 90
+
 schedules:
   # Accepted forms: "every <N><m|h|d>", "daily HH:MM", "weekly <dow> HH:MM"
   ingest:    every 2h

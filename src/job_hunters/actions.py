@@ -2,13 +2,7 @@
 
 Every entry in the email carries four actions: draft a CV, draft a cover
 letter, mark the job applied and dismiss it. Clicking one changes the database,
-so a link has to survive a trip through an inbox and come back unaltered.
-
-The lifetime is long on purpose. A digest can sit in an inbox for weeks and a
-short expiry would break links you had not got to yet. That is safe only because
-the endpoint answering these is bound to loopback. On a public host this number
-should come down and the whole trade-off should be reconsidered.
-"""
+so a link has to survive a trip through an inbox and come back unaltered."""
 
 from __future__ import annotations
 
@@ -18,9 +12,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from hashlib import sha256
-
-# Long enough that a digest can sit unread for a long time.
-TOKEN_TTL_DAYS = 90
 
 
 class Action(StrEnum):
@@ -80,10 +71,10 @@ def sign(
     action: Action | str,
     job_id: int,
     *,
+    ttl_days: int,
     now: datetime | None = None,
-    ttl_days: int = TOKEN_TTL_DAYS,
 ) -> str:
-    """One token authorizing one action on one job until it expires."""
+    """One token authorizing one action on one job for `ttl_days` days."""
     action = Action(action)
     expires_at = (now or datetime.now(UTC)) + timedelta(days=ttl_days)
     payload = f"{action.value}:{job_id}:{int(expires_at.timestamp())}".encode()
@@ -121,6 +112,8 @@ def verify(secret: str, token: str, *, now: datetime | None = None) -> SignedAct
     return signed
 
 
-def action_url(base_url: str, secret: str, action: Action | str, job_id: int, **kwargs) -> str:
+def action_url(
+    base_url: str, secret: str, action: Action | str, job_id: int, *, ttl_days: int, **kwargs
+) -> str:
     """The full link to put in the email, built from the declared `base_url`."""
-    return f"{base_url.rstrip('/')}/a/{sign(secret, action, job_id, **kwargs)}"
+    return f"{base_url.rstrip('/')}/a/{sign(secret, action, job_id, ttl_days=ttl_days, **kwargs)}"
