@@ -47,7 +47,7 @@ from .models import (
     Score,
     WorkAuthStatus,
 )
-from .scoring import best_scores, location_fit
+from .scoring import LocationMatch, best_scores, location_match
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
@@ -78,7 +78,7 @@ SECTION_SPECS: dict[str, SectionSpec] = {
     LocationFit.UNKNOWN: SectionSpec(
         DigestSection.WORTH_CHECKING, "⚠️", "Worth Checking",
         "The location or the work authorization could not be settled from the "
-        "posting.",
+        "posting. Each entry says which.",
     ),
 }
 
@@ -134,6 +134,25 @@ class Entry:
     appearance: int
     demoted: bool
     content_hash: str | None
+    # Which section this entry is in and the country whose rule put it there.
+    fit: str = ""
+    matched_place: str | None = None
+
+    @property
+    def section_note(self) -> str:
+        """Why this entry is in the section it is in when the line above does not show it."""
+        if self.fit == LocationFit.UNKNOWN:
+            return "Location could not be settled."
+        if self.work_authorization != WorkAuthStatus.ELIGIBLE:
+            return f"The location qualifies{self._via}. The work authorization does not."
+        return f"{self.fit} via {self.matched_place}" if self._via else ""
+
+    @property
+    def _via(self) -> str:
+        """Return the country that matched the rules when it is not the one on display."""
+        if not self.matched_place or self.matched_place == self.region:
+            return ""
+        return f" (via {self.matched_place})"
 
     @property
     def repeat_note(self) -> str:
@@ -299,8 +318,8 @@ def build_digest(
         if job.id in actioned:
             continue
         score = shortlist[job.id]
-        fit = location_fit(profile, job.region, job.regions or [], job.work_mode)
-        spec = _section_for(fit, score.work_authorization)
+        match = location_match(profile, job.region, job.regions or [], job.work_mode)
+        spec = _section_for(match.fit, score.work_authorization)
         if spec is None:
             continue
 
@@ -312,7 +331,7 @@ def build_digest(
             suppressed += 1
             continue
         sections[spec.key].entries.append(
-            _entry(job, company_name, score, links, appearance, demoted)
+            _entry(job, company_name, score, links, appearance, demoted, match)
         )
 
     for section in sections.values():
@@ -335,6 +354,7 @@ def _entry(
     links: LinkFactory,
     appearance: int,
     demoted: bool,
+    match: LocationMatch,
 ) -> Entry:
     """Turns one job and its winning judgement into a row of the email.
 
@@ -359,6 +379,8 @@ def _entry(
         appearance=appearance,
         demoted=demoted,
         content_hash=job.content_hash,
+        fit=match.fit,
+        matched_place=match.place,
     )
 
 
@@ -457,15 +479,17 @@ def render(digest: Digest, template: str) -> str:
     return _environment().get_template(template).render(digest=digest)
 
 
-def render_message(digest: Digest, to: str, sender: str) -> Message:
+def render_bodies(digest: Digest) -> tuple[str, str]:
+    """Both bodies of the email as plain text and HTML rendered together."""
+    return render(digest, "digest.txt"), render(digest, "digest.html")
+
+
+def render_message(
+    digest: Digest, to: str, sender: str, bodies: tuple[str, str] | None = None
+) -> Message:
     """The whole email: subject, plain text and HTML, addressed and ready to send."""
-    return Message(
-        to=to,
-        sender=sender,
-        subject=digest.subject(),
-        text=render(digest, "digest.txt"),
-        html=render(digest, "digest.html"),
-    )
+    text, html = bodies if bodies is not None else render_bodies(digest)
+    return Message(to=to, sender=sender, subject=digest.subject(), text=text, html=html)
 
 
 # ---------------------------------------------------------------------------
@@ -500,13 +524,15 @@ def run_digest(
 
     with session_scope() as session:
         digest = build_digest(session, config, secret)
-    report = DigestReport(digest=digest, html=render(digest, "digest.html"))
+
+    bodies = render_bodies(digest)
+    report = DigestReport(digest=digest, html=bodies[1])
     if dry_run:
         return report
 
     to = config.secrets.require("digest_to")
     sender = sender or _smtp_sender(config)
-    sender.send(render_message(digest, to, config.secrets.optional("digest_from") or to))
+    sender.send(render_message(digest, to, config.secrets.optional("digest_from") or to, bodies))
     report.sent_to = to
 
     with session_scope() as session:

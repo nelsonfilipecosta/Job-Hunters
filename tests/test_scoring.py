@@ -20,6 +20,7 @@ from job_hunters.judge import Judge, Verdict
 from job_hunters.models import Company, JobSource, LocationFit, Score
 from job_hunters.scoring import (
     Prefilter,
+    location_match,
     ScoringReport,
     TermMatcher,
     best_scores,
@@ -70,6 +71,28 @@ def _score_all(session: Session, judge: Judge, limit: int = 300) -> ScoringRepor
 def _title_of(request: dict) -> str:
     """The `Title:` line of the posting a request carried."""
     return request["messages"][0]["content"].split("\n")[1]
+
+
+def test_location_match_names_the_place_that_earned_the_fit() -> None:
+    """A posting listing several offices qualifies on one of them and the digest says which."""
+    match = location_match(PROFILE, "portugal", ["portugal"], "onsite")
+    assert (match.fit, match.place) == (LocationFit.PRIORITY, "portugal")
+
+    match = location_match(PROFILE, "uk", ["uk", "us"], "remote")
+    assert match.fit == LocationFit.ACCEPTABLE
+    assert match.place in {"uk", "us"}, "whichever rule matched first, it is named"
+
+
+def test_a_place_is_named_only_when_a_rule_accepted_one() -> None:
+    """`unknown` and `excluded` mean no rule matched, so there is nothing to name."""
+    assert location_match(PROFILE, "unknown", [], "remote").place is None
+    assert location_match(PROFILE, "us", ["us"], "onsite").place is None
+
+
+def test_location_fit_still_returns_a_plain_string() -> None:
+    """The prefilter and the evaluator read the fit alone and must not see a new type."""
+    assert location_fit(PROFILE, "portugal", ["portugal"], "onsite") == LocationFit.PRIORITY
+    assert isinstance(location_fit(PROFILE, "portugal", ["portugal"], "onsite"), str)
 
 
 def test_location_fit_is_a_pure_config_lookup() -> None:

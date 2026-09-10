@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from conftest import FakeAdapter, make_posting
+from job_hunters import digest as digest_module
 from job_hunters.actions import ExpiredToken, verify
 from job_hunters.config import AppConfig, Secrets, SearchProfile, SystemConfig
 from job_hunters.digest import (
@@ -20,6 +21,7 @@ from job_hunters.digest import (
     build_digest,
     record_appearances,
     render,
+    render_bodies,
     render_message,
     run_digest,
 )
@@ -394,6 +396,117 @@ def test_the_link_lifetime_comes_from_the_config_and_is_not_hardcoded(
     assert verify(SECRET, token, now=NOW + timedelta(days=2)).job_id is not None
     with pytest.raises(ExpiredToken):
         verify(SECRET, token, now=NOW + timedelta(days=4))
+
+
+def test_a_multi_office_job_says_which_office_earned_its_section(
+    session: Session, company: Company
+) -> None:
+    """A job with multiple offices says which one matched the rules and which one is on display."""
+    _ingest(session, company, make_posting("1", "Research Scientist",
+                                           location="London, UK; New York, US"))
+    job = session.scalar(select(Job))
+    job.region, job.regions, job.work_mode = "uk", ["uk", "us"], "remote"
+    session.commit()
+    _judge(session, session.scalar(select(JobSource)))
+
+    entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
+    assert entry.region == "uk"
+    assert entry.matched_place == "us"
+    assert entry.section_note == "acceptable via us"
+    assert "acceptable via us" in render(
+        build_digest(session, _config(), SECRET, today=TODAY, now=NOW), "digest.html"
+    )
+
+
+def test_a_single_office_job_says_nothing_extra(session: Session, company: Company) -> None:
+    """A note naming the place that already matches the displayed region would be noise, so it is not printed."""
+    _one_job(session, company, 90)
+    entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
+    assert entry.matched_place == entry.region
+    assert entry.section_note == ""
+
+
+def test_an_unparsed_location_says_that_is_why_it_is_worth_checking(
+    session: Session, company: Company
+) -> None:
+    """The section names two possible reasons, so the entry has to say which one applies."""
+    _ingest(session, company, make_posting("1", "Research Scientist", location="Somewhere"))
+    _judge(session, session.scalar(select(JobSource)))
+    entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
+    assert entry.section_note == "location could not be settled"
+
+
+def test_a_job_held_back_only_by_its_authorization_says_the_location_was_fine(
+    session: Session, company: Company
+) -> None:
+    """A job in "Worth Checking" only for its authorization must not read as a location the parser fumbled."""
+    _one_job(session, company, 90, work_authorization="unclear")
+    entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
+    assert entry.section_note == "the location qualifies; the work authorization does not"
+
+
+def test_that_answer_still_names_the_office_when_it_is_not_the_obvious_one(
+    session: Session, company: Company
+) -> None:
+    """Both questions can apply at once and answering only one of them is worse than neither."""
+    _ingest(session, company, make_posting("1", "Research Scientist", location="London"))
+    job = session.scalar(select(Job))
+    job.region, job.regions, job.work_mode = "uk", ["uk", "us"], "remote"
+    session.commit()
+    _judge(session, session.scalar(select(JobSource)), work_authorization="blocked")
+
+    entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
+    assert entry.section_note == (
+        "the location qualifies (via us); the work authorization does not"
+    )
+
+
+def test_every_worth_checking_entry_explains_itself(
+    session: Session, company: Company
+) -> None:
+    """Whatever routed a job here. The reader is never left to guess which of the two it was."""
+    _ingest(
+        session, company,
+        make_posting("1", "Research Scientist, One", location="Somewhere"),
+        make_posting("2", "Research Scientist, Two", location="Lisbon, Portugal"),
+    )
+    sources = session.scalars(select(JobSource).order_by(JobSource.source_job_id)).all()
+    _judge(session, sources[0])
+    _judge(session, sources[1], work_authorization="blocked")
+
+    digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
+    checking = [s for s in digest.sections if s.spec.key == DigestSection.WORTH_CHECKING][0]
+    assert len(checking.entries) == 2
+    assert all(entry.section_note for entry in checking.entries)
+
+
+def test_both_bodies_are_rendered_once_and_reused(session: Session, company: Company) -> None:
+    """The preview must be the email that was sent and not a second render of the same digest."""
+    _one_job(session, company, 90)
+    digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
+    text, html = render_bodies(digest)
+    message = render_message(digest, "me@example.com", "bot@example.com", (text, html))
+    assert message.text is text and message.html is html, "handed over, not re-rendered"
+
+
+def test_a_dry_run_renders_the_plain_text_body_too(
+    session: Session, company: Company, monkeypatch
+) -> None:
+    """A broken text template must fail the preview and not wait for the one real send."""
+    monkeypatch.setenv("ACTION_TOKEN_SECRET", SECRET)
+    _one_job(session, company, 90)
+
+    rendered: list[str] = []
+    real_render = digest_module.render
+
+    def recording(digest, template):
+        """The real renderer with a note of which templates it was asked for."""
+        rendered.append(template)
+        return real_render(digest, template)
+
+    monkeypatch.setattr(digest_module, "render", recording)
+    run_digest(dry_run=True, config=_config())
+    assert sorted(rendered) == ["digest.html", "digest.txt"]
 
 
 def test_the_html_carries_the_entry_and_four_signed_links(

@@ -52,6 +52,9 @@
 
           <div style="font-size:12px;color:#52525b;padding-top:4px;">
             {{ entry.company }} &middot; {{ entry.location }} &middot; {{ entry.work_mode }}
+            {% if entry.section_note %}
+              &middot; <span style="color:#71717a;">{{ entry.section_note }}</span>
+            {% endif %}
             {% if entry.work_authorization != 'eligible' %}
               &middot; <span style="color:#b45309;">Work Authorization: {{ entry.work_authorization }}</span>
             {% endif %}

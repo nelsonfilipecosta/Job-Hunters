@@ -22,6 +22,9 @@ anyway: a quiet morning and a broken pipeline look identical from an empty inbox
 
   [{{ entry.score }}] {{ entry.title }}
   {{ entry.company }} - {{ entry.location }} - {{ entry.work_mode }}
+{% if entry.section_note %}
+  {{ entry.section_note }}
+{% endif %}
 {% if entry.work_authorization != 'eligible' %}
   Work Authorization: {{ entry.work_authorization }}
 {% endif %}

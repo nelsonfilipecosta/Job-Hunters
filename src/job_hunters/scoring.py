@@ -68,9 +68,17 @@ VerdictCallback = Callable[["Candidate", Verdict, Usage], None]
 # ---------------------------------------------------------------------------
 
 
-def location_fit(
+@dataclass(frozen=True)
+class LocationMatch:
+    """Where a job falls in the location rules and which place put it there."""
+
+    fit: str
+    place: str | None = None
+
+
+def location_match(
     profile: SearchProfile, region: str, job_regions: Iterable[str], work_mode: str
-) -> str:
+) -> LocationMatch:
     """Where a job falls in the declared location rules. A pure config lookup.
 
     `unknown` when the location could not be parsed or the work mode is not
@@ -78,17 +86,31 @@ def location_fit(
     being judged on a guess. `excluded` when the location parsed confidently
     and no rule wants it, which includes `other`. A job listed in several
     places counts under the best of them.
+
+    The place that matched is returned alongside the fit. A London role can be
+    `acceptable` on the strength of a Toronto office and a digest that shows
+    only "London" leaves the reader wondering why it is there at all. Places
+    are tried in the order the posting listed them, so the answer is the first
+    office that qualifies rather than an arbitrary one.
     """
     if region == regions.UNKNOWN or work_mode == WorkMode.UNKNOWN:
-        return LocationFit.UNKNOWN
+        return LocationMatch(LocationFit.UNKNOWN)
     places = list(job_regions) or [region]
     for fit, rules in (
         (LocationFit.PRIORITY, profile.location.priority),
         (LocationFit.ACCEPTABLE, profile.location.acceptable),
     ):
-        if any(rule.matches(place, work_mode) for rule in rules for place in places):
-            return fit
-    return LocationFit.EXCLUDED
+        for place in places:
+            if any(rule.matches(place, work_mode) for rule in rules):
+                return LocationMatch(fit, place)
+    return LocationMatch(LocationFit.EXCLUDED)
+
+
+def location_fit(
+    profile: SearchProfile, region: str, job_regions: Iterable[str], work_mode: str
+) -> str:
+    """Just the fit for the callers that do not care which place earned it."""
+    return location_match(profile, region, job_regions, work_mode).fit
 
 
 # ---------------------------------------------------------------------------
