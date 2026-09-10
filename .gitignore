@@ -223,6 +223,9 @@ __marimo__/
 # This repository is public. Nothing below may ever be committed.
 # ---------------------------------------------------------------------------
 
+# VSCode settings
+.vscode/
+
 # Private implementation plan and test plan
 PLAN.md
 TESTS.md
