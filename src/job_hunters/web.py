@@ -22,7 +22,7 @@ from fastapi import FastAPI
 
 from . import paths
 from .config import ConfigError, load_all
-from .db import init_db
+from .db import SchemaError, init_db
 
 log = logging.getLogger("job_hunters.web")
 
@@ -39,7 +39,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # otherwise empty Docker volume. Both calls are idempotent and `create_all`
     # issues "create table if not exists", so the two racing is harmless.
     paths.ensure_runtime_dirs()
-    init_db()
+    try:
+        init_db()
+    except SchemaError as exc:
+        # Refuse to start. A service reporting itself healthy over a database
+        # it cannot read is the failure this check exists to prevent.
+        log.error("Cannot start: %s", exc)
+        raise
     yield
 
 

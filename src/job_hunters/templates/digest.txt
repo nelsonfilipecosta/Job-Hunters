@@ -1,0 +1,59 @@
+{# The plain-text half of the digest email.
+
+   Not a fallback nobody reads. It is what a text-only client, a screen reader
+   and most spam filters actually see. A `multipart/alternative` carrying only
+   HTML is itself a spam signal. Same content and same order, but no styling.
+#}
+JOB-HUNTERS - {{ digest.digest_date.strftime('%A %d %B %Y') }}
+{% if digest.is_empty %}
+No new roles cleared a score of {{ digest.threshold }} today. This email is sent
+anyway: a quiet morning and a broken pipeline look identical from an empty inbox.
+{% else %}
+{{ digest.total }} role{{ '' if digest.total == 1 else 's' }} scoring {{ digest.threshold }} or above.
+{% endif %}
+{% for section in digest.sections %}
+{% if section.entries %}
+
+{% set heading = section.spec.title | upper ~ ' (' ~ section.entries | length ~ ')' %}
+{{ heading }}
+{{ '-' * (heading | length) }}
+{{ section.spec.blurb }}
+{% for entry in section.entries %}
+
+  [{{ entry.score }}] {{ entry.title }}
+  {{ entry.company }} - {{ entry.location }} - {{ entry.work_mode }}
+{% if entry.section_note %}
+  {{ entry.section_note }}
+{% endif %}
+{% if entry.work_authorization != 'eligible' %}
+  Work Authorization: {{ entry.work_authorization }}
+{% endif %}
+{% if entry.repeat_note %}
+  {{ entry.repeat_note }}
+{% endif %}
+{% if entry.summary %}
+  {{ entry.summary }}
+{% endif %}
+{% if entry.concerns %}
+  Concerns: {{ entry.concerns | join('; ') }}
+{% endif %}
+{% if entry.apply_url %}
+  Posting: {{ entry.apply_url }}
+{% endif %}
+{% for link in entry.links %}
+  {{ link.label }}: {{ link.url }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% if digest.still_open %}
+
+STILL OPEN ({{ digest.still_open }})
+{{ digest.still_open_url }}
+Shown often enough already and neither applied to nor dismissed. They are still
+in the dashboard and they come back here if the posting or the score changes.
+{% endif %}
+
+--
+Built {{ digest.generated_at.strftime('%Y-%m-%d %H:%M') }} UTC. The action links are
+signed and expire. Nothing happens until you confirm on the page they open.

@@ -7,6 +7,21 @@
 
 timezone: Europe/Lisbon
 
+# Every link in the digest email is built from this. The code that writes those
+# links runs inside the container, where `localhost` means the container itself
+# and not the computer reading the email. Change it if the stack ever moves to
+# another host. The port binding in `docker-compose.yml` is what keeps this
+# reachable from your machine only.
+base_url: http://localhost:8000
+
+actions:
+  # How long a signed "Applied" or "Dismiss" link keeps working. Long on purpose.
+  # A digest can sit in an inbox for weeks and a short expiry would break links
+  # you had not got to yet. This is only safe while `base_url` above points at a
+  # loopback-bound port, so shorten the lifetime if the stack ever moves to a
+  # host anyone else can reach.
+  token_ttl_days: 90
+
 schedules:
   # Accepted forms: "every <N><m|h|d>", "daily HH:MM", "weekly <dow> HH:MM"
   ingest:    every 2h
@@ -14,6 +29,10 @@ schedules:
   digest:    daily 08:00
   discovery: weekly mon 06:00
   backup:    weekly sun 02:00
+
+  # How late a missed run may still start.
+  misfire_grace_minutes: 60
+  digest_misfire_grace_minutes: 360
 
 models:
   # Cheap, fast and good enough to triage. Runs on hundreds of jobs.

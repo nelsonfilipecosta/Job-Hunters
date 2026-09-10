@@ -10,7 +10,8 @@ one to the code that does the actual work:
     job-hunters discover     finds which ATS and slug host a company's board
     job-hunters score        judges unscored postings with the LLM (prefilter then judge)
     job-hunters eval-scoring evaluates the scorer against hand-labeled postings
-    
+    job-hunters digest       builds the daily email and sends it
+
 This file does no work of its own. `build_parser()` registers each subcommand
 under a name. `main()` reads what was typed and calls whichever `cmd_*`
 function was selected.
@@ -24,12 +25,14 @@ from pathlib import Path
 
 from . import paths
 from .config import ConfigError, load_all
-from .db import init_db
+from .db import SchemaError, init_db
+from .digest import run_digest
 from .gitcheck import GitSafetyError, check_git_safety
 from .ingest import run_ingest
 from .discover import probe
 from .evaluate import run_evaluation
 from .judge import Usage, Verdict, cache_minimum_tokens
+from .mailer import DeliveryError
 from .scoring import Candidate, group_by_text, run_scoring
 
 
@@ -70,7 +73,11 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     print()
     print("system_config.yaml")
     print(f"  timezone             {system.timezone}")
+    print(f"  base url             {system.base_url}  (every digest link is built from this)")
+    print(f"  action links last    {system.actions.token_ttl_days} days")
     print(f"  ingest / score       {system.schedules.ingest} / {system.schedules.score}")
+    print(f"  misfire grace        {system.schedules.misfire_grace_minutes} min "
+          f"({system.schedules.digest_misfire_grace_minutes} min for the digest)")
     print(f"  digest               {system.schedules.digest} via "
           f"{system.email.smtp_host}:{system.email.smtp_port}")
     print(f"  judge / tailor       {system.models.judge} / {system.models.tailor}")
@@ -130,6 +137,9 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     print(f"{len(report.companies)} companies, {len(report.failures)} failed | "
           f"{report.total('fetched')} postings fetched, {report.total('new_sources')} new, "
           f"{report.total('closed')} closed and {report.total('new_jobs')} new jobs.")
+    if report.total("repointed"):
+        print(f"{report.total('repointed')} job(s) moved onto a still-open posting "
+              f"after the one they displayed closed.")
     return 1 if report.failures else 0
 
 
@@ -264,6 +274,27 @@ def cmd_eval_scoring(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_digest(args: argparse.Namespace) -> int:
+    """Handle `job-hunters digest`: build the daily email and send it."""
+    report = run_digest(dry_run=args.dry_run)
+    digest = report.digest
+    if args.dry_run:
+        print(report.html)
+    out = sys.stderr if args.dry_run else sys.stdout
+
+    print(f"{digest.digest_date}  {digest.subject()}", file=out)
+    for section in digest.sections:
+        print(f"  {section.spec.title:<16} {len(section.entries)}", file=out)
+    if digest.still_open:
+        print(f"  {'still open':<16} {digest.still_open}  (suppressed: shown often "
+              f"enough already)", file=out)
+    if args.dry_run:
+        print("Dry run. Nothing was sent and no appearance was recorded.", file=out)
+    else:
+        print(f"Sent to {report.sent_to}. {report.recorded} appearance(s) recorded.", file=out)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the `job-hunters` command-line parser and register its subcommands.
 
@@ -350,6 +381,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate.set_defaults(func=cmd_eval_scoring)
 
+    # `job-hunters digest [--dry-run]`
+    digest = subparsers.add_parser(
+        "digest", help="build the daily email and send it"
+    )
+    digest.add_argument(
+        "--dry-run", action="store_true",
+        help="write the HTML to stdout instead (send nothing and record nothing)"
+    )
+    digest.set_defaults(func=cmd_digest)
+
     return parser
 
 
@@ -382,8 +423,17 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except GitSafetyError as exc:
         # Same reasoning as ConfigError: expected and should never dump a
-        # traceback. This is the one error this project must never let
-        # a user miss.
+        # traceback. This is one error this project must never let a user miss.
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except DeliveryError as exc:
+        # A mail server refusing the message is the same kind of thing: the
+        # digest was built correctly and something outside this code said no.
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except SchemaError as exc:
+        # A database older than the code. The message says which table to drop,
+        # which is far more use than `no such column` from three layers down.
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 

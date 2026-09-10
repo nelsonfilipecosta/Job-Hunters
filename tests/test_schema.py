@@ -26,6 +26,7 @@ from job_hunters.models import (
     Application,
     ApplicationEvent,
     ApplicationStatus,
+    Base,
     Company,
     DigestAppearance,
     EventKind,
@@ -232,3 +233,66 @@ def test_init_db_is_idempotent(tmp_path) -> None:
     db_module.init_db(target)
     db_module.reset_engine()
     assert target.exists()
+
+
+def test_a_database_older_than_the_code_is_reported_and_not_left_to_surprise_you(
+    tmp_path,
+) -> None:
+    """`create_all` adds missing tables but never a missing column, so it has to say so."""
+    db_module.reset_engine()
+    target = tmp_path / "old.db"
+    engine = db_module.get_engine(target)
+    db_module.init_db(target)
+    with engine.begin() as connection:
+        connection.execute(
+            text("ALTER TABLE digest_appearances DROP COLUMN content_hash_at_appearance")
+        )
+
+    assert db_module.missing_columns(engine) == {
+        "digest_appearances": ["content_hash_at_appearance"]
+    }
+    with pytest.raises(db_module.SchemaError, match="content_hash_at_appearance"):
+        db_module.init_db(target)
+    db_module.reset_engine()
+
+
+def test_a_database_that_was_never_initialised_says_so(tmp_path) -> None:
+    """Opening a session against an empty file must name the fix and not raise `no such table`."""
+    db_module.reset_engine()
+    engine = db_module.get_engine(tmp_path / "never.db")
+    assert len(db_module.missing_tables(engine)) == len(Base.metadata.tables)
+    with pytest.raises(db_module.SchemaError, match="no tables at all"):
+        db_module.require_current_schema(engine)
+    db_module.reset_engine()
+
+
+def test_one_dropped_table_is_named_rather_than_all_of_them(tmp_path) -> None:
+    """Naming all eight when only one is gone would bury the line that matters."""
+    db_module.reset_engine()
+    target = tmp_path / "partial.db"
+    engine = db_module.get_engine(target)
+    db_module.init_db(target)
+    with engine.begin() as connection:
+        connection.execute(text("DROP TABLE digest_appearances"))
+
+    assert db_module.missing_tables(engine) == ["digest_appearances"]
+    with pytest.raises(db_module.SchemaError, match="missing the digest_appearances table"):
+        db_module.require_current_schema(engine)
+    db_module.reset_engine()
+
+
+def test_a_missing_table_is_not_also_reported_as_missing_columns(tmp_path) -> None:
+    """A dropped table is one fault and not one fault plus every column it held."""
+    db_module.reset_engine()
+    target = tmp_path / "partial2.db"
+    engine = db_module.get_engine(target)
+    db_module.init_db(target)
+    with engine.begin() as connection:
+        connection.execute(text("DROP TABLE digest_appearances"))
+    assert "digest_appearances" not in db_module.missing_columns(engine)
+    db_module.reset_engine()
+
+
+def test_a_current_database_reports_no_missing_columns(session: Session) -> None:
+    """The check must not cry wolf on a database this code just created."""
+    assert db_module.missing_columns(db_module.get_engine()) == {}

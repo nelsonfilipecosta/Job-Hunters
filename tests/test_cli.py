@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from job_hunters import paths
 from job_hunters.cli import main
+from job_hunters.config import Secrets, load_all
 
 
 def test_init_db_succeeds(tmp_path, monkeypatch) -> None:
@@ -178,6 +181,47 @@ def test_the_labeled_fixture_is_where_the_container_will_look_for_it() -> None:
     relative = DEFAULT_LABELS_PATH.relative_to(paths.PROJECT_ROOT).as_posix()
     dockerfile = (paths.PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
     assert relative in dockerfile, f"The Dockerfile must copy {relative} for the container to evaluate."
+
+
+def test_digest_dry_run_writes_html_to_stdout_and_the_summary_to_stderr(
+    session, monkeypatch, capsys
+) -> None:
+    """`digest --dry-run > file.html` has to produce a file a browser can open."""
+    monkeypatch.setenv("ACTION_TOKEN_SECRET", "a-secret")
+
+    assert main(["digest", "--dry-run"]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.lstrip().startswith("<div")
+    assert "Dry run" in captured.err and "Priority" in captured.err
+    assert "<div" not in captured.err, "the summary must not pollute the redirected html"
+
+
+def test_digest_without_a_signing_secret_fails_by_name(session, monkeypatch, capsys) -> None:
+    """Unsigned links could be forged, so a missing secret stops the run by variable name."""
+    monkeypatch.delenv("ACTION_TOKEN_SECRET", raising=False)
+    monkeypatch.setattr(
+        "job_hunters.digest.load_all",
+        lambda: replace(load_all(), secrets=Secrets(_env_file=None)),
+    )
+
+    assert main(["digest", "--dry-run"]) == 1
+    err = capsys.readouterr().err
+    assert "ACTION_TOKEN_SECRET" in err and "Traceback" not in err
+
+
+def test_a_delivery_failure_exits_1_without_a_traceback(capsys, monkeypatch) -> None:
+    """A mail server saying no is expected and gets a sentence rather than a stack trace."""
+    from job_hunters.mailer import DeliveryError
+
+    def _raise(*_args, **_kwargs):
+        raise DeliveryError("Could not send through smtp.example.com:587")
+
+    monkeypatch.setattr("job_hunters.cli.run_digest", _raise)
+
+    assert main(["digest"]) == 1
+    captured = capsys.readouterr()
+    assert "smtp.example.com:587" in captured.err
+    assert "Traceback" not in captured.err
 
 
 def test_eval_scoring_can_report_the_prefilter_alone(capsys) -> None:

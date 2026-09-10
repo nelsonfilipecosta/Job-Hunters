@@ -9,6 +9,8 @@ One run does, per active company:
        inserting again) and attach it to a `jobs` row via `dedup.resolve_job`.
     4. Only if the fetch succeeded and returned at least one posting, mark every
        posting from this source that was not in the response as closed.
+    5. Move any job whose displayed posting just closed onto one of its
+       postings that is still open, so the digest never links to a dead one.
 
 Each company is its own transaction. One board failing or one bug in one
 adapter must never roll back or abort the others.
@@ -29,7 +31,7 @@ from .db import session_scope
 from .dedup import resolve_job
 from .models import Company, FetchRun, FetchStatus, Job, JobSource, as_utc, utcnow
 from .normalize import content_hash, parse_location, raw_hash
-from .sources import get_adapter
+from .sources import get_adapter, replay_posting
 from .sources.base import FetchResult, JobSource as JobSourceAdapter, RawPosting
 
 log = logging.getLogger("job_hunters.ingest")
@@ -50,6 +52,8 @@ class CompanyReport:
     new_jobs: int = 0
     # Postings refused because their (source, id) already belongs to another company.
     skipped: int = 0
+    # Jobs moved onto a still-open posting because the one they displayed closed.
+    repointed: int = 0
 
     @property
     def failed(self) -> bool:
@@ -271,7 +275,58 @@ def ingest_company(
         source.is_open = False
         report.closed += 1
     session.flush()
+    report.repointed = _repoint_closed_primaries(session, stale, now)
+    session.flush()
     return report
+
+
+def _repoint_closed_primaries(
+    session: Session, closed: Iterable[JobSource], now: datetime
+) -> int:
+    """Moves a job off a posting that just closed and onto one that is still open.
+
+    The oldest open sibling wins, so the choice is stable across runs rather
+    than following whichever posting was processed last.
+    """
+    moved = 0
+    for job_id in sorted({s.job_id for s in closed if s.job_id is not None}):
+        job = session.get(Job, job_id)
+        if job is None or job.primary_source_id is None:
+            continue
+        primary = session.get(JobSource, job.primary_source_id)
+        if primary is not None and primary.is_open:
+            continue
+        replacement = min(
+            (s for s in job.sources if s.is_open),
+            key=lambda s: (as_utc(s.first_seen) or as_utc(now), s.id),
+            default=None,
+        )
+        if replacement is None:
+            # Every posting of this job closed. There is nothing better to
+            # point at and the job is not shown anywhere either way.
+            continue
+        job.primary_source_id = replacement.id
+        _adopt_primary(job, replacement, now)
+        moved += 1
+    return moved
+
+
+def _adopt_primary(job: Job, source: JobSource, now: datetime) -> None:
+    """Rewrites a job's displayed fields from the posting it has just moved onto."""
+    job.apply_url = source.url or job.apply_url
+    try:
+        posting = replay_posting(source.source, source.raw_json)
+        parsed = parse_location(
+            posting.location_raw,
+            country_code=posting.country_code,
+            workplace_type=posting.workplace_type,
+            is_remote=posting.is_remote,
+            hints=posting.location_hints,
+        )
+    except Exception as exc:  # noqa: BLE001 - a repair path must not break the run
+        log.warning("Job %s: could not replay posting %s: %s", job.id, source.id, exc)
+        return
+    _refresh_job(job, posting, parsed, now, source.content_hash)
 
 
 # ---------------------------------------------------------------------------
