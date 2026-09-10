@@ -23,7 +23,11 @@ _session_factory: sessionmaker[Session] | None = None
 
 
 class SchemaError(Exception):
-    """The database on disk is older than the code trying to read it."""
+    """The database on disk cannot answer what this code is about to ask it.
+
+    Either it was never initialised or it is older than this code and is
+    missing a column. `require_current_schema` tells the two apart.
+    """
 
 
 def _apply_pragmas(dbapi_connection, _connection_record) -> None:
@@ -96,11 +100,16 @@ def session_scope() -> Generator[Session, None, None]:
         session.close()
 
 
-def missing_columns(engine: Engine) -> dict[str, list[str]]:
-    """Columns declared in `models.py` that the database on disk does not have.
+def missing_tables(engine: Engine) -> list[str]:
+    """Tables declared in `models.py` that the database on disk does not have."""
+    present = set(inspect(engine).get_table_names())
+    return [name for name in Base.metadata.tables if name not in present]
 
-    Only tables that already exist are inspected, since `create_all` has just
-    made any that were missing. Extra columns in the database are ignored.
+
+def missing_columns(engine: Engine) -> dict[str, list[str]]:
+    """Columns declared in `models.py` that a table on disk does not have.
+
+    Only tables that already exist are inspected. Extra columns in the database are ignored.
     """
     inspector = inspect(engine)
     present = set(inspector.get_table_names())
@@ -115,7 +124,29 @@ def missing_columns(engine: Engine) -> dict[str, list[str]]:
 
 
 def require_current_schema(engine: Engine) -> None:
-    """Raises `SchemaError` naming every column the database is missing."""
+    """Raises `SchemaError` when the database cannot answer what this code will ask.
+
+    Two different faults, with two different repairs. A table that does not
+    exist yet is a database nobody has initialised and `init-db` fixes it
+    outright. A table that exists without one of its columns is a database
+    older than this code and `create_all` will never repair that. It issues
+    "create table if not exists" and stops.
+
+    Both are checked here rather than only in `init_db`, because most commands
+    never call `init_db` at all. They open a session and query.
+    """
+    absent = missing_tables(engine)
+    if absent:
+        what = (
+            "has no tables at all"
+            if len(absent) == len(Base.metadata.tables)
+            else f"is missing the {', '.join(absent)} table"
+            f"{'s' if len(absent) > 1 else ''}"
+        )
+        raise SchemaError(
+            f"The database at {engine.url.database} {what}. "
+            f"Run `job-hunters init-db` to create the schema."
+        )
     gaps = missing_columns(engine)
     if not gaps:
         return
