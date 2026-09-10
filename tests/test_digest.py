@@ -2,6 +2,10 @@
 
 Nothing here opens a socket. `RecordingSender` keeps the message instead
 of delivering it.
+
+Assertions about the wording of a note check that the substance is present
+rather than matching the sentence exactly. Capitalisation and punctuation are
+editorial and get revised; what the reader has to be told is not.
 """
 
 from __future__ import annotations
@@ -433,7 +437,7 @@ def test_an_unparsed_location_says_that_is_why_it_is_worth_checking(
     _ingest(session, company, make_posting("1", "Research Scientist", location="Somewhere"))
     _judge(session, session.scalar(select(JobSource)))
     entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
-    assert entry.section_note == "location could not be settled"
+    assert "location could not be settled" in entry.section_note.lower()
 
 
 def test_a_job_held_back_only_by_its_authorization_says_the_location_was_fine(
@@ -442,7 +446,9 @@ def test_a_job_held_back_only_by_its_authorization_says_the_location_was_fine(
     """A job in "Worth Checking" only for its authorization must not read as a location the parser fumbled."""
     _one_job(session, company, 90, work_authorization="unclear")
     entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
-    assert entry.section_note == "the location qualifies; the work authorization does not"
+    note = entry.section_note.lower()
+    assert "the location qualifies" in note
+    assert "the work authorization does not" in note
 
 
 def test_that_answer_still_names_the_office_when_it_is_not_the_obvious_one(
@@ -456,9 +462,10 @@ def test_that_answer_still_names_the_office_when_it_is_not_the_obvious_one(
     _judge(session, session.scalar(select(JobSource)), work_authorization="blocked")
 
     entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
-    assert entry.section_note == (
-        "the location qualifies (via us); the work authorization does not"
-    )
+    note = entry.section_note.lower()
+    assert "the location qualifies" in note
+    assert "(via us)" in note, "the office that earned it is named even here"
+    assert "the work authorization does not" in note
 
 
 def test_every_worth_checking_entry_explains_itself(
