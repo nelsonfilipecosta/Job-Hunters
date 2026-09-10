@@ -129,12 +129,6 @@ class LocationFit(StrEnum):
 
 
 class WorkAuthStatus(StrEnum):
-    """The judge's *contradiction detection* only.
-
-    `blocked` means the description explicitly conflicts with declared status
-    ("must hold US citizenship"), not that the model reasoned about immigration.
-    """
-
     ELIGIBLE = "eligible"
     UNCLEAR = "unclear"
     BLOCKED = "blocked"
@@ -172,7 +166,7 @@ class FetchStatus(StrEnum):
 
 class DigestSection(StrEnum):
     PRIORITY = "priority"
-    REMOTE = "remote"
+    ACCEPTABLE = "acceptable"
     WORTH_CHECKING = "worth_checking"
     FOLLOW_UP = "follow_up"
     STILL_OPEN = "still_open"
@@ -462,6 +456,11 @@ class DigestAppearance(Base):
     # The score at the time it was shown, so a materially changed score can
     # reset the appearance counter (`reset_on_score_delta`).
     score_at_appearance: Mapped[int | None] = mapped_column(Integer)
+
+    # The job's `content_hash` at the time it was shown. Repeat suppression
+    # also resets on a material text change and a rewritten posting can be
+    # rescored to the same number, so the score alone cannot see one.
+    content_hash_at_appearance: Mapped[str | None] = mapped_column(String(64))
 
     __table_args__ = (
         UniqueConstraint("job_id", "digest_date", name="uq_digest_once_per_day"),
