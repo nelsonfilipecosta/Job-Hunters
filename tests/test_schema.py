@@ -232,3 +232,29 @@ def test_init_db_is_idempotent(tmp_path) -> None:
     db_module.init_db(target)
     db_module.reset_engine()
     assert target.exists()
+
+
+def test_a_database_older_than_the_code_is_reported_and_not_left_to_surprise_you(
+    tmp_path,
+) -> None:
+    """`create_all` adds missing tables but never a missing column, so it has to say so."""
+    db_module.reset_engine()
+    target = tmp_path / "old.db"
+    engine = db_module.get_engine(target)
+    db_module.init_db(target)
+    with engine.begin() as connection:
+        connection.execute(
+            text("ALTER TABLE digest_appearances DROP COLUMN content_hash_at_appearance")
+        )
+
+    assert db_module.missing_columns(engine) == {
+        "digest_appearances": ["content_hash_at_appearance"]
+    }
+    with pytest.raises(db_module.SchemaError, match="content_hash_at_appearance"):
+        db_module.init_db(target)
+    db_module.reset_engine()
+
+
+def test_a_current_database_reports_no_missing_columns(session: Session) -> None:
+    """The check must not cry wolf on a database this code just created."""
+    assert db_module.missing_columns(db_module.get_engine()) == {}
