@@ -258,10 +258,11 @@ def test_an_implausible_token_lifetime_is_rejected(tmp_path: Path, value: int) -
 @pytest.mark.parametrize(
     "keys",
     [{"misfire_grace_minutes": 0}, {"misfire_grace_minutes": 2000},
-     {"digest_misfire_grace_minutes": -5}, {"digest_misfire_grace_minutes": 1441}],
+     {"digest_misfire_grace_minutes": -5}, {"digest_misfire_grace_minutes": 1441},
+     {"backup_misfire_grace_minutes": 0}, {"backup_misfire_grace_minutes": 5761}],
 )
 def test_an_implausible_misfire_grace_is_rejected(tmp_path: Path, keys: dict) -> None:
-    """Zero means a missed run never happens and over a day means the value is a typo."""
+    """Zero means a missed run never happens and over the job's own period is a typo."""
     system = _valid_system()
     system["schedules"].update(keys)
     with pytest.raises(ConfigError, match="misfire_grace_minutes"):

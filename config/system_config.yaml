@@ -1,9 +1,9 @@
 # How the system runs.
 #
 # Nothing here is secret. Secrets come from `.env`:
-#   SMTP_PASSWORD
-#   ACTION_TOKEN_SECRET
 #   ANTHROPIC_API_KEY
+#   ACTION_TOKEN_SECRET
+#   SMTP_PASSWORD
 
 timezone: Europe/Lisbon
 
@@ -31,8 +31,9 @@ schedules:
   backup:    weekly sun 02:00
 
   # How late a missed run may still start.
-  misfire_grace_minutes: 60
-  digest_misfire_grace_minutes: 360
+  misfire_grace_minutes: 60           # 1h 
+  digest_misfire_grace_minutes: 360   # 6h
+  backup_misfire_grace_minutes: 2880  # 2d
 
 models:
   # Cheap, fast and good enough to triage. Runs on hundreds of jobs.

@@ -220,6 +220,7 @@ class SchedulesConfig(StrictModel):
     # How late a missed run may still start.
     misfire_grace_minutes: int = Field(default=60, ge=1, le=1440)
     digest_misfire_grace_minutes: int = Field(default=360, ge=1, le=1440)
+    backup_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
 
     def specs(self) -> dict[str, str]:
         """Only the schedule strings, so the grace settings are never parsed as one."""
