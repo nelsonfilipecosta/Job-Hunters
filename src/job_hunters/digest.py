@@ -24,15 +24,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from functools import lru_cache
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from .actions import ACTION_LABELS, Action, action_url
+from .actions import ActionLink, action_links
 from .config import AppConfig, RepeatSuppressionConfig, load_all
 from .db import session_scope
 from .mailer import Message, Sender, SmtpSender
@@ -48,8 +45,7 @@ from .models import (
     WorkAuthStatus,
 )
 from .scoring import LocationMatch, best_scores, location_match
-
-TEMPLATE_DIR = Path(__file__).parent / "templates"
+from .templating import render as render_template
 
 ACTIONED_STATUSES: frozenset[str] = frozenset(
     set(ApplicationStatus) - {ApplicationStatus.INTERESTED}
@@ -84,14 +80,6 @@ SECTION_SPECS: dict[str, SectionSpec] = {
 
 
 @dataclass(frozen=True)
-class ActionLink:
-    """One signed link under an entry."""
-
-    label: str
-    url: str
-
-
-@dataclass(frozen=True)
 class LinkFactory:
     """Everything one run needs to sign a link, so entries do not carry it about."""
 
@@ -102,15 +90,8 @@ class LinkFactory:
 
     def for_job(self, job_id: int) -> tuple[ActionLink, ...]:
         """The four signed links that sit under one entry."""
-        return tuple(
-            ActionLink(
-                ACTION_LABELS[action],
-                action_url(
-                    self.base_url, self.secret, action, job_id,
-                    ttl_days=self.ttl_days, now=self.now,
-                ),
-            )
-            for action in Action
+        return action_links(
+            self.base_url, self.secret, job_id, ttl_days=self.ttl_days, now=self.now
         )
 
 
@@ -241,7 +222,7 @@ def appearances_since_change(
     return count
 
 
-def _suppression_state(appearance: int, suppression: RepeatSuppressionConfig) -> tuple[bool, bool]:
+def suppression_state(appearance: int, suppression: RepeatSuppressionConfig) -> tuple[bool, bool]:
     """Whether this appearance is suppressed and whether it is demoted."""
     if not suppression.enabled:
         return False, False
@@ -326,7 +307,7 @@ def build_digest(
         appearance = 1 + appearances_since_change(
             history.get(job.id, []), score.score, job.content_hash, suppression
         )
-        is_suppressed, demoted = _suppression_state(appearance, suppression)
+        is_suppressed, demoted = suppression_state(appearance, suppression)
         if is_suppressed:
             suppressed += 1
             continue
@@ -462,21 +443,9 @@ def record_appearances(session: Session, digest: Digest) -> int:
 # ---------------------------------------------------------------------------
 
 
-@lru_cache(maxsize=1)
-def _environment() -> Environment:
-    """The Jinja environment, built once and reused."""
-    return Environment(
-        loader=FileSystemLoader(TEMPLATE_DIR),
-        autoescape=select_autoescape(enabled_extensions=("html",), default_for_string=False),
-        undefined=StrictUndefined,
-        trim_blocks=True,
-        lstrip_blocks=True,
-    )
-
-
 def render(digest: Digest, template: str) -> str:
     """Renders one digest through `templates/<template>`."""
-    return _environment().get_template(template).render(digest=digest)
+    return render_template(template, digest=digest)
 
 
 def render_bodies(digest: Digest) -> tuple[str, str]:
