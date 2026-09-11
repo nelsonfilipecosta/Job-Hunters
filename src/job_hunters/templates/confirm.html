@@ -1,0 +1,43 @@
+{# What a signed link opens: the job and a question about it.
+
+   The button posts. A GET never changes anything, which is what keeps a mail
+   client's link prefetcher or a corporate link scanner from marking a job
+   applied on your behalf just by delivering the email.
+#}
+{% extends "page.html" %}
+{% block title %}{{ label }} — {{ card.title }}{% endblock %}
+{% block content %}
+
+<h2>{{ label }}?</h2>
+<p class="blurb">Nothing has changed yet.</p>
+
+<div class="card">
+  <div style="font-size:15px;font-weight:600;">
+    {% if card.score is not none %}<span class="score">{{ card.score }}</span>{% endif %}
+    {% if card.apply_url %}
+      <a href="{{ card.apply_url }}" rel="noreferrer">{{ card.title }}</a>
+    {% else %}
+      {{ card.title }}
+    {% endif %}
+  </div>
+  <div class="meta" style="padding-top:4px;">
+    {{ card.company }} &middot; {{ card.location }} &middot; {{ card.work_mode }}
+    {% if card.status %}&middot; <span class="pill">{{ card.status }}</span>{% endif %}
+  </div>
+  {% if card.summary %}
+    <div style="padding-top:10px;">{{ card.summary }}</div>
+  {% endif %}
+</div>
+
+<p>{{ explanation }}</p>
+
+<div class="actions">
+  {% if confirmable %}
+    <form method="post" action="/a/{{ token }}">
+      <button type="submit"{% if action == 'dismiss' %} class="danger"{% endif %}>{{ label }}</button>
+    </form>
+  {% endif %}
+  <a href="/">{% if confirmable %}Cancel{% else %}Back to the dashboard{% endif %}</a>
+</div>
+
+{% endblock %}

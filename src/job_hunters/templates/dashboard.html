@@ -1,0 +1,195 @@
+{# The tracker dashboard.
+
+   What is outstanding, where each application stands, how far applications
+   get, who answers and whether tailoring changes that. Everything on it is
+   counted from the two tracking tables at request time, so there is no
+   cached number to go stale.
+#}
+{% extends "page.html" %}
+{% block title %}Job-Hunters{% endblock %}
+{% block stamp %}{{ dashboard.generated_at.strftime('%d %b %Y %H:%M') }} UTC{% endblock %}
+{% block content %}
+
+{% if expired %}
+  <div class="banner">
+    That link had expired and it was not carried out. Links are signed for a fixed
+    number of days and an old digest eventually stops working. The role it pointed
+    at is below if it is still open.
+  </div>
+{% endif %}
+
+<h2>Open roles</h2>
+<p class="blurb">
+  Scoring {{ dashboard.threshold }} or above and neither applied to nor dismissed.
+  "Digests" counts how many it has been sent in since it last materially changed,
+  which is the same count repeat suppression works from.
+  {% if dashboard.open_suppressed %}
+    {{ dashboard.open_suppressed }} of them the email has stopped showing.
+  {% endif %}
+</p>
+{% if dashboard.open_roles %}
+  <table>
+    <tr>
+      <th class="num">Score</th><th>Role</th><th>Where</th>
+      <th class="num">Digests</th><th>{% if signed %}Action{% else %}&nbsp;{% endif %}</th>
+    </tr>
+    {% for role in dashboard.open_roles %}
+      <tr>
+        <td class="num">{{ role.score }}</td>
+        <td>
+          {% if role.apply_url %}
+            <a href="{{ role.apply_url }}" rel="noreferrer">{{ role.title }}</a>
+          {% else %}
+            {{ role.title }}
+          {% endif %}
+          <div class="meta">{{ role.company }}</div>
+        </td>
+        <td class="meta">{{ role.location }} &middot; {{ role.work_mode }}</td>
+        <td class="num">
+          {{ role.appearances }}
+          {% if role.suppressed %}<span class="warn" title="The digest has stopped showing this">&#9679;</span>{% endif %}
+        </td>
+        <td>
+          {% if signed %}
+            {% for link in links[role.job_id] %}
+              <a href="{{ link.url }}">{{ link.label }}</a>{% if not loop.last %} &middot; {% endif %}
+            {% endfor %}
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  {% if dashboard.open_total > dashboard.open_roles | length %}
+    <p class="blurb">
+      Showing the top {{ dashboard.open_roles | length }} of {{ dashboard.open_total }}.
+    </p>
+  {% endif %}
+  {% if not signed %}
+    <p class="blurb warn">
+      ACTION_TOKEN_SECRET is not set, so no link can be signed. Add it to
+      <code>.env</code> and reload.
+    </p>
+  {% endif %}
+{% else %}
+  <p class="empty">Nothing outstanding. Either nothing has cleared the threshold yet
+  or you have dealt with all of it.</p>
+{% endif %}
+
+<h2>Pipeline</h2>
+<p class="blurb">Where each application stands right now.</p>
+{% if dashboard.pipeline %}
+  <p>
+    {% for status, count in dashboard.pipeline.items() %}
+      <span class="pill">{{ status }} {{ count }}</span>
+    {% endfor %}
+    {% if dashboard.dismissed %}
+      <span class="pill">dismissed {{ dashboard.dismissed }}</span>
+    {% endif %}
+  </p>
+{% elif dashboard.dismissed %}
+  <p><span class="pill">dismissed {{ dashboard.dismissed }}</span></p>
+{% else %}
+  <p class="empty">No application yet. Clicking "Applied" on a role above starts one.</p>
+{% endif %}
+
+{% for application in dashboard.applications %}
+  <div class="card">
+    <div style="font-size:15px;font-weight:600;">
+      {% if application.apply_url %}
+        <a href="{{ application.apply_url }}" rel="noreferrer">{{ application.title }}</a>
+      {% else %}
+        {{ application.title }}
+      {% endif %}
+    </div>
+    <div class="meta" style="padding-top:4px;">
+      {{ application.company }} &middot; <span class="pill">{{ application.status }}</span>
+      &middot; via {{ application.source }}
+      {% if application.applied_at %}
+        &middot; applied {{ application.applied_at.strftime('%d %b %Y') }}
+      {% endif %}
+      {% if application.tailored %}&middot; tailored{% endif %}
+      {% if application.responded %}
+        &middot; <span class="good">answered</span>
+      {% endif %}
+    </div>
+    {% if application.events %}
+      <details{% if application.events | length > 1 %} open{% endif %}>
+        <summary>{{ application.events | length }} event(s)</summary>
+        <ol class="timeline">
+          {% for event in application.events %}
+            <li>
+              {{ event.occurred_at.strftime('%d %b %Y') }} &mdash; {{ event.label }}
+              {% if event.notes %}<span class="meta">{{ event.notes }}</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      </details>
+    {% endif %}
+  </div>
+{% endfor %}
+
+<h2>Funnel</h2>
+<p class="blurb">
+  How many applications ever reached each stage, counted from the timeline rather
+  than from where they stand now. One rejected after an onsite still reached the onsite.
+</p>
+{% if dashboard.applied_total %}
+  <table>
+    <tr><th>Stage</th><th class="num">Count</th><th class="num">Of applied</th><th>&nbsp;</th></tr>
+    {% for stage in dashboard.funnel %}
+      <tr>
+        <td>{{ stage.label }}</td>
+        <td class="num">{{ stage.count }}</td>
+        <td class="num">{{ (stage.share_of_applied * 100) | round | int }}%</td>
+        <td style="width:40%;">
+          <div class="bar"><span style="width:{{ (stage.share_of_applied * 100) | round(1) }}%;"></span></div>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p class="empty">Nothing to count until the first application is recorded.</p>
+{% endif %}
+
+<h2>Response rate</h2>
+<p class="blurb">
+  A reply of any kind, including a rejection. Being ghosted is the absence of one.
+  {% if dashboard.applied_total %}
+    Overall, {{ (dashboard.response_rate * dashboard.applied_total) | round | int }} of
+    {{ dashboard.applied_total }} answered
+    ({{ (dashboard.response_rate * 100) | round | int }}%).
+  {% endif %}
+</p>
+{% if dashboard.by_source %}
+  <table>
+    <tr><th>By board</th><th class="num">Applied</th><th class="num">Answered</th><th class="num">Rate</th></tr>
+    {% for row in dashboard.by_source %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td class="num">{{ row.applied }}</td>
+        <td class="num">{{ row.responded }}</td>
+        <td class="num">{{ (row.rate * 100) | round | int }}%</td>
+      </tr>
+    {% endfor %}
+  </table>
+  <table style="margin-top:16px;">
+    <tr><th>By tailoring</th><th class="num">Applied</th><th class="num">Answered</th><th class="num">Rate</th></tr>
+    {% for row in dashboard.by_tailoring %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td class="num">{{ row.applied }}</td>
+        <td class="num">{{ row.responded }}</td>
+        <td class="num">{{ (row.rate * 100) | round | int }}%</td>
+      </tr>
+    {% endfor %}
+  </table>
+  <p class="blurb">
+    Nothing is tailored until Phase 6 writes a CV or a cover letter, so this
+    second table has one row until then. It is here now because the comparison it
+    is for only means anything if both sides were counted the same way from the start.
+  </p>
+{% else %}
+  <p class="empty">Nothing to compare until the first application is recorded.</p>
+{% endif %}
+
+{% endblock %}
