@@ -11,6 +11,7 @@ one to the code that does the actual work:
     job-hunters score        judges unscored postings with the LLM (prefilter then judge)
     job-hunters eval-scoring evaluates the scorer against hand-labeled postings
     job-hunters digest       builds the daily email and sends it
+    job-hunters backup       writes a timestamped backup of the database to `backups/`
 
 This file does no work of its own. `build_parser()` registers each subcommand
 under a name. `main()` reads what was typed and calls whichever `cmd_*`
@@ -24,6 +25,7 @@ import sys
 from pathlib import Path
 
 from . import paths
+from .backup import BackupError, backup_database
 from .config import ConfigError, load_all
 from .db import SchemaError, init_db
 from .digest import run_digest
@@ -77,7 +79,9 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     print(f"  action links last    {system.actions.token_ttl_days} days")
     print(f"  ingest / score       {system.schedules.ingest} / {system.schedules.score}")
     print(f"  misfire grace        {system.schedules.misfire_grace_minutes} min "
-          f"({system.schedules.digest_misfire_grace_minutes} min for the digest)")
+          f"({system.schedules.digest_misfire_grace_minutes} min for the digest, "
+          f"{system.schedules.backup_misfire_grace_minutes} min for the backup)")
+    print(f"  backup               {system.schedules.backup} into {paths.BACKUP_DIR}")
     print(f"  digest               {system.schedules.digest} via "
           f"{system.email.smtp_host}:{system.email.smtp_port}")
     print(f"  judge / tailor       {system.models.judge} / {system.models.tailor}")
@@ -295,6 +299,19 @@ def cmd_digest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backup(_args: argparse.Namespace) -> int:
+    """Handle `job-hunters backup`: write a timestamped backup of the database."""
+    report = backup_database()
+    print(f"Backed up {report.source}")
+    print(f"        to {report.path}")
+    print(f"           {report.megabytes:.1f} MB, {report.tables} tables, reopened and checked.")
+    if report.missing:
+        print(f"Warning: the database has no {', '.join(report.missing)} table(s), so the "
+              f"backup has none either. The database is older than this code: run "
+              f"`job-hunters init-db` to add them.", file=sys.stderr)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the `job-hunters` command-line parser and register its subcommands.
 
@@ -391,6 +408,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     digest.set_defaults(func=cmd_digest)
 
+    # `job-hunters backup`
+    backup = subparsers.add_parser(
+        "backup", help="write a timestamped backup of the database to `backups/`"
+    )
+    backup.set_defaults(func=cmd_backup)
+
     return parser
 
 
@@ -417,23 +440,18 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.func(args)
     except ConfigError as exc:
-        # A config mistake is a user error, not a crash. Print it plainly
-        # instead of letting a Python traceback reach the terminal.
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except GitSafetyError as exc:
-        # Same reasoning as ConfigError: expected and should never dump a
-        # traceback. This is one error this project must never let a user miss.
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except DeliveryError as exc:
-        # A mail server refusing the message is the same kind of thing: the
-        # digest was built correctly and something outside this code said no.
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except SchemaError as exc:
-        # A database older than the code. The message says which table to drop,
-        # which is far more use than `no such column` from three layers down.
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except BackupError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 

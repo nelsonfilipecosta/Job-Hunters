@@ -224,6 +224,40 @@ def test_a_delivery_failure_exits_1_without_a_traceback(capsys, monkeypatch) -> 
     assert "Traceback" not in captured.err
 
 
+def test_backup_writes_a_copy_and_says_where(session, tmp_path, capsys, monkeypatch) -> None:
+    """`job-hunters backup` has to name the file or you cannot tell it ever ran."""
+    from job_hunters import backup as backup_module
+    from job_hunters import cli
+
+    real = backup_module.backup_database
+    monkeypatch.setattr(
+        cli, "backup_database", lambda: real(tmp_path / "backups")
+    )
+
+    assert main(["backup"]) == 0
+    out = capsys.readouterr().out
+    assert "Backed up" in out
+    assert "job_hunters-" in out
+    assert len(list((tmp_path / "backups").glob("*.db"))) == 1
+
+
+def test_a_backup_that_could_not_be_written_exits_1_without_a_traceback(
+    capsys, monkeypatch
+) -> None:
+    """A silent failure here would only be discover when you needed it."""
+    from job_hunters.backup import BackupError
+
+    def _raise(*_args, **_kwargs):
+        raise BackupError("There is no database at `data/job_hunters.db` to back up.")
+
+    monkeypatch.setattr("job_hunters.cli.backup_database", _raise)
+
+    assert main(["backup"]) == 1
+    captured = capsys.readouterr()
+    assert "no database" in captured.err
+    assert "Traceback" not in captured.err
+
+
 def test_eval_scoring_can_report_the_prefilter_alone(capsys) -> None:
     """`eval-scoring --skip-llm` measures the prefilter against the labels without a key."""
     assert main(["eval-scoring", "--skip-llm"]) == 0
