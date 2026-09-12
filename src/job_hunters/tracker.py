@@ -114,12 +114,25 @@ def job_card(session: Session, job_id: int, prompt_version: int) -> JobCard:
         company=company_name,
         location=job.location_raw or "not stated",
         work_mode=job.work_mode,
-        apply_url=job.apply_url,
+        apply_url=_winning_url(score, job),
         score=score.score if score is not None else None,
         summary=(score.summary or "").strip() if score is not None else "",
         status=application.status if application is not None else None,
         applied_at=as_utc(application.applied_at) if application is not None else None,
     )
+
+
+def _winning_url(score: Score | None, job: Job) -> str | None:
+    """The posting the digest linked to, which is the one whose text was judged.
+
+    A job can have several open postings and the one displayed is not always the
+    one that scored best. The email deliberately links to the winner, so the page
+    that email opens has to link to the same posting or the summary beside it
+    would describe text that link does not show.
+    """
+    if score is None or score.source is None:
+        return job.apply_url
+    return score.source.url or job.apply_url
 
 
 def best_score_for(session: Session, job_id: int, prompt_version: int) -> Score | None:
@@ -601,7 +614,7 @@ def _open_roles(
                 location=job.location_raw or "not stated",
                 work_mode=job.work_mode,
                 score=score.score,
-                apply_url=job.apply_url,
+                apply_url=_winning_url(score, job),
                 appearances=shown,
                 suppressed=is_suppressed,
             )

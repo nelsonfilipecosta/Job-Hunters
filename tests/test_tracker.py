@@ -312,6 +312,43 @@ def test_the_offered_button_and_the_action_agree(session: Session, company: Comp
         assert outcome.changed is confirmable, f"{action} said one thing and did another"
 
 
+def test_the_page_links_to_the_posting_that_won_and_not_the_one_on_display(
+    session: Session, company: Company
+) -> None:
+    """The email links to the posting whose text was judged so the page it opens must too."""
+    ingest_company(
+        session, company,
+        FakeAdapter.returning(
+            "greenhouse",
+            make_posting("1", "Research Scientist", location="Lisbon, Portugal",
+                         description="Platform work.", url="https://example.test/primary"),
+            make_posting("2", "Research Scientist", location="Lisbon, Portugal",
+                         description="RLHF and post-training.", url="https://example.test/sibling"),
+        ),
+        NOW,
+    )
+    session.commit()
+    postings = session.scalars(select(JobSource).order_by(JobSource.source_job_id)).all()
+    assert postings[0].job_id == postings[1].job_id, "one job, two postings"
+    for posting, score in ((postings[0], 71), (postings[1], 95)):
+        session.add(
+            Score(
+                source_id=posting.id, score=score, summary="A post-training role.",
+                rationale="Because.", matched_areas=["RLHF"], concerns=[],
+                work_authorization="eligible", location_fit=LocationFit.PRIORITY,
+                prompt_version=1, model="claude-haiku-4-5", content_hash=posting.content_hash,
+            )
+        )
+    session.commit()
+    job_id = postings[0].job_id
+
+    card = job_card(session, job_id, prompt_version=1)
+    assert card.score == 95
+    assert card.apply_url == "https://example.test/sibling"
+    role = build_dashboard(session, _config(), now=NOW).open_roles[0]
+    assert role.apply_url == "https://example.test/sibling"
+
+
 def test_a_card_for_a_job_that_is_gone_is_told_apart_from_a_bad_link(
     session: Session, company: Company
 ) -> None:
