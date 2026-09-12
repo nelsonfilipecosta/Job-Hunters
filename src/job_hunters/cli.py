@@ -4,7 +4,7 @@ Defines the subcommands available at the terminal and connects each
 one to the code that does the actual work:
 
     job-hunters show-config  loads, validates and summarises the config
-    job-hunters check-git    refuses if `profile/`, `data/`, `backups/` or `.env` are git-tracked
+    job-hunters check-git    refuses if `profile/`, `data/`, `backups/` or any `.env*` are git-tracked
     job-hunters init-db      creates the data directories and the database schema
     job-hunters ingest       fetches every watched board into the database
     job-hunters discover     finds which ATS and slug host a company's board
@@ -334,7 +334,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # `job-hunters check-git`
     check_git = subparsers.add_parser(
-        "check-git", help="refuse if `profile/`, `data/`, `backups/` or `.env` are git-tracked"
+        "check-git", help="refuse if `profile/`, `data/`, `backups/` or any `.env*` are git-tracked"
     )
     check_git.set_defaults(func=cmd_check_git)
 

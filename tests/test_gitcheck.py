@@ -71,6 +71,25 @@ def test_a_tracked_env_file_is_detected(repo: Path) -> None:
     assert find_tracked_private_files(repo) == [".env"]
 
 
+def test_a_second_secrets_file_is_detected_too(repo: Path) -> None:
+    """A second host means a second secrets file and `.env.prod` holds exactly what"""
+    (repo / ".env.prod").write_text("SMTP_PASSWORD=hunter2")
+    _git("add", "-f", ".env.prod", cwd=repo)
+
+    assert find_tracked_private_files(repo) == [".env.prod"]
+    with pytest.raises(GitSafetyError, match=".env.prod"):
+        check_git_safety(repo)
+
+
+def test_the_example_env_file_is_allowed_to_be_tracked(repo: Path) -> None:
+    """It names the variables and never their values."""
+    (repo / ".env.example").write_text("SMTP_PASSWORD =\nDIGEST_TO =")
+    _git("add", ".env.example", cwd=repo)
+
+    assert find_tracked_private_files(repo) == []
+    check_git_safety(repo)
+
+
 def test_an_untracked_file_under_a_private_path_is_ignored(repo: Path) -> None:
     """A file that exists on disk but was never `git add`-ed is not reported."""
     target = repo / "profile" / "cv.md"
