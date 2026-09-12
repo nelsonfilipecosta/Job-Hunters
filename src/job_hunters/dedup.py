@@ -180,6 +180,18 @@ def resolve_job(
         current.canonical_key = key
         return current, False
     survivor = merge_jobs(session, current, match)
-    if survivor.canonical_key != key:
+    if survivor.canonical_key != key and not _key_is_taken(session, key, survivor.id):
         survivor.canonical_key = key
     return survivor, False
+
+
+def _key_is_taken(session: Session, key: str, keeper_id: int | None) -> bool:
+    """Whether some other job already holds this canonical key.
+
+    `merge_jobs` declines to merge two jobs that both carry an application because
+    `applications.job_id` is unique and one of the two would have to be discarded.
+    When it declines, the job it refused to absorb survives and carries on holding
+    its key. The posting stays where it is and the two remain two.
+    """
+    other = session.scalar(select(Job.id).where(Job.canonical_key == key))
+    return other is not None and other != keeper_id
