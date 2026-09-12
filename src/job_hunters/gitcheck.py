@@ -11,8 +11,8 @@ from pathlib import Path
 
 from . import paths
 
-# Paths, relative to the repository root, that must never be git-tracked.
-PRIVATE_PATH_NAMES = ("profile", "data", "backups", ".env")
+PRIVATE_PATH_NAMES = ("profile", "data", "backups", ".env*")
+ALLOWED = frozenset({".env.example"})
 
 
 class GitSafetyError(Exception):
@@ -20,7 +20,8 @@ class GitSafetyError(Exception):
 
 
 def find_tracked_private_files(repo_root: Path | None = None) -> list[str]:
-    """Returns every git-tracked file under `profile/`, `data/`, `backups/` and `.env`.
+    """Returns every git-tracked file under `profile/`, `data/`, `backups/` and any
+    `.env*` (except `.env.example`).
 
     An empty list means none of the private paths are tracked. Raises
     GitSafetyError if this isn't run inside a git repository at all, since a
@@ -43,7 +44,7 @@ def find_tracked_private_files(repo_root: Path | None = None) -> list[str]:
             f"(is this a git repository?): {exc.stderr.strip()}"
         ) from exc
 
-    return [line for line in result.stdout.splitlines() if line]
+    return [line for line in result.stdout.splitlines() if line and line not in ALLOWED]
 
 
 def check_git_safety(repo_root: Path | None = None) -> None:

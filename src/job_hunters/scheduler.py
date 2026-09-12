@@ -1,16 +1,17 @@
-"""The process that runs ingest, score and digest on a schedule.
+"""The process that runs ingest, score, digest and backup on a schedule.
 
 Runs as its own container, separate from the web process, and is what turns
 the commands in `cli.py` into something that happens without you. It registers
-three jobs on the schedules declared in `system_config.yaml`:
+four jobs on the schedules declared in `system_config.yaml`:
 
     ingest   fetch every watched board          (default: every 2h)
     score    judge whatever ingest turned up    (default: every 2h)
     digest   build and send the daily email     (default: daily 08:00)
+    backup   copy the database into `backups/`  (default: weekly sun 02:00)
 
-`discovery` and `backup` are configured but not registered yet: the code they
-would call arrives in Phases 5 and 4. Registering a job that cannot run would
-only produce a stack trace every week.
+`discovery` is configured but not registered yet: the code it would call
+arrives in Phase 5. Registering a job that cannot run would only produce a
+stack trace every week.
 
 Kept separate from `web.py` on purpose. If the scheduler ran inside uvicorn
 and the worker count were ever raised above one, every worker would start its
@@ -29,6 +30,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from . import paths
+from .backup import backup_database
 from .config import ConfigError, load_system_config
 from .db import SchemaError, init_db
 from .digest import run_digest
@@ -102,6 +104,15 @@ def scheduled_digest() -> None:
         log.exception("digest failed")
 
 
+def scheduled_backup() -> None:
+    """Copies the database into `backups/` and logs where it went."""
+    try:
+        report = backup_database()
+        log.info("backup: %s (%.1f MB)", report.path, report.megabytes)
+    except Exception:
+        log.exception("backup failed")
+
+
 def main() -> int:
     """Starts the scheduler and blocks forever."""
     try:
@@ -109,10 +120,12 @@ def main() -> int:
         timezone = ZoneInfo(config.timezone)
         interval_grace = config.schedules.misfire_grace_minutes * SECONDS_PER_MINUTE
         digest_grace = config.schedules.digest_misfire_grace_minutes * SECONDS_PER_MINUTE
+        backup_grace = config.schedules.backup_misfire_grace_minutes * SECONDS_PER_MINUTE
         jobs = (
             ("ingest", scheduled_ingest, config.schedules.ingest, interval_grace),
             ("score", scheduled_score, config.schedules.score, interval_grace),
             ("digest", scheduled_digest, config.schedules.digest, digest_grace),
+            ("backup", scheduled_backup, config.schedules.backup, backup_grace),
         )
         triggers = [
             (name, func, spec, build_trigger(spec, timezone), grace)

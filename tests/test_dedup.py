@@ -153,6 +153,28 @@ def test_a_retitle_that_lands_on_an_existing_job_merges_them(
     assert all(s.job_id is not None for s in session.scalars(select(JobSource)))
 
 
+def test_a_retitle_onto_a_job_that_cannot_be_merged_does_not_break_the_ingest(
+    session: Session, company: Company
+) -> None:
+    """A declined merge must also decline the rename."""
+    first = FakeAdapter.returning("greenhouse", make_posting("gh-1", "Research Scientist, Evals"),
+                                  make_posting("gh-2", "Research Scientist, Post-Training"))
+    ingest_company(session, company, first, NOW)
+    session.commit()
+    for job in session.scalars(select(Job)):
+        session.add(Application(job_id=job.id, status=ApplicationStatus.APPLIED))
+    session.commit()
+
+    retitled = FakeAdapter.returning("greenhouse", make_posting("gh-1", "Research Scientist, Post-Training"),
+                                     make_posting("gh-2", "Research Scientist, Post-Training"))
+    ingest_company(session, company, retitled, NOW + timedelta(hours=2))
+    session.commit()
+
+    keys = [job.canonical_key for job in session.scalars(select(Job))]
+    assert _count(session, Job) == 2, "neither application was discarded"
+    assert len(set(keys)) == 2, "and neither job took the other's key"
+
+
 def test_two_fuzzily_equal_siblings_do_not_flip_their_jobs_key(
     session: Session, company: Company
 ) -> None:

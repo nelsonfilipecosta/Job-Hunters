@@ -1,0 +1,30 @@
+{# What the confirmation actually did.
+
+   Reached only by POST. It says plainly whether anything changed, because
+   "already recorded" and "recorded just now" are both successes and only one
+   of them wrote a row.
+#}
+{% extends "page.html" %}
+{% block title %}{{ outcome.headline }} — {{ card.title }}{% endblock %}
+{% block content %}
+
+<h2 class="{{ 'good' if outcome.changed else '' }}">{{ outcome.headline }}</h2>
+<p class="blurb">{{ outcome.detail }}</p>
+
+<div class="card">
+  <div style="font-size:15px;font-weight:600;">
+    {% if card.apply_url %}
+      <a href="{{ card.apply_url }}" rel="noreferrer">{{ card.title }}</a>
+    {% else %}
+      {{ card.title }}
+    {% endif %}
+  </div>
+  <div class="meta" style="padding-top:4px;">
+    {{ card.company }} &middot; {{ card.location }}
+    {% if outcome.status %}&middot; <span class="pill">{{ outcome.status }}</span>{% endif %}
+  </div>
+</div>
+
+<div class="actions"><a href="/">Back to the dashboard</a></div>
+
+{% endblock %}

@@ -1,4 +1,4 @@
-"""Tests for the process that runs ingest, score and digest on a schedule."""
+"""Tests for the process that runs ingest, score, digest and backup on a schedule."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from job_hunters import scheduler as scheduler_module
 from job_hunters.config import ConfigError, SchedulesConfig
 from job_hunters.scheduler import (
     build_trigger,
+    scheduled_backup,
     scheduled_digest,
     scheduled_ingest,
     scheduled_score,
@@ -83,6 +84,7 @@ def test_a_schedule_this_parser_does_not_know_is_a_config_error() -> None:
         (scheduled_ingest, "run_ingest"),
         (scheduled_score, "run_scoring"),
         (scheduled_digest, "run_digest"),
+        (scheduled_backup, "backup_database"),
     ],
 )
 def test_a_failing_job_is_logged_and_does_not_escape(job, target, monkeypatch, caplog) -> None:
@@ -93,3 +95,28 @@ def test_a_failing_job_is_logged_and_does_not_escape(job, target, monkeypatch, c
     monkeypatch.setattr(scheduler_module, target, raise_it)
     job()
     assert "the board is on fire" in caplog.text
+
+
+def test_the_scheduled_backup_writes_a_file_and_names_it_in_the_log(
+    session, tmp_path, monkeypatch, caplog
+) -> None:
+    """The backup job is the only one that writes a file and the log is the only evidence it did."""
+    import logging
+
+    from job_hunters import backup as backup_module
+
+    real = backup_module.backup_database
+    monkeypatch.setattr(
+        scheduler_module, "backup_database", lambda: real(tmp_path / "backups")
+    )
+    with caplog.at_level(logging.INFO):
+        scheduled_backup()
+
+    assert "backup:" in caplog.text
+    assert len(list((tmp_path / "backups").glob("*.db"))) == 1
+
+
+def test_a_weekly_job_gets_a_longer_grace_than_a_two_hourly_one() -> None:
+    """The misfire grace period for backups is longer than for other jobs."""
+    defaults = SchedulesConfig()
+    assert defaults.backup_misfire_grace_minutes > defaults.misfire_grace_minutes

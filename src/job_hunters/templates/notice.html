@@ -1,0 +1,15 @@
+{# A link that could not be honoured and why.
+
+   A forged or damaged token, a job that is no longer in the database or a
+   signing secret this installation does not have. Each says which.
+#}
+{% extends "page.html" %}
+{% block title %}{{ headline }}{% endblock %}
+{% block content %}
+
+<h2>{{ headline }}</h2>
+<p class="blurb">{{ detail }}</p>
+
+<div class="actions"><a href="/">Back to the dashboard</a></div>
+
+{% endblock %}

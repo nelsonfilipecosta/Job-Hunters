@@ -46,6 +46,14 @@ class SignedAction:
     expires_at: datetime
 
 
+@dataclass(frozen=True)
+class ActionLink:
+    """One signed link, ready to print wherever a job is shown."""
+
+    label: str
+    url: str
+
+
 def _b64(raw: bytes) -> str:
     """URL-safe base64 without the `=` padding, which is noise in a link."""
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
@@ -117,3 +125,22 @@ def action_url(
 ) -> str:
     """The full link to put in the email, built from the declared `base_url`."""
     return f"{base_url.rstrip('/')}/a/{sign(secret, action, job_id, ttl_days=ttl_days, **kwargs)}"
+
+
+def action_links(
+    base_url: str,
+    secret: str,
+    job_id: int,
+    *,
+    ttl_days: int,
+    only: tuple[Action, ...] = tuple(Action),
+    **kwargs,
+) -> tuple[ActionLink, ...]:
+    """The signed links for one job, labelled and in the order `Action` declares them."""
+    return tuple(
+        ActionLink(
+            ACTION_LABELS[action],
+            action_url(base_url, secret, action, job_id, ttl_days=ttl_days, **kwargs),
+        )
+        for action in only
+    )
