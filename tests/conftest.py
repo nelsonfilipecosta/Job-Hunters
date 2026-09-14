@@ -64,6 +64,7 @@ def make_posting(
     description: str = "We do post-training and evals.",
     url: str | None = None,
     raw: dict | None = None,
+    company_name: str | None = None,
     **hints,
 ) -> RawPosting:
     """A RawPosting with sensible defaults for building fetch results by hand."""
@@ -75,20 +76,45 @@ def make_posting(
         url=url,
         location_raw=location,
         description=description,
-        raw=raw or _raw_payload(source, source_job_id, title, url, location, description, hints),
+        raw=raw or _raw_payload(
+            source, source_job_id, title, url, location, description, hints, company_name
+        ),
+        company_name=company_name,
         **hints,
     )
 
 
 def _raw_payload(
     source: str, source_job_id: str, title: str, url: str, location: str | None,
-    description: str, hints: dict,
+    description: str, hints: dict, company_name: str | None = None,
 ) -> dict:
     """A payload shaped as the board would return it, so `replay_posting` rebuilds the same posting.
 
     Scoring reads each posting's text back from `raw_json` through the real
     adapters, so a fake posting has to store what those adapters expect.
     """
+    if source == "hn":
+        # The first line of the text is the title so the two are joined back.
+        body = f"{title}<p>{html.escape(description)}" if description else title
+        return {"id": int(source_job_id), "text": body, "created_at": "2026-09-01T15:01:54.000Z"}
+    if source == "remoteok":
+        return {
+            "id": source_job_id, "position": title, "company": company_name, "url": url,
+            "location": location or "", "description": html.escape(f"<p>{html.escape(description)}</p>"),
+            "date": "2026-09-11T08:00:08+00:00",
+        }
+    if source == "arbeitnow":
+        return {
+            "slug": source_job_id, "title": title, "company_name": company_name, "url": url,
+            "location": location or "", "remote": True, "created_at": 1789224916,
+            "description": html.escape(f"<p>{html.escape(description)}</p>"),
+        }
+    if source == "remotive":
+        return {
+            "id": int(source_job_id), "title": title, "company_name": company_name, "url": url,
+            "candidate_required_location": location or "", "publication_date": "2026-09-11T06:49:00",
+            "description": f"<p>{html.escape(description)}</p>",
+        }
     if source == "lever":
         return {
             "id": source_job_id, "text": title, "hostedUrl": url,
@@ -149,6 +175,27 @@ class FakeAdapter:
         return cls(source, FetchResult.ok(list(postings)))
 
     def fetch(self, company) -> FetchResult:
+        """Returns the next scripted result, repeating the last one once exhausted."""
+        index = min(self.calls, len(self._results) - 1)
+        self.calls += 1
+        return self._results[index]
+
+
+class FakeDiscoverySource:
+    """A discovery source that returns a scripted sequence of results - one per fetch() call."""
+
+    def __init__(self, source: str, *results: FetchResult) -> None:
+        """Scripts one FetchResult per call to fetch(), in order."""
+        self.source = source
+        self._results = list(results)
+        self.calls = 0
+
+    @classmethod
+    def returning(cls, source: str, *postings: RawPosting) -> "FakeDiscoverySource":
+        """A FakeDiscoverySource that always succeeds with these postings."""
+        return cls(source, FetchResult.ok(list(postings)))
+
+    def fetch(self) -> FetchResult:
         """Returns the next scripted result, repeating the last one once exhausted."""
         index = min(self.calls, len(self._results) - 1)
         self.calls += 1

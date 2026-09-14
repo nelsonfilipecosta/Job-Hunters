@@ -3,11 +3,17 @@
 The slug is rarely the company name. Rather than guess, `probe` tries a handful
 of spellings against all three ATS URL patterns and reports every board that answers.
 Its output is a ready-to-paste watchlist line.
+
+`job-hunters discover <name>` prints every board found and leaves the choice to
+you. The discovery loop has nobody to ask, so `best_board` picks the board with
+the most postings or the one a posting's own careers link named when that link
+pointed straight at a board.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import httpx2
@@ -50,6 +56,26 @@ def slug_variants(name: str) -> list[str]:
     return [v for v in variants if not (v in seen or seen.add(v))]
 
 
+# A careers link that points straight at a board names its ATS and token. The
+# token is whatever follows the host, up to the next slash or query string.
+_BOARD_LINKS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("greenhouse", re.compile(r"(?:boards|job-boards)\.greenhouse\.io/(?:embed/job_board\?for=)?([A-Za-z0-9-]+)")),
+    ("lever", re.compile(r"jobs\.lever\.co/([A-Za-z0-9-]+)")),
+    ("ashby", re.compile(r"jobs\.ashbyhq\.com/([A-Za-z0-9-]+)")),
+)
+
+
+def token_from_url(url: str | None) -> tuple[str, str] | None:
+    """The (ATS, token) a careers link names or None when it is not a board link."""
+    if not url:
+        return None
+    for ats, pattern in _BOARD_LINKS:
+        match = pattern.search(url)
+        if match:
+            return ats, match.group(1).lower()
+    return None
+
+
 def _probe_one(client: httpx2.Client, ats: str, url: str, token: str) -> Discovery | None:
     """Checks one URL for one board. None unless the answer has the right shape."""
     try:
@@ -64,11 +90,19 @@ def _probe_one(client: httpx2.Client, ats: str, url: str, token: str) -> Discove
     return Discovery(ats, token, len(jobs), url)
 
 
-def probe(name: str, client: httpx2.Client | None = None) -> list[Discovery]:
-    """Tries every slug variant against every ATS and returns each board found."""
+def probe(
+    name: str, client: httpx2.Client | None = None, *, hints: Iterable[str] = ()
+) -> list[Discovery]:
+    """Tries every slug variant against every ATS and returns each board found.
+
+    `hints` are tokens to try before the variants, for when something (a
+    careers link) already said what the slug is.
+    """
     client = client or default_client(timeout=15)
     found: list[Discovery] = []
-    for token in slug_variants(name):
+    tokens = [*hints, *slug_variants(name)]
+    seen: set[str] = set()
+    for token in [t for t in tokens if t and not (t in seen or seen.add(t))]:
         for ats, pattern in (
             ("greenhouse", GREENHOUSE_URL.replace("?content=true", "")),
             ("lever", LEVER_URL),
@@ -78,3 +112,15 @@ def probe(name: str, client: httpx2.Client | None = None) -> list[Discovery]:
             if hit is not None:
                 found.append(hit)
     return found
+
+
+def best_board(hits: Iterable[Discovery], hint: tuple[str, str] | None = None) -> Discovery | None:
+    """The board to watch out of everything a probe found or None when none has postings."""
+    with_postings = [hit for hit in hits if hit.job_count > 0]
+    if not with_postings:
+        return None
+    if hint is not None:
+        for hit in with_postings:
+            if (hit.ats, hit.token) == hint:
+                return hit
+    return max(with_postings, key=lambda hit: hit.job_count)
