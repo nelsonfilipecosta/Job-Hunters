@@ -447,3 +447,24 @@ def test_the_summary_shows_addresses_but_masks_credentials(tmp_path: Path, no_se
 def test_load_all_includes_the_secrets() -> None:
     """One call validates the YAML files and reads the secrets together."""
     assert isinstance(load_all().secrets, Secrets)
+
+
+def test_the_discovery_sources_are_flags_and_a_misspelled_one_is_rejected(tmp_path: Path) -> None:
+    """One flag per source so that a source that breaks is switched off alone and no silent typos."""
+    system = _valid_system()
+    system["discovery"]["sources"]["remotive"] = False
+    loaded = load_system_config(_write(tmp_path, "system_config.yaml", system))
+    assert loaded.discovery.sources.enabled() == ["hn", "remoteok", "arbeitnow"]
+
+    system["discovery"]["sources"]["linkedin"] = True
+    with pytest.raises(ConfigError, match="linkedin"):
+        load_system_config(_write(tmp_path, "system_config.yaml", system))
+
+
+@pytest.mark.parametrize("key", ["max_extractions_per_run", "reprobe_after_days"])
+def test_a_discovery_count_of_zero_is_rejected(tmp_path: Path, key: str) -> None:
+    """A cap of zero would silently name no company and a wait of zero would probe every week."""
+    system = _valid_system()
+    system["discovery"][key] = 0
+    with pytest.raises(ConfigError, match=key):
+        load_system_config(_write(tmp_path, "system_config.yaml", system))

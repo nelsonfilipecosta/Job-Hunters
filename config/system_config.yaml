@@ -43,6 +43,19 @@ models:
   # Runs a few times a week on work that gets sent to a human. More expensive.
   tailor:  claude-opus-5
 
+discovery:
+  # Where new companies are looked for. Each source is fetched on its own and
+  # switched on and off on its own, so one breaking never stops the others.
+  sources:
+    hn:        true
+    remoteok:  true
+    arbeitnow: true
+    remotive:  true
+  # Cap on the model calls that read a company out of HN prose, per run.
+  max_extractions_per_run: 100
+  # A company with no board found is probed again after this many days.
+  reprobe_after_days: 7
+
 email:
   # The mail server only. The email adress is set in `.env`.
   smtp_host: smtp.gmail.com
