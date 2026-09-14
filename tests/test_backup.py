@@ -65,7 +65,7 @@ def test_a_backup_is_readable_on_its_own_and_names_its_tables(
 ) -> None:
     """A backup missing half the schema would look like a file and restore like nothing."""
     report = backup_database(tmp_path / "out", db_path=_db_path(), now=NOW)
-    assert report.tables == 8
+    assert report.tables == 9
     assert report.bytes_written > 0
 
 
@@ -110,7 +110,7 @@ def test_a_database_older_than_the_code_is_still_copied_and_reported(
     report = backup_database(tmp_path / "out", db_path=source, now=NOW)
     assert report.path.is_file()
     assert report.missing == ("digest_appearances",)
-    assert report.tables == 7
+    assert report.tables == 8
 
 
 def test_a_copy_that_fails_halfway_leaves_nothing_behind(tmp_path: Path) -> None:
