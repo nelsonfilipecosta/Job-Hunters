@@ -1,13 +1,12 @@
 """Finds which ATS, under which slug, hosts a company's job board.
 
-The slug is rarely the company name. Rather than guess, `probe` tries a handful
-of spellings against all three ATS URL patterns and reports every board that answers.
-Its output is a ready-to-paste watchlist line.
+The slug is rarely the company name. Rather than guess, `probe` tries a handful of
+spellings against all three ATS URL patterns and reports every board that answers.
 
-`job-hunters probe <name>` prints every board found and leaves the choice to
-you. The discovery loop has nobody to ask, so `best_board` picks the board with
-the most postings or the one a posting's own careers link named when that link
-pointed straight at a board.
+`job-hunters probe <name>` prints every board found, with a ready-to-paste watchlist
+line for the busiest and leaves the choice to you. The discovery loop has nobody to
+ask, so `best_board` picks the board with the most postings or the one a posting's own
+careers link named when that link pointed straight at a board.
 """
 
 from __future__ import annotations
@@ -32,10 +31,6 @@ class Board:
     token: str
     job_count: int
     url: str
-
-    def watchlist_line(self, slug: str, name: str) -> str:
-        """A ready-to-paste `watchlist.yaml` entry for this board."""
-        return f"- {{ slug: {slug}, name: {name}, ats: {self.ats}, token: {self.token}, tier: discovered }}"
 
 
 def slug_variants(name: str) -> list[str]:

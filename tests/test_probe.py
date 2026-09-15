@@ -43,7 +43,6 @@ def test_probe_reports_only_boards_that_answer_with_the_right_shape() -> None:
     assert by_ats["greenhouse"].job_count == 2
     assert by_ats["lever"].job_count == 1
     assert by_ats["ashby"].job_count == 0
-    assert "tier: discovered" in by_ats["greenhouse"].watchlist_line("acme", "Acme")
 
 
 def test_probe_with_nothing_found_returns_empty() -> None:

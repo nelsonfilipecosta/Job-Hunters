@@ -265,6 +265,22 @@ def test_eval_scoring_can_report_the_prefilter_alone(capsys) -> None:
     assert "prefilter kept" in out and "judge skipped" in out
 
 
+def test_probe_prints_a_line_the_watchlist_will_load_whatever_the_name(capsys, monkeypatch) -> None:
+    """A comma or a colon in the name and the bare line would not parse, so it is quoted and the slug is derived."""
+    import yaml
+
+    from job_hunters.config import CompanyEntry
+    from job_hunters.probe import Board
+
+    board = Board("greenhouse", "scaleai", 40, "https://boards-api.greenhouse.io/v1/boards/scaleai/jobs")
+    monkeypatch.setattr("job_hunters.cli.probe", lambda name, *args, **kwargs: [board])
+
+    assert main(["probe", "Scale AI, Inc."]) == 0
+    line = capsys.readouterr().out.strip().splitlines()[-1].strip()
+    entry = CompanyEntry.model_validate(yaml.safe_load(line)[0])
+    assert (entry.slug, entry.name, entry.ats_config["token"]) == ("scale-ai-inc", "Scale AI, Inc.", "scaleai")
+
+
 def test_scan_prints_each_source_and_the_queue_size(capsys, monkeypatch) -> None:
     """The table names every source and the last line says how many wait for review."""
     from job_hunters.discovery import DiscoveryReport, SourceReport

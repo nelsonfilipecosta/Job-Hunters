@@ -39,7 +39,7 @@ from .evaluate import run_evaluation
 from .judge import Usage, Verdict, cache_minimum_tokens
 from .mailer import DeliveryError
 from .models import CandidateCompany, Tier
-from .promote import PromoteError, approve, reject, review_queue
+from .promote import PromoteError, approve, reject, review_queue, slug_for, watchlist_line
 from .scoring import Candidate, group_by_text, run_scoring
 from .sources import DISCOVERY_SOURCES
 
@@ -83,7 +83,7 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     print(f"  timezone             {system.timezone}")
     print(f"  base url             {system.base_url}  (every digest link is built from this)")
     print(f"  action links last    {system.actions.token_ttl_days} days")
-    print(f"  ingest / score       {system.schedules.ingest} / {system.schedules.score}")
+    print(f"  ingest               {system.schedules.ingest}  (scores what it fetched in the same run)")
     print(f"  misfire grace        {system.schedules.misfire_grace_minutes} min "
           f"({system.schedules.digest_misfire_grace_minutes} min for the digest, "
           f"{system.schedules.discovery_misfire_grace_minutes} min for discovery, "
@@ -166,7 +166,6 @@ def cmd_probe(args: argparse.Namespace) -> int:
         print(f"No Greenhouse, Lever or Ashby board found for {args.name!r}.")
         print("It may use Workday or a proprietary careers site.")
         return 1
-    slug = args.name.strip().lower().replace(" ", "-")
     for hit in hits:
         note = "  (board exists but has no postings)" if hit.job_count == 0 else ""
         print(f"  {hit.ats:<11} {hit.token:<20} {hit.job_count:4} jobs  {hit.url}{note}")
@@ -180,7 +179,9 @@ def cmd_probe(args: argparse.Namespace) -> int:
     print()
     print("Add to config/companies_watchlist.yaml:")
     best = max(with_postings, key=lambda h: h.job_count)
-    print("  " + best.watchlist_line(slug, args.name.strip()))
+    # The same line `promote --approve` writes, so a name YAML would misread is quoted.
+    name = args.name.strip()
+    print("  " + watchlist_line(slug_for(name), name, best.ats, best.token, Tier.DISCOVERED.value))
     return 0
 
 
