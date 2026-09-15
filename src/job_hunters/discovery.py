@@ -242,7 +242,7 @@ def scan_source(
     now = now or utcnow()
     source = str(adapter.source)
     outcome = SourceReport(source=source, status=FetchStatus.FAILED)
-    run = FetchRun(company_id=None, source=source, started_at=now, status=FetchStatus.FAILED)
+    run = FetchRun(company_id=None, source=source, started_at=utcnow(), status=FetchStatus.FAILED)
     if not dry_run:
         session.add(run)
 

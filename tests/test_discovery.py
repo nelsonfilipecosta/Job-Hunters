@@ -25,6 +25,7 @@ from job_hunters.models import (
     FetchRun,
     FetchStatus,
     JobSource,
+    as_utc,
 )
 from job_hunters.scoring import ScoringReport, select_candidates
 
@@ -143,6 +144,7 @@ def test_a_structured_posting_becomes_a_candidate_with_its_board(session: Sessio
     assert row.job_id is None and row.source == "remoteok" and row.is_open
     run = session.scalar(select(FetchRun).where(FetchRun.source == "remoteok"))
     assert run.status == FetchStatus.OK and run.company_id is None and run.item_count == 1
+    assert as_utc(run.started_at) > NOW and as_utc(run.started_at) <= as_utc(run.finished_at)
 
 
 def test_scanning_twice_changes_nothing(session: Session) -> None:
