@@ -59,6 +59,9 @@ ACTIONED_STATUSES: frozenset[str] = frozenset(
 
 # A company counts as new for this long after it joined the `companies` table.
 NEW_COMPANY_DAYS = 7
+# Companies created within this long of the very first one are the seed list.
+# Written in one `sync_companies` call on the first ingest.
+SEED_BATCH_SECONDS = 60
 
 
 @dataclass(frozen=True)
@@ -358,8 +361,16 @@ def build_digest(
 
 
 def _new_companies(session: Session, now: datetime) -> list[NewCompany]:
-    """Every company that joined the `companies` table in the last week (newest first)."""
+    """Every company that joined the `companies` table in the last week (newest first).
+
+    The seed list is left out. Every company created within a minute of the first one is
+    assumed to have arrived in the same first ingest.
+    """
     since = now - timedelta(days=NEW_COMPANY_DAYS)
+    first = session.scalar(select(func.min(Company.created_at)))
+    seeded_until = (
+        as_utc(first) + timedelta(seconds=SEED_BATCH_SECONDS) if first is not None else None
+    )
     open_counts = dict(
         session.execute(
             select(JobSource.company_id, func.count())
@@ -377,7 +388,7 @@ def _new_companies(session: Session, now: datetime) -> list[NewCompany]:
             added=as_utc(company.created_at).date(),
         )
         for company in rows
-        if as_utc(company.created_at) >= since
+        if as_utc(company.created_at) >= since and as_utc(company.created_at) > seeded_until
     ]
 
 

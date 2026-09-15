@@ -652,6 +652,21 @@ def test_companies_added_this_week_are_reported_with_their_open_postings(
     assert hand_written.name in text
 
 
+def test_the_seed_list_is_not_news_but_a_company_added_later_is(session: Session, company: Company) -> None:
+    """On a fresh install every company is a week old at once and none of them headlines the first digest."""
+    seed_time = NOW - timedelta(days=1)
+    for index, slug in enumerate(("anthropic", "openai", "cohere")):
+        session.add(Company(slug=slug, name=slug.title(), ats_type="ashby", ats_config={"token": slug},
+                            tier="lab", created_at=seed_time + timedelta(seconds=index)))
+    company.created_at = seed_time + timedelta(seconds=3)
+    session.add(Company(slug="prior-labs", name="Prior Labs", ats_type="ashby", ats_config={"token": "x"},
+                        tier="discovered", created_at=seed_time + timedelta(hours=6)))
+    session.commit()
+
+    digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
+    assert [c.name for c in digest.new_companies] == ["Prior Labs"]
+
+
 def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session, company: Company) -> None:
     """The queue is invisible unless the daily email says it is there."""
     from job_hunters.models import CandidateCompany, CandidateStatus
