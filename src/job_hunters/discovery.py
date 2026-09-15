@@ -15,7 +15,7 @@ One run per enabled source:
        processed twice. A posting seen before only has its `last_seen` moved.
     4. Name the company. The structured sources carry it as a field. Hacker
        News (HN) is prose, so a small model reads it out with `extract.py`,
-       up to a cap per run. As tructured posting that left the field empty
+       up to a cap per run. A structured posting that left the field empty
        takes the same route.
     5. Attach the sighting to a candidate. Skip a company already watched,
        merge into an existing candidate by name or by board, or create one

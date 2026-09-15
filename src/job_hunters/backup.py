@@ -65,7 +65,7 @@ def backup_database(
             # `journal_mode` is stored inside the database file, so the backup comes out of
             # `backup()` still in WAL mode and as three files (`.db`, `-wal` and `-shm`).
             # Switching it to the older rollback-journal mode folds everything back into
-            # s single `.db` file. 
+            # a single `.db` file. 
             copy.execute("PRAGMA journal_mode=DELETE")
     except sqlite3.Error as exc:
         _remove(target)

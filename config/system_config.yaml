@@ -58,7 +58,7 @@ discovery:
   reprobe_after_days: 7
 
 email:
-  # The mail server only. The email adress is set in `.env`.
+  # The mail server only. The email address is set in `.env`.
   smtp_host: smtp.gmail.com
   smtp_port: 587
 
