@@ -138,12 +138,12 @@ def main() -> int:
     try:
         config = load_system_config()
         timezone = ZoneInfo(config.timezone)
-        interval_grace = config.schedules.misfire_grace_minutes * SECONDS_PER_MINUTE
+        ingest_grace = config.schedules.ingest_misfire_grace_minutes * SECONDS_PER_MINUTE
         digest_grace = config.schedules.digest_misfire_grace_minutes * SECONDS_PER_MINUTE
         discovery_grace = config.schedules.discovery_misfire_grace_minutes * SECONDS_PER_MINUTE
         backup_grace = config.schedules.backup_misfire_grace_minutes * SECONDS_PER_MINUTE
         jobs = (
-            ("ingest", scheduled_ingest, config.schedules.ingest, interval_grace),
+            ("ingest", scheduled_ingest, config.schedules.ingest, ingest_grace),
             ("digest", scheduled_digest, config.schedules.digest, digest_grace),
             ("discovery", scheduled_discovery, config.schedules.discovery, discovery_grace),
             ("backup", scheduled_backup, config.schedules.backup, backup_grace),

@@ -84,7 +84,7 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     print(f"  base url             {system.base_url}  (every digest link is built from this)")
     print(f"  action links last    {system.actions.token_ttl_days} days")
     print(f"  ingest               {system.schedules.ingest}  (scores what it fetched in the same run)")
-    print(f"  misfire grace        {system.schedules.misfire_grace_minutes} min "
+    print(f"  misfire grace        {system.schedules.ingest_misfire_grace_minutes} min for ingest "
           f"({system.schedules.digest_misfire_grace_minutes} min for the digest, "
           f"{system.schedules.discovery_misfire_grace_minutes} min for discovery, "
           f"{system.schedules.backup_misfire_grace_minutes} min for the backup)")

@@ -218,7 +218,7 @@ class SchedulesConfig(StrictModel):
     backup: ScheduleSpec = "weekly sun 03:00"
 
     # How late a missed run may still start.
-    misfire_grace_minutes: int = Field(default=60, ge=1, le=1440)
+    ingest_misfire_grace_minutes: int = Field(default=60, ge=1, le=1440)
     digest_misfire_grace_minutes: int = Field(default=360, ge=1, le=1440)
     discovery_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
     backup_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)

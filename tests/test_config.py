@@ -257,7 +257,7 @@ def test_an_implausible_token_lifetime_is_rejected(tmp_path: Path, value: int) -
 
 @pytest.mark.parametrize(
     "keys",
-    [{"misfire_grace_minutes": 0}, {"misfire_grace_minutes": 2000},
+    [{"ingest_misfire_grace_minutes": 0}, {"ingest_misfire_grace_minutes": 2000},
      {"digest_misfire_grace_minutes": -5}, {"digest_misfire_grace_minutes": 1441},
      {"discovery_misfire_grace_minutes": 0}, {"discovery_misfire_grace_minutes": 5761},
      {"backup_misfire_grace_minutes": 0}, {"backup_misfire_grace_minutes": 5761}],
