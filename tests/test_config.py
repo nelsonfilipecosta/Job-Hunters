@@ -259,6 +259,7 @@ def test_an_implausible_token_lifetime_is_rejected(tmp_path: Path, value: int) -
     "keys",
     [{"misfire_grace_minutes": 0}, {"misfire_grace_minutes": 2000},
      {"digest_misfire_grace_minutes": -5}, {"digest_misfire_grace_minutes": 1441},
+     {"discovery_misfire_grace_minutes": 0}, {"discovery_misfire_grace_minutes": 5761},
      {"backup_misfire_grace_minutes": 0}, {"backup_misfire_grace_minutes": 5761}],
 )
 def test_an_implausible_misfire_grace_is_rejected(tmp_path: Path, keys: dict) -> None:

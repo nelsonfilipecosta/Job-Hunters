@@ -86,7 +86,8 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     print(f"  ingest / score       {system.schedules.ingest} / {system.schedules.score}")
     print(f"  misfire grace        {system.schedules.misfire_grace_minutes} min "
           f"({system.schedules.digest_misfire_grace_minutes} min for the digest, "
-          f"{system.schedules.backup_misfire_grace_minutes} min for the weekly jobs)")
+          f"{system.schedules.discovery_misfire_grace_minutes} min for discovery, "
+          f"{system.schedules.backup_misfire_grace_minutes} min for the backup)")
     print(f"  backup               {system.schedules.backup} into {paths.BACKUP_DIR}")
     print(f"  digest               {system.schedules.digest} via "
           f"{system.email.smtp_host}:{system.email.smtp_port}")

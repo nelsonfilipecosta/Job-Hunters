@@ -31,9 +31,10 @@ schedules:
   backup:    weekly sun 02:00
 
   # How late a missed run may still start.
-  misfire_grace_minutes: 60           # 1h 
-  digest_misfire_grace_minutes: 360   # 6h
-  backup_misfire_grace_minutes: 2880  # 2d
+  misfire_grace_minutes: 60              # 1h (ingest and score)
+  digest_misfire_grace_minutes: 360      # 6h
+  discovery_misfire_grace_minutes: 2880  # 2d
+  backup_misfire_grace_minutes: 2880     # 2d
 
 models:
   # Cheap, fast and good enough to triage. Runs on hundreds of jobs.
