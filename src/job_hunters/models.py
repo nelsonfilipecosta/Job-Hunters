@@ -523,7 +523,7 @@ class CandidateCompany(Base):
         String(20), default=CandidateStatus.PENDING, index=True
     )
 
-    # The board `discover.probe` found, if any. Empty when no Greenhouse, Lever
+    # The board `probe.probe` found, if any. Empty when no Greenhouse, Lever
     # or Ashby board answered, in which case the company cannot be watched yet.
     ats_type: Mapped[str | None] = mapped_column(String(20))
     ats_token: Mapped[str | None] = mapped_column(String(100))

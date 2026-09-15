@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 
 from .config import AppConfig, CompanyEntry, ConfigError, load_all
 from .db import session_scope
-from .discover import Discovery, best_board, probe, token_from_url
+from .probe import Board, best_board, probe, token_from_url
 from .extract import ExtractError, Extractor
 from .judge import Usage, make_client
 from .models import (
@@ -62,7 +62,7 @@ log = logging.getLogger("job_hunters.discovery")
 MAX_ROLES = 12
 MAX_EVIDENCE = 30
 
-Prober = Callable[[str, tuple[str, ...]], list[Discovery]]
+Prober = Callable[[str, tuple[str, ...]], list[Board]]
 
 PROBE_TIMEOUT_SECONDS = 15
 
@@ -403,14 +403,14 @@ def _attach(
     session.flush()
 
 
-def _resolve(name: str, careers_url: str | None, prober: Prober) -> Discovery | None:
+def _resolve(name: str, careers_url: str | None, prober: Prober) -> Board | None:
     """The board to watch for this company if any of the three ATS patterns answers."""
     hint = token_from_url(careers_url)
     hits = prober(name, (hint[1],) if hint else ())
     return best_board(hits, hint)
 
 
-def _set_board(candidate: CandidateCompany, board: Discovery | None, now: datetime) -> None:
+def _set_board(candidate: CandidateCompany, board: Board | None, now: datetime) -> None:
     """Records what the probe found or that it found nothing, as well as when it looked."""
     candidate.probed_at = now
     if board is None:
@@ -469,7 +469,7 @@ def run_discovery(
 
     `sources` maps a source name to a ready adapter. Anything not supplied is built
     with `get_discovery_source`. `only` narrows the enabled sources and never switches
-    on one the config has off. `prober` stands in for `discover.probe` (tests) and the
+    on one the config has off. `prober` stands in for `probe.probe` (tests) and the
     real one shares a single HTTP client across every company the run probes. A dry
     run fetches and prefilters but calls no model, probes no board and writes nothing.
     """
@@ -499,7 +499,7 @@ def run_discovery(
 
     with default_client(timeout=PROBE_TIMEOUT_SECONDS) as client:
         if prober is None:
-            def prober(name: str, hints: tuple[str, ...]) -> list[Discovery]:
+            def prober(name: str, hints: tuple[str, ...]) -> list[Board]:
                 """The real probe with the tokens a careers link named tried first."""
                 return probe(name, client, hints=hints)
 

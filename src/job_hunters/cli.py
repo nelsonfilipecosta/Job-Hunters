@@ -7,7 +7,7 @@ one to the code that does the actual work:
     job-hunters check-git    refuses if `profile/`, `data/`, `backups/` or any `.env*` are git-tracked
     job-hunters init-db      creates the data directories and the database schema
     job-hunters ingest       fetches every watched board into the database
-    job-hunters discover     finds which ATS and slug host a company's board
+    job-hunters probe        finds which ATS and slug host a company's board
     job-hunters score        judges unscored postings with the LLM (prefilter then judge)
     job-hunters eval-scoring evaluates the scorer against hand-labeled postings
     job-hunters digest       builds the daily email and sends it
@@ -34,7 +34,7 @@ from .digest import run_digest
 from .discovery import run_discovery
 from .gitcheck import GitSafetyError, check_git_safety
 from .ingest import run_ingest
-from .discover import probe
+from .probe import probe
 from .evaluate import run_evaluation
 from .judge import Usage, Verdict, cache_minimum_tokens
 from .mailer import DeliveryError
@@ -159,8 +159,8 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     return 1 if report.failures else 0
 
 
-def cmd_discover(args: argparse.Namespace) -> int:
-    """Handle `job-hunters discover <name>`: find which ATS and slug host a company's job board."""
+def cmd_probe(args: argparse.Namespace) -> int:
+    """Handle `job-hunters probe <name>`: find which ATS and slug host a company's job board."""
     hits = probe(args.name)
     if not hits:
         print(f"No Greenhouse, Lever or Ashby board found for {args.name!r}.")
@@ -469,15 +469,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ingest.set_defaults(func=cmd_ingest)
 
-    # `job-hunters discover NAME`
-    discover = subparsers.add_parser(
-        "discover", help="find which ATS and slug host a company's job board"
+    # `job-hunters probe NAME`
+    probe_parser = subparsers.add_parser(
+        "probe", help="find which ATS and slug host a company's job board"
     )
-    discover.add_argument(
+    probe_parser.add_argument(
         "name",
         help="company name, e.g. 'Scale AI'"
     )
-    discover.set_defaults(func=cmd_discover)
+    probe_parser.set_defaults(func=cmd_probe)
 
     # `job-hunters score [--limit N] [--dry-run] [--verbose]`
     score = subparsers.add_parser(

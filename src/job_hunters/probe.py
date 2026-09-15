@@ -4,7 +4,7 @@ The slug is rarely the company name. Rather than guess, `probe` tries a handful
 of spellings against all three ATS URL patterns and reports every board that answers.
 Its output is a ready-to-paste watchlist line.
 
-`job-hunters discover <name>` prints every board found and leaves the choice to
+`job-hunters probe <name>` prints every board found and leaves the choice to
 you. The discovery loop has nobody to ask, so `best_board` picks the board with
 the most postings or the one a posting's own careers link named when that link
 pointed straight at a board.
@@ -25,7 +25,7 @@ from .sources.lever import BOARD_URL as LEVER_URL
 
 
 @dataclass(frozen=True)
-class Discovery:
+class Board:
     """One board that answered a probe: which ATS, under which token and with how many jobs."""
 
     ats: str
@@ -76,30 +76,30 @@ def token_from_url(url: str | None) -> tuple[str, str] | None:
     return None
 
 
-def _probe_one(client: httpx2.Client, ats: str, url: str, token: str) -> Discovery | None:
+def _probe_one(client: httpx2.Client, ats: str, url: str, token: str) -> Board | None:
     """Checks one URL for one board. None unless the answer has the right shape."""
     try:
         payload = get_json(client, url)
     except SourceError:
         return None
     if ats == "lever":
-        return Discovery(ats, token, len(payload), url) if isinstance(payload, list) else None
+        return Board(ats, token, len(payload), url) if isinstance(payload, list) else None
     jobs = payload.get("jobs") if isinstance(payload, dict) else None
     if jobs is None:
         return None
-    return Discovery(ats, token, len(jobs), url)
+    return Board(ats, token, len(jobs), url)
 
 
 def probe(
     name: str, client: httpx2.Client | None = None, *, hints: Iterable[str] = ()
-) -> list[Discovery]:
+) -> list[Board]:
     """Tries every slug variant against every ATS and returns each board found.
 
     `hints` are tokens to try before the variants, for when something (a
     careers link) already said what the slug is.
     """
     client = client or default_client(timeout=15)
-    found: list[Discovery] = []
+    found: list[Board] = []
     tokens = [*hints, *slug_variants(name)]
     seen: set[str] = set()
     for token in [t for t in tokens if t and not (t in seen or seen.add(t))]:
@@ -114,7 +114,7 @@ def probe(
     return found
 
 
-def best_board(hits: Iterable[Discovery], hint: tuple[str, str] | None = None) -> Discovery | None:
+def best_board(hits: Iterable[Board], hint: tuple[str, str] | None = None) -> Board | None:
     """The board to watch out of everything a probe found or None when none has postings."""
     with_postings = [hit for hit in hits if hit.job_count > 0]
     if not with_postings:

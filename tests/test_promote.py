@@ -167,10 +167,10 @@ def test_a_name_yaml_would_misread_is_quoted_and_survives_the_round_trip(name: s
 
 
 def test_approving_without_a_board_is_refused_with_the_way_forward(session: Session, watchlist: Path) -> None:
-    """Nothing can be watched without a board so the message points at `discover`."""
+    """Nothing can be watched without a board so the message points at `probe`."""
     row = _candidate(session, "Tufalabs", ats=None)
     before = watchlist.read_text()
-    with pytest.raises(PromoteError, match="discover"):
+    with pytest.raises(PromoteError, match="job-hunters probe"):
         approve(session, str(row.id), watchlist_path=watchlist)
     assert watchlist.read_text() == before and row.status == CandidateStatus.PENDING
 

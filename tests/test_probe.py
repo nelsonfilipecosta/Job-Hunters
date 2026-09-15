@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import httpx2
 
-from job_hunters.discover import probe, slug_variants
+from job_hunters.probe import probe, slug_variants
 
 
 def test_slug_variants_cover_the_spellings_the_watchlist_needed() -> None:

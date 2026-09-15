@@ -144,7 +144,7 @@ def approve(
         raise PromoteError(
             f"No Greenhouse, Lever or Ashby board was found for {candidate.name}, so there is "
             f"nothing to watch. If you know its board, add the line by hand "
-            f"(`job-hunters discover {candidate.name!r}` probes the slug patterns)."
+            f"(`job-hunters probe {candidate.name!r}` probes the slug patterns)."
         )
     display = (name or candidate.name).strip()
     chosen = slug or slug_for(display)

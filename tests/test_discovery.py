@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from conftest import FakeAnthropic, FakeDiscoverySource, api_error, failed, make_posting
 from job_hunters.config import AppConfig, CompanyEntry, Secrets, SearchProfile, SystemConfig
-from job_hunters.discover import Discovery
+from job_hunters.probe import Board
 from job_hunters.discovery import DiscoveryReport, Watched, reconcile, run_discovery
 from job_hunters.extract import Extraction, Extractor
 from job_hunters.models import (
@@ -82,20 +82,20 @@ def comment(source_job_id: str, text: str):
 class FakeProber:
     """Answers probes from a table and records the calls for inspection."""
 
-    def __init__(self, boards: dict[str, list[Discovery]] | None = None) -> None:
+    def __init__(self, boards: dict[str, list[Board]] | None = None) -> None:
         """Takes the boards each lowercase name should find."""
         self.boards = boards or {}
         self.calls: list[tuple[str, tuple[str, ...]]] = []
 
-    def __call__(self, name: str, hints: tuple[str, ...]) -> list[Discovery]:
+    def __call__(self, name: str, hints: tuple[str, ...]) -> list[Board]:
         """Records the call and answers from the table, matching on the lowercase name."""
         self.calls.append((name, hints))
         return list(self.boards.get(name.lower(), []))
 
 
-def board(ats: str, token: str, jobs: int = 10) -> Discovery:
+def board(ats: str, token: str, jobs: int = 10) -> Board:
     """One board a probe might find."""
-    return Discovery(ats, token, jobs, f"https://{ats}.test/{token}")
+    return Board(ats, token, jobs, f"https://{ats}.test/{token}")
 
 
 def _extractor(*answers) -> tuple[Extractor, FakeAnthropic]:
@@ -362,7 +362,7 @@ def test_one_source_failing_does_not_stop_the_others(session: Session) -> None:
 def test_a_crash_while_scanning_one_source_is_recorded_and_the_run_continues(session: Session) -> None:
     """A bug in the probe for one source must not take the other sources down with it."""
 
-    def exploding(name: str, hints: tuple[str, ...]) -> list[Discovery]:
+    def exploding(name: str, hints: tuple[str, ...]) -> list[Board]:
         """Raises for one company only."""
         if name == "Prior Labs":
             raise RuntimeError("the probe is on fire")
