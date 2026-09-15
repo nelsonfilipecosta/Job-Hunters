@@ -215,13 +215,13 @@ class SchedulesConfig(StrictModel):
     # Ingest scores what it fetched in the same run, so there is no `score` schedule.
     ingest: ScheduleSpec = "every 2h"
     digest: ScheduleSpec = "daily 08:00"
-    discovery: ScheduleSpec = "weekly mon 06:00"
+    discover: ScheduleSpec = "weekly mon 06:00"
     backup: ScheduleSpec = "weekly sun 03:00"
 
     # How late a missed run may still start.
     ingest_misfire_grace_minutes: int = Field(default=60, ge=1, le=1440)
     digest_misfire_grace_minutes: int = Field(default=360, ge=1, le=1440)
-    discovery_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
+    discover_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
     backup_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
 
     def specs(self) -> dict[str, str]:
@@ -281,8 +281,8 @@ class BackupConfig(StrictModel):
     keep: int = Field(default=8, ge=1)
 
 
-class DiscoverySourcesConfig(StrictModel):
-    """One flag per discovery source so that a source that breaks can be switched off alone."""
+class DiscoverSourcesConfig(StrictModel):
+    """One flag per `discover` source so that a source that breaks can be switched off alone."""
 
     hn: bool = True
     remoteok: bool = True
@@ -294,8 +294,8 @@ class DiscoverySourcesConfig(StrictModel):
         return [name for name, on in self if on]
 
 
-class DiscoveryConfig(StrictModel):
-    sources: DiscoverySourcesConfig = DiscoverySourcesConfig()
+class DiscoverConfig(StrictModel):
+    sources: DiscoverSourcesConfig = DiscoverSourcesConfig()
     max_extractions_per_run: int = Field(default=100, gt=0)
     reprobe_after_days: int = Field(default=7, ge=1)
 
@@ -308,7 +308,7 @@ class SystemConfig(StrictModel):
     email: EmailConfig = EmailConfig()
     digest: DigestConfig = DigestConfig()
     actions: ActionsConfig = ActionsConfig()
-    discovery: DiscoveryConfig = DiscoveryConfig()
+    discover: DiscoverConfig = DiscoverConfig()
     backup: BackupConfig = BackupConfig()
 
     @field_validator("timezone")

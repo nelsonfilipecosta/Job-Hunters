@@ -302,43 +302,43 @@ def test_probe_prints_a_line_the_watchlist_will_load_whatever_the_name(capsys, m
     assert "tier:" not in line
 
 
-def test_scan_prints_each_source_and_the_queue_size(capsys, monkeypatch) -> None:
+def test_discover_prints_each_source_and_the_queue_size(capsys, monkeypatch) -> None:
     """The table names every source and the last line says how many wait for review."""
-    from job_hunters.discovery import DiscoveryReport, SourceReport
+    from job_hunters.discover import DiscoverReport, SourceReport
 
-    report = DiscoveryReport(cap=100, pending=3)
+    report = DiscoverReport(cap=100, pending=3)
     report.sources = [
         SourceReport(source="hn", status="ok", fetched=260, matched=13, new_sightings=2,
                      extracted=2, new_candidates=1, boards_found=1),
         SourceReport(source="remotive", status="failed", error="HTTP 503 for https://remotive.com/api"),
     ]
-    monkeypatch.setattr("job_hunters.cli.run_discovery", lambda **_kwargs: report)
+    monkeypatch.setattr("job_hunters.cli.run_discover", lambda **_kwargs: report)
 
-    assert main(["scan"]) == 1  # one source failed
+    assert main(["discover"]) == 1  # one source failed
     out = capsys.readouterr().out
     assert "hn" in out and "260 fetched" in out
     assert "FAILED" in out and "503" in out
     assert "3 waiting for review" in out and "promote --review" in out
 
 
-def test_scan_dry_run_says_nothing_was_written(capsys, monkeypatch) -> None:
+def test_discover_dry_run_says_nothing_was_written(capsys, monkeypatch) -> None:
     """A dry run must say so, otherwise a quiet run and a real one would read the same."""
-    from job_hunters.discovery import DiscoveryReport, SourceReport
+    from job_hunters.discover import DiscoverReport, SourceReport
 
-    report = DiscoveryReport(cap=100, dry_run=True)
+    report = DiscoverReport(cap=100, dry_run=True)
     report.sources = [SourceReport(source="remoteok", status="ok", fetched=99, matched=2, new_sightings=2)]
     seen = {}
-    monkeypatch.setattr("job_hunters.cli.run_discovery", lambda **kwargs: seen.update(kwargs) or report)
+    monkeypatch.setattr("job_hunters.cli.run_discover", lambda **kwargs: seen.update(kwargs) or report)
 
-    assert main(["scan", "--dry-run", "--only", "remoteok"]) == 0
+    assert main(["discover", "--dry-run", "--only", "remoteok"]) == 0
     assert seen == {"only": ["remoteok"], "dry_run": True}
     assert "Dry run" in capsys.readouterr().out
 
 
-def test_scan_refuses_a_source_it_does_not_know() -> None:
+def test_discover_refuses_a_source_it_does_not_know() -> None:
     """`--only linkedin` is an argparse error and not a run that reads nothing."""
     with pytest.raises(SystemExit) as exc:
-        main(["scan", "--only", "linkedin"])
+        main(["discover", "--only", "linkedin"])
     assert exc.value.code != 0
 
 

@@ -5,7 +5,7 @@ only place that knows an ATS's URL scheme or JSON shape. Everything downstream
 (normalize, dedup, ingest) works on `RawPosting` alone, so adding Workday later
 means adding one module here and nothing anywhere else.
 
-Discovery sources (Hacker News and the aggregators) produce the same
+The `discover` sources (Hacker News and the aggregators) produce the same
 `RawPosting`, with one difference: nobody told them which company to fetch, so
 each posting carries the company name the source gave it or none at all when
 the source is prose and the name has to be pulled out later.
@@ -50,7 +50,7 @@ class RawPosting:
     is_remote: bool | None = None
     location_hints: tuple[str, ...] = ()
     posted_at: datetime | None = None
-    # Only discovery sources set this.
+    # Only `discover` sources set this.
     company_name: str | None = None
 
 
@@ -89,8 +89,8 @@ class JobSource(Protocol):
         ...
 
 
-class DiscoverySource(Protocol):
-    """The interface a discovery source implements. One site and no company to name."""
+class DiscoverSource(Protocol):
+    """The interface a `discover` source implements. One site and no company to name."""
 
     source: str
 

@@ -26,13 +26,13 @@ schedules:
   # Accepted forms: "every <N><m|h|d>", "daily HH:MM", "weekly <dow> HH:MM"
   ingest:    every 2h
   digest:    daily 08:00
-  discovery: weekly mon 06:00
+  discover:  weekly mon 06:00
   backup:    weekly sun 02:00
 
   # How late a missed run may still start.
   ingest_misfire_grace_minutes: 60       # 1h
   digest_misfire_grace_minutes: 360      # 6h
-  discovery_misfire_grace_minutes: 2880  # 2d
+  discover_misfire_grace_minutes: 2880   # 2d
   backup_misfire_grace_minutes: 2880     # 2d
 
 models:
@@ -43,7 +43,7 @@ models:
   # Runs a few times a week on work that gets sent to a human. More expensive.
   tailor:  claude-opus-5
 
-discovery:
+discover:
   # Where new companies are looked for. Each source is fetched on its own and
   # switched on and off on its own, so one breaking never stops the others.
   sources:

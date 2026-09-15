@@ -262,7 +262,7 @@ def test_an_implausible_token_lifetime_is_rejected(tmp_path: Path, value: int) -
     "keys",
     [{"ingest_misfire_grace_minutes": 0}, {"ingest_misfire_grace_minutes": 2000},
      {"digest_misfire_grace_minutes": -5}, {"digest_misfire_grace_minutes": 1441},
-     {"discovery_misfire_grace_minutes": 0}, {"discovery_misfire_grace_minutes": 5761},
+     {"discover_misfire_grace_minutes": 0}, {"discover_misfire_grace_minutes": 5761},
      {"backup_misfire_grace_minutes": 0}, {"backup_misfire_grace_minutes": 5761}],
 )
 def test_an_implausible_misfire_grace_is_rejected(tmp_path: Path, keys: dict) -> None:
@@ -286,7 +286,7 @@ def test_the_grace_settings_are_not_mistaken_for_schedules(tmp_path: Path) -> No
     schedules = load_system_config(
         _write(tmp_path, "system_config.yaml", _valid_system())
     ).schedules
-    assert set(schedules.specs()) == {"ingest", "digest", "discovery", "backup"}
+    assert set(schedules.specs()) == {"ingest", "digest", "discover", "backup"}
     assert all(isinstance(spec, str) for spec in schedules.specs().values())
 
 
@@ -461,22 +461,22 @@ def test_load_all_includes_the_secrets() -> None:
     assert isinstance(load_all().secrets, Secrets)
 
 
-def test_the_discovery_sources_are_flags_and_a_misspelled_one_is_rejected(tmp_path: Path) -> None:
+def test_the_discover_sources_are_flags_and_a_misspelled_one_is_rejected(tmp_path: Path) -> None:
     """One flag per source so that a source that breaks is switched off alone and no silent typos."""
     system = _valid_system()
-    system["discovery"]["sources"]["remotive"] = False
+    system["discover"]["sources"]["remotive"] = False
     loaded = load_system_config(_write(tmp_path, "system_config.yaml", system))
-    assert loaded.discovery.sources.enabled() == ["hn", "remoteok", "arbeitnow"]
+    assert loaded.discover.sources.enabled() == ["hn", "remoteok", "arbeitnow"]
 
-    system["discovery"]["sources"]["linkedin"] = True
+    system["discover"]["sources"]["linkedin"] = True
     with pytest.raises(ConfigError, match="linkedin"):
         load_system_config(_write(tmp_path, "system_config.yaml", system))
 
 
 @pytest.mark.parametrize("key", ["max_extractions_per_run", "reprobe_after_days"])
-def test_a_discovery_count_of_zero_is_rejected(tmp_path: Path, key: str) -> None:
+def test_a_discover_count_of_zero_is_rejected(tmp_path: Path, key: str) -> None:
     """A cap of zero would silently name no company and a wait of zero would probe every week."""
     system = _valid_system()
-    system["discovery"][key] = 0
+    system["discover"][key] = 0
     with pytest.raises(ConfigError, match=key):
         load_system_config(_write(tmp_path, "system_config.yaml", system))

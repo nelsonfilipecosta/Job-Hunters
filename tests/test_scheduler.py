@@ -1,4 +1,4 @@
-"""Tests for the process that runs ingest, digest, discovery and backup on a schedule."""
+"""Tests for the process that runs ingest, digest, discover and backup on a schedule."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from job_hunters.scheduler import (
     build_trigger,
     scheduled_backup,
     scheduled_digest,
-    scheduled_discovery,
+    scheduled_discover,
     scheduled_ingest,
     scheduled_score,
 )
@@ -69,7 +69,7 @@ def test_every_default_schedule_in_the_config_can_be_built() -> None:
     """The config regex and this parser have to keep agreeing about what is legal."""
     defaults = SchedulesConfig()
     specs = defaults.specs()
-    assert set(specs) == {"ingest", "digest", "discovery", "backup"}
+    assert set(specs) == {"ingest", "digest", "discover", "backup"}
     for spec in specs.values():
         assert build_trigger(spec, LISBON) is not None
 
@@ -83,14 +83,14 @@ def test_a_schedule_this_parser_cannot_build_is_a_config_error(spec: str) -> Non
 
 @pytest.mark.parametrize(
     "job",
-    [scheduled_ingest, scheduled_score, scheduled_digest, scheduled_discovery, scheduled_backup],
+    [scheduled_ingest, scheduled_score, scheduled_digest, scheduled_discover, scheduled_backup],
 )
 def test_a_failing_job_is_logged_and_does_not_escape(job, monkeypatch, caplog) -> None:
     """One bad morning must be a loud line in the log and not the end of the scheduler."""
     def raise_it(**_kwargs):
         raise RuntimeError("the board is on fire")
 
-    for target in ("run_ingest", "run_scoring", "run_digest", "run_discovery", "backup_database"):
+    for target in ("run_ingest", "run_scoring", "run_digest", "run_discover", "backup_database"):
         monkeypatch.setattr(scheduler_module, target, raise_it)
     job()
     assert "the board is on fire" in caplog.text
@@ -138,4 +138,4 @@ def test_a_weekly_job_gets_a_longer_grace_than_a_two_hourly_one() -> None:
     """The misfire grace period for the weekly jobs is longer than for other jobs."""
     defaults = SchedulesConfig()
     assert defaults.backup_misfire_grace_minutes > defaults.ingest_misfire_grace_minutes
-    assert defaults.discovery_misfire_grace_minutes > defaults.ingest_misfire_grace_minutes
+    assert defaults.discover_misfire_grace_minutes > defaults.ingest_misfire_grace_minutes

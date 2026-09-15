@@ -1,4 +1,4 @@
-"""The scan that turns the discovery sources into a queue of companies to review.
+"""The run that turns the `discover` sources into a queue of companies to review.
 
 One run per enabled source:
 
@@ -21,7 +21,7 @@ One run per enabled source:
        merge into an existing candidate by name or by board, or create one
        and probe the three ATS patterns for its board.
 
-Discovery postings never become jobs and never reach the digest. The ATS
+Postings from `discover` never become jobs and never reach the digest. The ATS
 posting arrives on the next ingest once the company is watched.
 """
 
@@ -52,10 +52,10 @@ from .models import (
 )
 from .normalize import content_hash, normalize_company, raw_hash
 from .scoring import Prefilter
-from .sources import get_discovery_source
-from .sources.base import DiscoverySource, FetchResult, RawPosting, default_client
+from .sources import get_discover_source
+from .sources.base import DiscoverSource, FetchResult, RawPosting, default_client
 
-log = logging.getLogger("job_hunters.discovery")
+log = logging.getLogger("job_hunters.discover")
 
 # A candidate keeps the distinct roles and the latest sightings it was seen
 # with. Enough for a reviewer to place it and no more.
@@ -102,7 +102,7 @@ class SourceReport:
 
 
 @dataclass
-class DiscoveryReport:
+class DiscoverReport:
     """What a whole run did. One entry per source."""
 
     sources: list[SourceReport] = field(default_factory=list)
@@ -130,7 +130,7 @@ class DiscoveryReport:
 
 @dataclass(frozen=True)
 class Watched:
-    """The companies discovery must not queue because they are watched already.
+    """The companies `discover` must not queue because they are watched already.
 
     Matched by name (normalized) and by board. Companies removed from the watchlist
     stay in `companies` deactivated so that the loop does not keep proposing them.
@@ -226,7 +226,7 @@ class _LazyExtractor:
 
 def scan_source(
     session: Session,
-    adapter: DiscoverySource,
+    adapter: DiscoverSource,
     *,
     prefilter: Prefilter,
     watched: Watched,
@@ -234,7 +234,7 @@ def scan_source(
     budget: _Budget,
     prober: Prober,
     reprobe_after: timedelta,
-    report: DiscoveryReport,
+    report: DiscoverReport,
     now: datetime | None = None,
     dry_run: bool = False,
 ) -> SourceReport:
@@ -455,38 +455,38 @@ def _note_sighting(
 # ---------------------------------------------------------------------------
 
 
-def run_discovery(
+def run_discover(
     *,
-    sources: Mapping[str, DiscoverySource] | None = None,
+    sources: Mapping[str, DiscoverSource] | None = None,
     only: Iterable[str] | None = None,
     dry_run: bool = False,
     extractor: Extractor | None = None,
     prober: Prober | None = None,
     config: AppConfig | None = None,
     now: datetime | None = None,
-) -> DiscoveryReport:
-    """Scans every enabled source, each in its own transaction. What `job-hunters scan` runs.
+) -> DiscoverReport:
+    """Scans every enabled source, each in its own transaction. What `job-hunters discover` runs.
 
     `sources` maps a source name to a ready adapter. Anything not supplied is built
-    with `get_discovery_source`. `only` narrows the enabled sources and never switches
+    with `get_discover_source`. `only` narrows the enabled sources and never switches
     on one the config has off. `prober` stands in for `probe.probe` (tests) and the
     real one shares a single HTTP client across every company the run probes. A dry
     run fetches and prefilters but calls no model, probes no board and writes nothing.
     """
     config = config or load_all()
-    settings = config.system.discovery
+    settings = config.system.discover
     now = now or utcnow()
     names = settings.sources.enabled()
     if only is not None:
         wanted = set(only)
         names = [name for name in names if name in wanted]
 
-    report = DiscoveryReport(cap=settings.max_extractions_per_run, dry_run=dry_run)
+    report = DiscoverReport(cap=settings.max_extractions_per_run, dry_run=dry_run)
     prefilter = Prefilter(config.search_profile)
     budget = _Budget(remaining=settings.max_extractions_per_run)
     lazy = _LazyExtractor(config, extractor)
     reprobe_after = timedelta(days=settings.reprobe_after_days)
-    cache: dict[str, DiscoverySource] = dict(sources or {})
+    cache: dict[str, DiscoverSource] = dict(sources or {})
 
     with session_scope() as session:
         # Two views of "watched". The file alone decides what counts as approved.
@@ -506,7 +506,7 @@ def run_discovery(
         for name in names:
             try:
                 with session_scope() as session:
-                    adapter = cache.get(name) or get_discovery_source(name)
+                    adapter = cache.get(name) or get_discover_source(name)
                     cache[name] = adapter
                     report.sources.append(scan_source(
                         session, adapter, prefilter=prefilter, watched=watched, extractor=lazy,

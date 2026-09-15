@@ -1,6 +1,6 @@
 """The review queue and the two decisions that empty it.
 
-`job-hunters promote --review` lists the companies discovery has queued.
+`job-hunters promote --review` lists the companies `discover` has queued.
 `--approve` appends one to `config/companies_watchlist.yaml` and `--reject`
 silences one. Nothing is ever appended without a person asking for it.
 
@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from . import paths
 from .config import CompanyEntry, ConfigError, load_watchlist
-from .discovery import Watched, reconcile
+from .discover import Watched, reconcile
 from .models import CandidateCompany, CandidateStatus, Tier, utcnow
 from .normalize import normalize_company
 

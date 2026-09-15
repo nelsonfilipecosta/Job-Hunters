@@ -4,7 +4,7 @@
 
 Returns `{"data": [...], "links": {...}, "meta": {...}}`, newest first and
 paginated with `?page=`. Only the first page is read: the board is updated
-hourly and a weekly scan of its newest page is all discovery needs. Each
+hourly and a weekly read of its newest page is all `discover` needs. Each
 job has a `slug` for an id, a `title`, a `company_name`, a `location`, a
 `remote` flag and a `description` that is HTML-escaped HTML.
 """

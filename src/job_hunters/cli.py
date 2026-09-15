@@ -12,7 +12,7 @@ one to the code that does the actual work:
     job-hunters eval-scoring evaluates the scorer against hand-labeled postings
     job-hunters digest       builds the daily email and sends it
     job-hunters backup       writes a timestamped backup of the database to `backups/`
-    job-hunters scan         reads the discovery sources and queues new companies for review
+    job-hunters discover     reads the discover sources and queues new companies for review
     job-hunters promote      reviews the queue and appends approved companies to the watchlist
 
 This file does no work of its own. `build_parser()` registers each subcommand
@@ -31,7 +31,7 @@ from .backup import BackupError, backup_database
 from .config import ConfigError, load_all, load_system_config
 from .db import SchemaError, init_db, session_scope
 from .digest import run_digest
-from .discovery import run_discovery
+from .discover import run_discover
 from .gitcheck import GitSafetyError, check_git_safety
 from .ingest import run_ingest
 from .probe import probe
@@ -41,7 +41,7 @@ from .mailer import DeliveryError
 from .models import CandidateCompany, Tier
 from .promote import PromoteError, approve, reject, review_queue, slug_for, watchlist_line
 from .scoring import Candidate, group_by_text, run_scoring
-from .sources import DISCOVERY_SOURCES
+from .sources import DISCOVER_SOURCES
 
 
 def _positive_int(value: str) -> int:
@@ -86,17 +86,17 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     print(f"  ingest               {system.schedules.ingest}  (scores what it fetched in the same run)")
     print(f"  misfire grace        {system.schedules.ingest_misfire_grace_minutes} min for ingest "
           f"({system.schedules.digest_misfire_grace_minutes} min for the digest, "
-          f"{system.schedules.discovery_misfire_grace_minutes} min for discovery, "
+          f"{system.schedules.discover_misfire_grace_minutes} min for discover, "
           f"{system.schedules.backup_misfire_grace_minutes} min for the backup)")
     print(f"  backup               {system.schedules.backup} into {paths.BACKUP_DIR}, "
           f"keeping the newest {system.backup.keep}")
     print(f"  digest               {system.schedules.digest} via "
           f"{system.email.smtp_host}:{system.email.smtp_port}")
     print(f"  judge / tailor       {system.models.judge} / {system.models.tailor}")
-    discovery = system.discovery
-    print(f"  discovery            {system.schedules.discovery} from "
-          f"{', '.join(discovery.sources.enabled()) or 'no source (all switched off)'}")
-    print(f"  extraction           {discovery.max_extractions_per_run} calls per run at most, "
+    discover = system.discover
+    print(f"  discover             {system.schedules.discover} from "
+          f"{', '.join(discover.sources.enabled()) or 'no source (all switched off)'}")
+    print(f"  extraction           {discover.max_extractions_per_run} calls per run at most, "
           f"with {system.models.extract}")
     suppression = system.digest.repeat_suppression
     if suppression.enabled:
@@ -330,12 +330,12 @@ def cmd_backup(_args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_scan(args: argparse.Namespace) -> int:
-    """Handle `job-hunters scan`: read the discovery sources and queue new companies."""
-    report = run_discovery(only=args.only or None, dry_run=args.dry_run)
+def cmd_discover(args: argparse.Namespace) -> int:
+    """Handle `job-hunters discover`: read the discover sources and queue new companies."""
+    report = run_discover(only=args.only or None, dry_run=args.dry_run)
     if not report.sources:
-        asked = f"None of {', '.join(args.only)} is" if args.only else "No discovery source is"
-        print(f"{asked} switched on in system_config.yaml (discovery.sources).")
+        asked = f"None of {', '.join(args.only)} is" if args.only else "No discover source is"
+        print(f"{asked} switched on in system_config.yaml (discover.sources).")
         return 1
     width = max(len(s.source) for s in report.sources)
     for s in report.sources:
@@ -397,7 +397,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
     with session_scope() as session:
         queue = review_queue(session)
         if not queue:
-            print("Nothing to review. `job-hunters scan` fills the queue.")
+            print("Nothing to review. `job-hunters discover` fills the queue.")
             return 0
         with_board = [c for c in queue if c.ats_type]
         without = [c for c in queue if not c.ats_type]
@@ -535,19 +535,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     backup.set_defaults(func=cmd_backup)
 
-    # `job-hunters scan [--only SOURCE ...] [--dry-run]`
-    scan = subparsers.add_parser(
-        "scan", help="read the discovery sources and queue new companies for review"
+    # `job-hunters discover [--only SOURCE ...] [--dry-run]`
+    discover = subparsers.add_parser(
+        "discover", help="read the discover sources and queue new companies for review"
     )
-    scan.add_argument(
-        "--only", action="append", metavar="SOURCE", choices=sorted(DISCOVERY_SOURCES),
-        help="read only this source (repeatable): " + ", ".join(sorted(DISCOVERY_SOURCES))
+    discover.add_argument(
+        "--only", action="append", metavar="SOURCE", choices=sorted(DISCOVER_SOURCES),
+        help="read only this source (repeatable): " + ", ".join(sorted(DISCOVER_SOURCES))
     )
-    scan.add_argument(
+    discover.add_argument(
         "--dry-run", action="store_true",
         help="fetch and prefilter only: count what is new, but extract, probe and write nothing"
     )
-    scan.set_defaults(func=cmd_scan)
+    discover.set_defaults(func=cmd_discover)
 
     # `job-hunters promote [--review | --approve ID [--slug SLUG] [--name NAME] [--tier TIER] | --reject ID]`
     promote = subparsers.add_parser(

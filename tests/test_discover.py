@@ -1,6 +1,6 @@
-"""Tests for the scan that turns the discovery sources into a queue of companies.
+"""Tests for the run that turns the `discover` sources into a queue of companies.
 
-Nothing here opens a socket or calls the API. `FakeDiscoverySource` answers
+Nothing here opens a socket or calls the API. `FakeDiscoverSource` answers
 from a script, `FakeAnthropic` names companies from a script and a fake prober
 stands in for the HTTP request a real probe makes.
 """
@@ -13,10 +13,10 @@ import anthropic
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from conftest import FakeAnthropic, FakeDiscoverySource, api_error, failed, make_posting
+from conftest import FakeAnthropic, FakeDiscoverSource, api_error, failed, make_posting
 from job_hunters.config import AppConfig, CompanyEntry, Secrets, SearchProfile, SystemConfig
 from job_hunters.probe import Board
-from job_hunters.discovery import DiscoveryReport, Watched, reconcile, run_discovery
+from job_hunters.discover import DiscoverReport, Watched, reconcile, run_discover
 from job_hunters.extract import Extraction, Extractor
 from job_hunters.models import (
     CandidateCompany,
@@ -59,13 +59,13 @@ def _config(system: dict | None = None, watchlist: list[CompanyEntry] | None = N
 
 
 def _remoteok(*postings) -> dict:
-    """A fake RemoteOK source carrying these postings, keyed the way `run_discovery` wants."""
-    return {"remoteok": FakeDiscoverySource.returning("remoteok", *postings)}
+    """A fake RemoteOK source carrying these postings, keyed the way `run_discover` wants."""
+    return {"remoteok": FakeDiscoverSource.returning("remoteok", *postings)}
 
 
 def _hn(*postings) -> dict:
     """A fake Hacker News source carrying these postings."""
-    return {"hn": FakeDiscoverySource.returning("hn", *postings)}
+    return {"hn": FakeDiscoverSource.returning("hn", *postings)}
 
 
 def sighting(source_job_id: str, company: str | None, title: str = "Research Scientist", **kw):
@@ -106,11 +106,11 @@ def _extractor(*answers) -> tuple[Extractor, FakeAnthropic]:
 
 
 def _run(session: Session, sources: dict, *, prober=None, extractor=None, config=None,
-         now: datetime = NOW, **kwargs) -> DiscoveryReport:
-    """One discovery run with every network edge faked."""
+         now: datetime = NOW, **kwargs) -> DiscoverReport:
+    """One `discover` run with every network edge faked."""
     extractor = extractor or _extractor(Extraction(company=None, roles=[], careers_url=None))[0]
     kwargs.setdefault("only", list(sources))
-    return run_discovery(
+    return run_discover(
         sources=sources, prober=prober or FakeProber(), extractor=extractor,
         config=config or _config(), now=now, **kwargs,
     )
@@ -189,7 +189,7 @@ def test_prose_is_named_by_the_model_up_to_the_cap_and_the_rest_waits(session: S
         Extraction(company="Tufalabs", roles=["Member of Technical Staff"], careers_url=None),
         Extraction(company="Mechanize", roles=["Research Engineer"], careers_url=None),
     )
-    config = _config({"discovery": {"max_extractions_per_run": 2}})
+    config = _config({"discover": {"max_extractions_per_run": 2}})
     comments = [
         comment("1", "Prior Labs | Berlin\nResearch scientist wanted."),
         comment("2", "Tufalabs | Zurich\nPost-training research."),
@@ -270,7 +270,7 @@ def test_a_missing_api_key_is_named_and_the_structured_sources_still_run(
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     sources = {**_hn(comment("1", "Prior Labs | Berlin\nResearch scientist.")),
                **_remoteok(sighting("2", "Mechanize"))}
-    report = run_discovery(sources=sources, only=list(sources), prober=FakeProber(),
+    report = run_discover(sources=sources, only=list(sources), prober=FakeProber(),
                            config=_config(), now=NOW)
     assert "ANTHROPIC_API_KEY" in report.aborted
     assert {c.name for c in _candidates(session)} == {"Mechanize"}
@@ -306,7 +306,7 @@ def test_two_spellings_that_resolve_to_one_board_are_one_candidate(session: Sess
 
 def test_a_company_without_a_board_is_probed_again_only_after_the_wait(session: Session) -> None:
     """No board today does not mean no board next month, but it is not worth thirty requests a week."""
-    config = _config({"discovery": {"reprobe_after_days": 30}})
+    config = _config({"discover": {"reprobe_after_days": 30}})
     prober = FakeProber()
     _run(session, _remoteok(sighting("1", "Mistral")), prober=prober, config=config)
     [candidate] = _candidates(session)
@@ -350,8 +350,8 @@ def test_reconcile_matches_on_the_board_when_the_name_differs(session: Session) 
 def test_one_source_failing_does_not_stop_the_others(session: Session) -> None:
     """A 503 from one site is a failed `fetch_runs` row. The next site is read as usual."""
     sources = {
-        "remoteok": FakeDiscoverySource("remoteok", failed("HTTP 503 for https://remoteok.com/api")),
-        "arbeitnow": FakeDiscoverySource.returning("arbeitnow", sighting("1", "Prior Labs", source="arbeitnow")),
+        "remoteok": FakeDiscoverSource("remoteok", failed("HTTP 503 for https://remoteok.com/api")),
+        "arbeitnow": FakeDiscoverSource.returning("arbeitnow", sighting("1", "Prior Labs", source="arbeitnow")),
     }
     report = _run(session, sources)
     assert [s.source for s in report.failures] == ["remoteok"]
@@ -371,8 +371,8 @@ def test_a_crash_while_scanning_one_source_is_recorded_and_the_run_continues(ses
         return []
 
     sources = {
-        "remoteok": FakeDiscoverySource.returning("remoteok", sighting("1", "Prior Labs")),
-        "remotive": FakeDiscoverySource.returning("remotive", sighting("2", "Tufalabs", source="remotive")),
+        "remoteok": FakeDiscoverSource.returning("remoteok", sighting("1", "Prior Labs")),
+        "remotive": FakeDiscoverSource.returning("remotive", sighting("2", "Tufalabs", source="remotive")),
     }
     report = _run(session, sources, prober=exploding)
     assert [s.source for s in report.failures] == ["remoteok"]
@@ -397,7 +397,7 @@ def test_a_dry_run_counts_what_is_new_and_writes_nothing(session: Session) -> No
 
 def test_only_narrows_the_enabled_sources_and_never_switches_one_on(session: Session) -> None:
     """`--only hn` with hn switched off in the config reads nothing from Hacker News."""
-    config = _config({"discovery": {"sources": {"hn": False}}})
+    config = _config({"discover": {"sources": {"hn": False}}})
     sources = {**_hn(comment("1", "Prior Labs | Berlin\nResearch scientist.")),
                **_remoteok(sighting("2", "Mechanize"))}
     report = _run(session, sources, config=config, only=["hn", "remoteok"])

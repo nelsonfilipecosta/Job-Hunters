@@ -4,7 +4,7 @@ The slug is rarely the company name. Rather than guess, `probe` tries a handful 
 spellings against all three ATS URL patterns and reports every board that answers.
 
 `job-hunters probe <name>` prints every board found, with a ready-to-paste watchlist
-line for the busiest and leaves the choice to you. The discovery loop has nobody to
+line for the busiest and leaves the choice to you. The `discover` loop has nobody to
 ask, so `best_board` picks the board with the most postings or the one a posting's own
 careers link named when that link pointed straight at a board.
 """

@@ -1,7 +1,7 @@
-"""Tests for the four discovery sources against recorded responses.
+"""Tests for the four `discover` sources against recorded responses.
 
 No test here touches the network. Each source is given an `httpx2.Client`
-whose transport answers from `tests/fixtures/discovery/*.json` (real payloads
+whose transport answers from `tests/fixtures/discover/*.json` (real payloads
 recorded from the live sites) or with the failure being tested.
 """
 
@@ -17,17 +17,17 @@ import pytest
 from job_hunters.models import FetchStatus
 from job_hunters.sources import (
     ADAPTERS,
-    DISCOVERY_SOURCES,
+    DISCOVER_SOURCES,
     ArbeitnowSource,
     HackerNewsSource,
     RemoteOkSource,
     RemotiveSource,
-    get_discovery_source,
+    get_discover_source,
     replay_posting,
 )
 from job_hunters.sources.hn import ITEM_URL, SEARCH_URL
 
-FIXTURES = Path(__file__).parent / "fixtures" / "discovery"
+FIXTURES = Path(__file__).parent / "fixtures" / "discover"
 
 
 def _load(name: str) -> dict | list:
@@ -59,17 +59,17 @@ def _hn_client(search=None, thread=None) -> httpx2.Client:
     return httpx2.Client(transport=httpx2.MockTransport(handler))
 
 
-def test_the_discovery_registry_names_the_four_sources_and_not_the_boards() -> None:
-    """Discovery sources and ATS adapters are two registries with nothing in common."""
-    assert set(DISCOVERY_SOURCES) == {"hn", "remoteok", "arbeitnow", "remotive"}
-    assert not set(DISCOVERY_SOURCES) & set(ADAPTERS)
-    assert isinstance(get_discovery_source("remotive"), RemotiveSource)
+def test_the_discover_registry_names_the_four_sources_and_not_the_boards() -> None:
+    """The `discover` sources and the ATS adapters are two registries with nothing in common."""
+    assert set(DISCOVER_SOURCES) == {"hn", "remoteok", "arbeitnow", "remotive"}
+    assert not set(DISCOVER_SOURCES) & set(ADAPTERS)
+    assert isinstance(get_discover_source("remotive"), RemotiveSource)
 
 
-def test_an_unknown_discovery_source_is_a_readable_error() -> None:
+def test_an_unknown_discover_source_is_a_readable_error() -> None:
     """Asking for an unregistered source raises a KeyError naming it."""
-    with pytest.raises(KeyError, match="(?i)no discovery source named 'linkedin'"):
-        get_discovery_source("linkedin")
+    with pytest.raises(KeyError, match="(?i)no discover source named 'linkedin'"):
+        get_discover_source("linkedin")
 
 
 def test_hn_reads_this_months_hiring_thread_and_skips_its_siblings() -> None:

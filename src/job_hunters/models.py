@@ -13,7 +13,7 @@ these classes into real tables.
     application_events  dated history behind each application
     digest_appearances  which jobs were included in which digest email
     fetch_runs          the outcome of every attempt to fetch a board
-    candidate_companies companies the discovery sources saw hiring
+    candidate_companies companies the `discover` sources saw hiring
 
 Two of those tables hold postings, which is deliberate. `job_sources` keeps one
 row per board a posting appeared on. `jobs` keeps one row per real opening after
@@ -505,9 +505,9 @@ class FetchRun(Base):
 
 
 class CandidateCompany(Base):
-    """Companies the discovery sources saw hiring and are awaiting a decision.
+    """Companies the `discover` sources saw hiring and are awaiting a decision.
 
-    Each row shows one company that a discovery source saw hiring for the kind
+    Each row shows one company that a `discover` source saw hiring for the kind
     of work the search profile describes, together with the job board found for
     it and every sighting that put it here. Rows are queued for review rather
     than appended to the watchlist, because extraction from prose is roughly
