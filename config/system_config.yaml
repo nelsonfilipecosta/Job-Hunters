@@ -25,13 +25,12 @@ actions:
 schedules:
   # Accepted forms: "every <N><m|h|d>", "daily HH:MM", "weekly <dow> HH:MM"
   ingest:    every 2h
-  score:     every 2h
   digest:    daily 08:00
   discovery: weekly mon 06:00
   backup:    weekly sun 02:00
 
   # How late a missed run may still start.
-  misfire_grace_minutes: 60              # 1h (ingest and score)
+  misfire_grace_minutes: 60              # 1h
   digest_misfire_grace_minutes: 360      # 6h
   discovery_misfire_grace_minutes: 2880  # 2d
   backup_misfire_grace_minutes: 2880     # 2d

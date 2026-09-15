@@ -275,7 +275,7 @@ def test_the_grace_settings_are_not_mistaken_for_schedules(tmp_path: Path) -> No
     schedules = load_system_config(
         _write(tmp_path, "system_config.yaml", _valid_system())
     ).schedules
-    assert set(schedules.specs()) == {"ingest", "score", "digest", "discovery", "backup"}
+    assert set(schedules.specs()) == {"ingest", "digest", "discovery", "backup"}
     assert all(isinstance(spec, str) for spec in schedules.specs().values())
 
 

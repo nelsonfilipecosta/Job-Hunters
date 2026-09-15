@@ -1,11 +1,11 @@
-"""The process that runs ingest, score, digest, discovery and backup on a schedule.
+"""The process that runs ingest, digest, discovery and backup on a schedule.
 
 Runs as its own container, separate from the web process, and is what turns
 the commands in `cli.py` into something that happens without you. It registers
-five jobs on the schedules declared in `system_config.yaml`:
+four jobs on the schedules declared in `system_config.yaml`:
 
-    ingest     fetch every watched board                  (default: every 2h)
-    score      judge whatever ingest turned up            (default: every 2h)
+    ingest     fetch every watched board and judge what
+               it turned up                               (default: every 2h)
     digest     build and send the daily email             (default: daily 08:00)
     discovery  scan the sources for companies to review   (default: weekly mon 06:00)
     backup     copy the database into `backups/`          (default: weekly sun 02:00)
@@ -64,7 +64,12 @@ def build_trigger(spec: str, timezone: tzinfo) -> BaseTrigger:
 
 
 def scheduled_ingest() -> None:
-    """Fetches every watched board and logs the outcome instead of raising."""
+    """Fetches every watched board, then judges what it turned up. Logs both instead of raising.
+
+    Scoring runs after the fetch and in the same job, so it always reads what this ingest
+    wrote rather than a snapshot taken while it was still writing. It runs even when the
+    fetch failed. The backlog from earlier runs is still worth judging.
+    """
     try:
         report = run_ingest()
         log.info(
@@ -74,10 +79,11 @@ def scheduled_ingest() -> None:
         )
     except Exception:
         log.exception("ingest failed")
+    scheduled_score()
 
 
 def scheduled_score() -> None:
-    """Judges whatever the last ingest turned up and logs the outcome."""
+    """Judges whatever ingest turned up and logs the outcome. The second half of the ingest job."""
     try:
         report = run_scoring()
         log.info(
@@ -138,7 +144,6 @@ def main() -> int:
         backup_grace = config.schedules.backup_misfire_grace_minutes * SECONDS_PER_MINUTE
         jobs = (
             ("ingest", scheduled_ingest, config.schedules.ingest, interval_grace),
-            ("score", scheduled_score, config.schedules.score, interval_grace),
             ("digest", scheduled_digest, config.schedules.digest, digest_grace),
             ("discovery", scheduled_discovery, config.schedules.discovery, discovery_grace),
             ("backup", scheduled_backup, config.schedules.backup, backup_grace),

@@ -1,7 +1,8 @@
-"""Tests for the process that runs ingest, score, digest and backup on a schedule."""
+"""Tests for the process that runs ingest, digest, discovery and backup on a schedule."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -68,7 +69,7 @@ def test_every_default_schedule_in_the_config_can_be_built() -> None:
     """The config regex and this parser have to keep agreeing about what is legal."""
     defaults = SchedulesConfig()
     specs = defaults.specs()
-    assert set(specs) == {"ingest", "score", "digest", "discovery", "backup"}
+    assert set(specs) == {"ingest", "digest", "discovery", "backup"}
     for spec in specs.values():
         assert build_trigger(spec, LISBON) is not None
 
@@ -80,23 +81,37 @@ def test_a_schedule_this_parser_does_not_know_is_a_config_error() -> None:
 
 
 @pytest.mark.parametrize(
-    ("job", "target"),
-    [
-        (scheduled_ingest, "run_ingest"),
-        (scheduled_score, "run_scoring"),
-        (scheduled_digest, "run_digest"),
-        (scheduled_discovery, "run_discovery"),
-        (scheduled_backup, "backup_database"),
-    ],
+    "job",
+    [scheduled_ingest, scheduled_score, scheduled_digest, scheduled_discovery, scheduled_backup],
 )
-def test_a_failing_job_is_logged_and_does_not_escape(job, target, monkeypatch, caplog) -> None:
+def test_a_failing_job_is_logged_and_does_not_escape(job, monkeypatch, caplog) -> None:
     """One bad morning must be a loud line in the log and not the end of the scheduler."""
     def raise_it(**_kwargs):
         raise RuntimeError("the board is on fire")
 
-    monkeypatch.setattr(scheduler_module, target, raise_it)
+    for target in ("run_ingest", "run_scoring", "run_digest", "run_discovery", "backup_database"):
+        monkeypatch.setattr(scheduler_module, target, raise_it)
     job()
     assert "the board is on fire" in caplog.text
+
+
+def test_the_ingest_job_scores_after_fetching_even_when_the_fetch_failed(monkeypatch, caplog) -> None:
+    """Scoring reads what ingest wrote, so it runs second and the backlog is worth judging regardless."""
+    order: list[str] = []
+
+    def fetch(**_kwargs):
+        order.append("ingest")
+        raise RuntimeError("the board is on fire")
+
+    def judge(**_kwargs):
+        order.append("score")
+        return SimpleNamespace(judged=0, scored=0, failed=0, carried_over=0, aborted=None)
+
+    monkeypatch.setattr(scheduler_module, "run_ingest", fetch)
+    monkeypatch.setattr(scheduler_module, "run_scoring", judge)
+    scheduled_ingest()
+    assert order == ["ingest", "score"]
+    assert "ingest failed" in caplog.text
 
 
 def test_the_scheduled_backup_writes_a_file_and_names_it_in_the_log(

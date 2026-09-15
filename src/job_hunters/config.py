@@ -211,8 +211,8 @@ ScheduleSpec = Annotated[str, Field(pattern=_SCHEDULE_RE.pattern)]
 
 
 class SchedulesConfig(StrictModel):
+    # Ingest scores what it fetched in the same run, so there is no `score` schedule.
     ingest: ScheduleSpec = "every 2h"
-    score: ScheduleSpec = "every 2h"
     digest: ScheduleSpec = "daily 08:00"
     discovery: ScheduleSpec = "weekly mon 06:00"
     backup: ScheduleSpec = "weekly sun 03:00"
