@@ -219,19 +219,22 @@ def test_unknown_timezone_is_rejected(tmp_path: Path) -> None:
         load_system_config(_write(tmp_path, "system_config.yaml", system))
 
 
-def test_malformed_schedule_is_rejected(tmp_path: Path) -> None:
-    """A schedule no scheduler could parse is refused at load time."""
+@pytest.mark.parametrize(
+    "spec", ["every morning", "every 0h", "every 00m", "daily 25:00", "daily 08:60", "weekly sun 24:00"]
+)
+def test_malformed_schedule_is_rejected(tmp_path: Path, spec: str) -> None:
+    """A schedule no scheduler could build is refused at load time and not at start-up."""
     system = _valid_system()
-    system["schedules"]["digest"] = "every morning"
+    system["schedules"]["digest"] = spec
     with pytest.raises(ConfigError):
         load_system_config(_write(tmp_path, "system_config.yaml", system))
 
 
 @pytest.mark.parametrize(
-    "spec", ["every 2h", "every 30m", "every 1d", "daily 08:00", "weekly sun 03:00"]
+    "spec", ["every 2h", "every 30m", "every 1d", "daily 08:00", "daily 23:59", "weekly sun 03:00"]
 )
 def test_accepted_schedule_forms(tmp_path: Path, spec: str) -> None:
-    """All five legal schedule formats still load, so the check is not too strict."""
+    """Every legal schedule format still loads so the check is not too strict."""
     system = _valid_system()
     system["schedules"]["digest"] = spec
     assert load_system_config(_write(tmp_path, "system_config.yaml", system))
@@ -267,6 +270,14 @@ def test_an_implausible_misfire_grace_is_rejected(tmp_path: Path, keys: dict) ->
     system = _valid_system()
     system["schedules"].update(keys)
     with pytest.raises(ConfigError, match="misfire_grace_minutes"):
+        load_system_config(_write(tmp_path, "system_config.yaml", system))
+
+
+def test_keeping_no_backups_at_all_is_refused(tmp_path: Path) -> None:
+    """`keep: 0` would delete every backup the moment one is verified."""
+    system = _valid_system()
+    system["backup"] = {"keep": 0}
+    with pytest.raises(ConfigError, match="keep"):
         load_system_config(_write(tmp_path, "system_config.yaml", system))
 
 

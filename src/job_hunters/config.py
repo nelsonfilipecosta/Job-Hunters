@@ -200,11 +200,12 @@ class SearchProfile(StrictModel):
 # ---------------------------------------------------------------------------
 
 
-# "every 2h" | "daily 08:00" | "weekly mon 06:00"
+# "every 2h" | "daily 08:00" | "weekly mon 06:00". The times are range-checked here.
+_CLOCK = r"(?:[01]\d|2[0-3]):[0-5]\d"
 _SCHEDULE_RE = re.compile(
-    r"^(?:every \d+[mhd]"
-    r"|daily \d{2}:\d{2}"
-    r"|weekly (?:mon|tue|wed|thu|fri|sat|sun) \d{2}:\d{2})$"
+    r"^(?:every [1-9]\d*[mhd]"
+    rf"|daily {_CLOCK}"
+    rf"|weekly (?:mon|tue|wed|thu|fri|sat|sun) {_CLOCK})$"
 )
 
 ScheduleSpec = Annotated[str, Field(pattern=_SCHEDULE_RE.pattern)]
@@ -275,6 +276,11 @@ class ActionsConfig(StrictModel):
     token_ttl_days: int = Field(default=90, ge=1, le=3650)
 
 
+class BackupConfig(StrictModel):
+    # How many backups `backups/` holds. The oldest go once a new one is verified.
+    keep: int = Field(default=8, ge=1)
+
+
 class DiscoverySourcesConfig(StrictModel):
     """One flag per discovery source so that a source that breaks can be switched off alone."""
 
@@ -303,6 +309,7 @@ class SystemConfig(StrictModel):
     digest: DigestConfig = DigestConfig()
     actions: ActionsConfig = ActionsConfig()
     discovery: DiscoveryConfig = DiscoveryConfig()
+    backup: BackupConfig = BackupConfig()
 
     @field_validator("timezone")
     @classmethod
