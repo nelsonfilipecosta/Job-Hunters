@@ -9,7 +9,7 @@ one to the code that does the actual work:
     job-hunters ingest       fetches every watched board into the database
     job-hunters probe        finds which ATS and slug host a company's board
     job-hunters score        judges unscored postings with the LLM (prefilter then judge)
-    job-hunters eval-scoring evaluates the scorer against hand-labeled postings
+    job-hunters evaluate     evaluates the scorer against hand-labeled postings
     job-hunters digest       builds the daily email and sends it
     job-hunters backup       writes a timestamped backup of the database to `backups/`
     job-hunters discover     reads the discover sources and queues new companies for review
@@ -248,8 +248,8 @@ def cmd_score(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_eval_scoring(args: argparse.Namespace) -> int:
-    """Handle `job-hunters eval-scoring`: precision, recall and f1-score against the labeled postings."""
+def cmd_evaluate(args: argparse.Namespace) -> int:
+    """Handle `job-hunters evaluate`: precision, recall and f1-score against the hand-labeled postings."""
     report = run_evaluation(args.labels, skip_llm=args.skip_llm)
     llm = report.llm_used
     print(f"  {'label':<5} {'prefilter':<30} {'score':>5}  {'outcome':<11} posting")
@@ -504,10 +504,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     score.set_defaults(func=cmd_score)
 
-    # `job-hunters eval-scoring [--skip-llm] [--labels PATH]`
+    # `job-hunters evaluate [--skip-llm] [--labels PATH]`
     evaluate = subparsers.add_parser(
-        "eval-scoring",
-        help="evaluate the scorer against hand-labeled postings in tests/fixtures/labeled_jobs.yaml"
+        "evaluate",
+        help="evaluate the scorer against hand-labeled postings in `tests/fixtures/labeled_jobs.yaml`"
     )
     evaluate.add_argument(
         "--skip-llm", action="store_true",
@@ -517,7 +517,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--labels", type=Path, metavar="PATH",
         help="a different labeled file"
     )
-    evaluate.set_defaults(func=cmd_eval_scoring)
+    evaluate.set_defaults(func=cmd_evaluate)
 
     # `job-hunters digest [--dry-run]`
     digest = subparsers.add_parser(

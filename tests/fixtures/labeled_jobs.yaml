@@ -1,4 +1,4 @@
-# Hand-labeled postings for `job-hunters eval-scoring`.
+# Hand-labeled postings for `job-hunters evaluate`.
 #
 # Each entry is a real posting sampled from the first live ingest (September
 # 2026), trimmed to its first ~2,000 characters. `relevant` says whether the

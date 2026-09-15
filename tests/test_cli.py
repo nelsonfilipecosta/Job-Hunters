@@ -175,7 +175,7 @@ def test_a_limit_below_one_is_refused_before_anything_is_judged(limit: str, caps
 
 
 def test_the_labeled_fixture_is_where_the_container_will_look_for_it() -> None:
-    """`eval-scoring` reads this path and the Dockerfile copies exactly it into the image."""
+    """`evaluate` reads this path and the Dockerfile copies exactly it into the image."""
     from job_hunters.evaluate import DEFAULT_LABELS_PATH
 
     assert DEFAULT_LABELS_PATH.is_file()
@@ -278,9 +278,9 @@ def test_a_backup_that_could_not_be_written_exits_1_without_a_traceback(
     assert "Traceback" not in captured.err
 
 
-def test_eval_scoring_can_report_the_prefilter_alone(capsys) -> None:
-    """`eval-scoring --skip-llm` measures the prefilter against the labels without a key."""
-    assert main(["eval-scoring", "--skip-llm"]) == 0
+def test_evaluate_can_report_the_prefilter_alone(capsys) -> None:
+    """`evaluate --skip-llm` measures the prefilter against the labels without a key."""
+    assert main(["evaluate", "--skip-llm"]) == 0
     out = capsys.readouterr().out
     assert "prefilter kept" in out and "judge skipped" in out
 

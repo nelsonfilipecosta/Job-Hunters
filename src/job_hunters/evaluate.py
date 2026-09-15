@@ -194,7 +194,7 @@ def evaluate(
 def run_evaluation(labels_path: Path | None = None, *, skip_llm: bool = False) -> EvalReport:
     """Loads config, the labels and the judge (unless skipped), then evaluates.
     
-    What the command `job-hunters eval-scoring` runs."""
+    What the command `job-hunters evaluate` runs."""
     config = load_all()
     labeled = load_labeled_jobs(labels_path)
     judge = None
