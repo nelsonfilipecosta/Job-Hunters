@@ -110,7 +110,12 @@ def _prune(directory: Path, keep: int, latest: Path) -> tuple[Path, ...]:
     surplus = len(backups) + 1 - keep
     removed: list[Path] = []
     for path in backups[:max(surplus, 0)]:
-        path.unlink()
+        try:
+            path.unlink()
+        except OSError as exc:
+            # The new copy is written and checked. A file that will not go is a warning.
+            log.warning("Could not remove old backup %s: %s", path, exc.strerror or exc)
+            continue
         removed.append(path)
         log.info("Removed old backup %s (keeping %s)", path, keep)
     return tuple(removed)

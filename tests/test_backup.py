@@ -185,6 +185,27 @@ def test_the_copy_just_written_survives_pruning_whatever_its_name_says(
     assert report.pruned == tuple(newer)
 
 
+def test_an_old_backup_that_cannot_be_removed_does_not_fail_the_new_one(
+    session: Session, company: Company, tmp_path: Path, monkeypatch, caplog
+) -> None:
+    """The copy is already written and checked. A stubborn old file is a warning and not a failure."""
+    out = tmp_path / "out"
+    stuck, gone = _older_backups(out, 21, 14)
+    real_unlink = Path.unlink
+
+    def unlink(self: Path, *args, **kwargs):
+        if self == stuck:
+            raise PermissionError(13, "Permission denied")
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    report = backup_database(out, db_path=_db_path(), now=NOW, keep=1)
+
+    assert report.path.exists() and report.pruned == (gone,)
+    assert stuck.exists() and not gone.exists()
+    assert "Could not remove old backup" in caplog.text and stuck.name in caplog.text
+
+
 def test_a_backup_that_fails_prunes_nothing(tmp_path: Path) -> None:
     """The old copies are all there is when the new one could not be made."""
     out = tmp_path / "out"
