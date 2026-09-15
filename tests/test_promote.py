@@ -155,6 +155,10 @@ def test_watchlist_line_is_bare_when_it_can_be() -> None:
     line = watchlist_line("prior-labs", "Prior Labs", "ashby", "prior-labs", "discovered")
     assert line == "- { slug: prior-labs, name: Prior Labs, ats: ashby, token: prior-labs, tier: discovered }"
     assert 'name: "Acme: Inc"' in watchlist_line("acme", "Acme: Inc", "ashby", "acme", "discovered")
+    # Without a tier the line ends at the token and loads with the default one.
+    assert watchlist_line("prior-labs", "Prior Labs", "ashby", "prior-labs", None) == (
+        "- { slug: prior-labs, name: Prior Labs, ats: ashby, token: prior-labs }"
+    )
 
 
 @pytest.mark.parametrize("name", ["42", "Yes", "null", "1Password", 'Say "hi"', "Züri Lab"])

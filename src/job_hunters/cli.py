@@ -180,9 +180,10 @@ def cmd_probe(args: argparse.Namespace) -> int:
     print()
     print("Add to config/companies_watchlist.yaml:")
     best = max(with_postings, key=lambda h: h.job_count)
-    # The same line `promote --approve` writes, so a name YAML would misread is quoted.
+    # The same line `promote --approve` writes, so a name YAML would misread is quoted,
+    # minus the tier: that is yours to pick, and "discovered" would claim the loop found it.
     name = args.name.strip()
-    print("  " + watchlist_line(slug_for(name), name, best.ats, best.token, Tier.DISCOVERED.value))
+    print("  " + watchlist_line(slug_for(name), name, best.ats, best.token, tier=None))
     return 0
 
 

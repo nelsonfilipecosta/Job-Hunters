@@ -299,6 +299,7 @@ def test_probe_prints_a_line_the_watchlist_will_load_whatever_the_name(capsys, m
     line = capsys.readouterr().out.strip().splitlines()[-1].strip()
     entry = CompanyEntry.model_validate(yaml.safe_load(line)[0])
     assert (entry.slug, entry.name, entry.ats_config["token"]) == ("scale-ai-inc", "Scale AI, Inc.", "scaleai")
+    assert "tier:" not in line
 
 
 def test_scan_prints_each_source_and_the_queue_size(capsys, monkeypatch) -> None:

@@ -92,12 +92,14 @@ def slug_for(name: str) -> str:
     return slug
 
 
-def watchlist_line(slug: str, name: str, ats: str, token: str, tier: str) -> str:
-    """One watchlist entry in the flow style the file uses and quoted only where YAML needs it."""
-    return (
-        f"- {{ slug: {slug}, name: {_scalar(name)}, ats: {ats}, "
-        f"token: {token}, tier: {tier} }}"
-    )
+def watchlist_line(slug: str, name: str, ats: str, token: str, tier: str | None) -> str:
+    """One watchlist entry in the flow style the file uses and quoted only where YAML needs it.
+
+    Without a tier the entry loads with the default one. `probe` leaves it out because a company
+    you looked up yourself is not one the loop discovered.
+    """
+    tail = f", tier: {tier}" if tier else ""
+    return f"- {{ slug: {slug}, name: {_scalar(name)}, ats: {ats}, token: {token}{tail} }}"
 
 
 # Bare words YAML would read as something other than a string.
