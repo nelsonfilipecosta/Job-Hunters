@@ -263,3 +263,87 @@ def test_eval_scoring_can_report_the_prefilter_alone(capsys) -> None:
     assert main(["eval-scoring", "--skip-llm"]) == 0
     out = capsys.readouterr().out
     assert "prefilter kept" in out and "judge skipped" in out
+
+
+def test_scan_prints_each_source_and_the_queue_size(capsys, monkeypatch) -> None:
+    """The table names every source and the last line says how many wait for review."""
+    from job_hunters.discovery import DiscoveryReport, SourceReport
+
+    report = DiscoveryReport(cap=100, pending=3)
+    report.sources = [
+        SourceReport(source="hn", status="ok", fetched=260, matched=13, new_sightings=2,
+                     extracted=2, new_candidates=1, boards_found=1),
+        SourceReport(source="remotive", status="failed", error="HTTP 503 for https://remotive.com/api"),
+    ]
+    monkeypatch.setattr("job_hunters.cli.run_discovery", lambda **_kwargs: report)
+
+    assert main(["scan"]) == 1  # one source failed
+    out = capsys.readouterr().out
+    assert "hn" in out and "260 fetched" in out
+    assert "FAILED" in out and "503" in out
+    assert "3 waiting for review" in out and "promote --review" in out
+
+
+def test_scan_dry_run_says_nothing_was_written(capsys, monkeypatch) -> None:
+    """A dry run must say so, otherwise a quiet run and a real one would read the same."""
+    from job_hunters.discovery import DiscoveryReport, SourceReport
+
+    report = DiscoveryReport(cap=100, dry_run=True)
+    report.sources = [SourceReport(source="remoteok", status="ok", fetched=99, matched=2, new_sightings=2)]
+    seen = {}
+    monkeypatch.setattr("job_hunters.cli.run_discovery", lambda **kwargs: seen.update(kwargs) or report)
+
+    assert main(["scan", "--dry-run", "--only", "remoteok"]) == 0
+    assert seen == {"only": ["remoteok"], "dry_run": True}
+    assert "Dry run" in capsys.readouterr().out
+
+
+def test_scan_refuses_a_source_it_does_not_know() -> None:
+    """`--only linkedin` is an argparse error and not a run that reads nothing."""
+    with pytest.raises(SystemExit) as exc:
+        main(["scan", "--only", "linkedin"])
+    assert exc.value.code != 0
+
+
+def test_promote_with_an_empty_queue_says_so(session, capsys) -> None:
+    """Nothing to review is a sentence and not an empty table."""
+    assert main(["promote", "--review"]) == 0
+    assert "Nothing to review" in capsys.readouterr().out
+
+
+def test_promote_lists_the_queue_with_ids_and_boards(session, capsys) -> None:
+    """Each candidate prints with the id `--approve` takes and the board that was found."""
+    from job_hunters.models import CandidateCompany
+
+    session.add(CandidateCompany(name="Prior Labs", name_key="prior labs", sightings=2, ats_type="ashby",
+                                 ats_token="prior-labs", board_url="https://ashby.test/prior-labs", board_jobs=24,
+                                 roles=["Research Scientist"],
+                                 evidence=[{"source": "hn", "source_job_id": "1", "title": "Prior Labs | Berlin",
+                                            "url": "https://news.ycombinator.com/item?id=1", "seen": "2026-09-14"}]))
+    session.add(CandidateCompany(name="Tufalabs", name_key="tufalabs", sightings=1, roles=[], evidence=[]))
+    session.commit()
+
+    assert main(["promote"]) == 0
+    out = capsys.readouterr().out
+    assert "Prior Labs" in out and "ashby prior-labs" in out and "24 jobs" in out
+    assert "Tufalabs" in out and "no Greenhouse, Lever or Ashby board" in out
+    assert "--approve ID" in out
+
+
+def test_promote_refuses_a_stranger_without_a_traceback(session, capsys) -> None:
+    """An unknown id is a user error and exits 1 with the reason."""
+    assert main(["promote", "--approve", "999"]) == 1
+    assert "No candidate" in capsys.readouterr().err
+
+
+def test_promote_takes_one_decision_at_a_time() -> None:
+    """`--approve` and `--reject` together is an argparse error."""
+    with pytest.raises(SystemExit) as exc:
+        main(["promote", "--approve", "1", "--reject", "2"])
+    assert exc.value.code != 0
+
+
+def test_promote_refuses_naming_options_without_an_approval(capsys) -> None:
+    """`--slug` on a review is a typo for an approval and not something to ignore."""
+    assert main(["promote", "--slug", "x"]) == 1
+    assert "--approve" in capsys.readouterr().err

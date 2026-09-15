@@ -12,6 +12,8 @@ one to the code that does the actual work:
     job-hunters eval-scoring evaluates the scorer against hand-labeled postings
     job-hunters digest       builds the daily email and sends it
     job-hunters backup       writes a timestamped backup of the database to `backups/`
+    job-hunters scan         reads the discovery sources and queues new companies for review
+    job-hunters promote      reviews the queue and appends approved companies to the watchlist
 
 This file does no work of its own. `build_parser()` registers each subcommand
 under a name. `main()` reads what was typed and calls whichever `cmd_*`
@@ -27,15 +29,19 @@ from pathlib import Path
 from . import paths
 from .backup import BackupError, backup_database
 from .config import ConfigError, load_all
-from .db import SchemaError, init_db
+from .db import SchemaError, init_db, session_scope
 from .digest import run_digest
+from .discovery import run_discovery
 from .gitcheck import GitSafetyError, check_git_safety
 from .ingest import run_ingest
 from .discover import probe
 from .evaluate import run_evaluation
 from .judge import Usage, Verdict, cache_minimum_tokens
 from .mailer import DeliveryError
+from .models import CandidateCompany, Tier
+from .promote import PromoteError, approve, reject, review_queue
 from .scoring import Candidate, group_by_text, run_scoring
+from .sources import DISCOVERY_SOURCES
 
 
 def _positive_int(value: str) -> int:
@@ -80,11 +86,16 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
     print(f"  ingest / score       {system.schedules.ingest} / {system.schedules.score}")
     print(f"  misfire grace        {system.schedules.misfire_grace_minutes} min "
           f"({system.schedules.digest_misfire_grace_minutes} min for the digest, "
-          f"{system.schedules.backup_misfire_grace_minutes} min for the backup)")
+          f"{system.schedules.backup_misfire_grace_minutes} min for the weekly jobs)")
     print(f"  backup               {system.schedules.backup} into {paths.BACKUP_DIR}")
     print(f"  digest               {system.schedules.digest} via "
           f"{system.email.smtp_host}:{system.email.smtp_port}")
     print(f"  judge / tailor       {system.models.judge} / {system.models.tailor}")
+    discovery = system.discovery
+    print(f"  discovery            {system.schedules.discovery} from "
+          f"{', '.join(discovery.sources.enabled()) or 'no source (all switched off)'}")
+    print(f"  extraction           {discovery.max_extractions_per_run} calls per run at most, "
+          f"with {system.models.extract}")
     suppression = system.digest.repeat_suppression
     if suppression.enabled:
         summary = (f"demote after {suppression.demote_after}, "
@@ -312,6 +323,109 @@ def cmd_backup(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_scan(args: argparse.Namespace) -> int:
+    """Handle `job-hunters scan`: read the discovery sources and queue new companies."""
+    report = run_discovery(only=args.only or None, dry_run=args.dry_run)
+    if not report.sources:
+        asked = f"None of {', '.join(args.only)} is" if args.only else "No discovery source is"
+        print(f"{asked} switched on in system_config.yaml (discovery.sources).")
+        return 1
+    width = max(len(s.source) for s in report.sources)
+    for s in report.sources:
+        if s.failed:
+            print(f"  {s.source:<{width}}  FAILED  {s.error}")
+            continue
+        line = (f"  {s.source:<{width}}  ok      {s.fetched:4} fetched  {s.matched:3} matched  "
+                f"{s.new_sightings:3} new  {s.seen_before:3} seen before")
+        if not args.dry_run:
+            line += (f"  {s.new_candidates:3} new candidates  {s.seen_again:3} seen again  "
+                     f"{s.already_watched:3} watched")
+        print(line)
+    print()
+    print(f"{len(report.sources)} sources, {len(report.failures)} failed | "
+          f"{report.total('fetched')} postings, {report.total('matched')} matched the profile, "
+          f"{report.total('new_sightings')} new sightings.")
+    if args.dry_run:
+        print("Dry run. Nothing was extracted, probed or written.")
+        return 1 if report.failures else 0
+    extracted = report.total("extracted")
+    if extracted or report.total("capped") or report.total("extraction_failed"):
+        usage = report.usage
+        print(f"extracted {extracted} postings ({report.total('unattributed')} named no company, "
+              f"{report.total('extraction_failed')} failed, {report.total('capped')} left for "
+              f"the next run by the cap of {report.cap}); "
+              f"tokens: input {usage.input_tokens:,}, output {usage.output_tokens:,}")
+    print(f"candidates: {report.total('new_candidates')} new "
+          f"({report.total('boards_found')} with a board found), "
+          f"{report.total('seen_again')} seen again, "
+          f"{report.total('already_watched')} already in the watchlist"
+          f"{f', {report.reconciled} resolved by the watchlist' if report.reconciled else ''}.")
+    if report.pending:
+        print(f"{report.pending} waiting for review: `job-hunters promote --review`")
+    if report.aborted:
+        print(f"Error: extraction stopped early: {report.aborted}", file=sys.stderr)
+        return 1
+    return 1 if report.failures else 0
+
+
+def cmd_promote(args: argparse.Namespace) -> int:
+    """Handle `job-hunters promote`: list the queue and approve or reject a candidate."""
+    if args.approve is None and (args.slug or args.name or args.tier != Tier.DISCOVERED.value):
+        print("Error: --slug, --name and --tier only mean something with --approve.", file=sys.stderr)
+        return 1
+    if args.approve is not None:
+        with session_scope() as session:
+            done = approve(session, args.approve, slug=args.slug, name=args.name, tier=args.tier)
+            print(f"Added {done.candidate.name} to {done.path.name}:")
+            print(f"  {done.line}")
+            print(f"Its board is fetched on the next ingest "
+                  f"(`job-hunters ingest --only {done.slug}` to fetch it now).")
+        return 0
+    if args.reject is not None:
+        with session_scope() as session:
+            candidate = reject(session, args.reject)
+            print(f"Rejected {candidate.name}. It will not be queued again.")
+        return 0
+
+    with session_scope() as session:
+        queue = review_queue(session)
+        if not queue:
+            print("Nothing to review. `job-hunters scan` fills the queue.")
+            return 0
+        with_board = [c for c in queue if c.ats_type]
+        without = [c for c in queue if not c.ats_type]
+        if with_board:
+            print(f"{len(with_board)} candidate(s) with a board found:")
+            for candidate in with_board:
+                _print_candidate(candidate)
+        if without:
+            print()
+            print(f"{len(without)} seen hiring, but no Greenhouse, Lever or Ashby board answered "
+                  f"(nothing to watch yet):")
+            for candidate in without:
+                _print_candidate(candidate)
+        print()
+        print("Approve with `job-hunters promote --approve ID [--slug SLUG] [--name NAME]`, "
+              "reject with `--reject ID`.")
+    return 0
+
+
+def _print_candidate(candidate: CandidateCompany) -> None:
+    """Prints one queued company: who, what was seen, where and which board answered."""
+    sources = sorted({e["source"] for e in candidate.evidence or []})
+    times = f"{candidate.sightings} sighting{'' if candidate.sightings == 1 else 's'}"
+    print(f"  [{candidate.id:>3}] {candidate.name}  ({times} on {', '.join(sources) or '-'})")
+    if candidate.roles:
+        print(f"        roles: {'; '.join(candidate.roles)}")
+    if candidate.ats_type:
+        print(f"        board: {candidate.ats_type} {candidate.ats_token}  "
+              f"{candidate.board_jobs} jobs  {candidate.board_url}")
+    if candidate.careers_url:
+        print(f"        link:  {candidate.careers_url}")
+    for item in (candidate.evidence or [])[-2:]:
+        print(f"        seen:  {item['title'][:90]}  {item['url']}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the `job-hunters` command-line parser and register its subcommands.
 
@@ -414,6 +528,51 @@ def build_parser() -> argparse.ArgumentParser:
     )
     backup.set_defaults(func=cmd_backup)
 
+    # `job-hunters scan [--only SOURCE ...] [--dry-run]`
+    scan = subparsers.add_parser(
+        "scan", help="read the discovery sources and queue new companies for review"
+    )
+    scan.add_argument(
+        "--only", action="append", metavar="SOURCE", choices=sorted(DISCOVERY_SOURCES),
+        help="read only this source (repeatable): " + ", ".join(sorted(DISCOVERY_SOURCES))
+    )
+    scan.add_argument(
+        "--dry-run", action="store_true",
+        help="fetch and prefilter only: count what is new, but extract, probe and write nothing"
+    )
+    scan.set_defaults(func=cmd_scan)
+
+    # `job-hunters promote [--review | --approve ID [--slug SLUG] [--name NAME] [--tier TIER] | --reject ID]`
+    promote = subparsers.add_parser(
+        "promote", help="review the discovered companies and append approved ones to the watchlist"
+    )
+    decision = promote.add_mutually_exclusive_group()
+    decision.add_argument(
+        "--review", action="store_true",
+        help="list the companies waiting for a decision (the default)"
+    )
+    decision.add_argument(
+        "--approve", metavar="ID",
+        help="append this candidate (by id or name) to `companies_watchlist.yaml`"
+    )
+    decision.add_argument(
+        "--reject", metavar="ID",
+        help="stop showing this candidate (by id or name)"
+    )
+    promote.add_argument(
+        "--slug", metavar="SLUG",
+        help="the watchlist slug to give an approved company (default: derived from its name)"
+    )
+    promote.add_argument(
+        "--name", metavar="NAME",
+        help="the display name to give an approved company (default: as it was seen)"
+    )
+    promote.add_argument(
+        "--tier", choices=[t.value for t in Tier], default=Tier.DISCOVERED.value,
+        help="the tier to file an approved company under (default: discovered)"
+    )
+    promote.set_defaults(func=cmd_promote)
+
     return parser
 
 
@@ -452,6 +611,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except BackupError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except PromoteError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
