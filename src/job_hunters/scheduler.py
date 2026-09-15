@@ -49,17 +49,22 @@ SECONDS_PER_MINUTE = 60
 def build_trigger(spec: str, timezone: tzinfo) -> BaseTrigger:
     """Turns one schedule string from `system_config.yaml` into an APScheduler trigger."""
     parts = spec.split()
-    if parts[0] == "every":
-        amount, unit = int(parts[1][:-1]), parts[1][-1]
-        return IntervalTrigger(timezone=timezone, **{_UNITS[unit]: amount})
-    if parts[0] == "daily":
-        hour, minute = parts[1].split(":")
-        return CronTrigger(hour=int(hour), minute=int(minute), timezone=timezone)
-    if parts[0] == "weekly":
-        hour, minute = parts[2].split(":")
-        return CronTrigger(
-            day_of_week=parts[1], hour=int(hour), minute=int(minute), timezone=timezone
-        )
+    try:
+        if parts[0] == "every":
+            amount, unit = int(parts[1][:-1]), parts[1][-1]
+            if amount < 1:
+                raise ValueError("The interval must be at least 1")
+            return IntervalTrigger(timezone=timezone, **{_UNITS[unit]: amount})
+        if parts[0] == "daily":
+            hour, minute = parts[1].split(":")
+            return CronTrigger(hour=int(hour), minute=int(minute), timezone=timezone)
+        if parts[0] == "weekly":
+            hour, minute = parts[2].split(":")
+            return CronTrigger(
+                day_of_week=parts[1], hour=int(hour), minute=int(minute), timezone=timezone
+            )
+    except (ValueError, KeyError, IndexError) as exc:
+        raise ConfigError(f"Unsupported schedule {spec!r} in system_config.yaml: {exc}") from exc
     raise ConfigError(f"Unsupported schedule {spec!r} in system_config.yaml.")
 
 
@@ -125,10 +130,10 @@ def scheduled_discovery() -> None:
 
 
 def scheduled_backup() -> None:
-    """Copies the database into `backups/` and logs where it went."""
+    """Copies the database into `backups/`, prunes the oldest and logs where it went."""
     try:
-        report = backup_database()
-        log.info("backup: %s (%.1f MB)", report.path, report.megabytes)
+        report = backup_database(keep=load_system_config().backup.keep)
+        log.info("backup: %s (%.1f MB, %s older removed)", report.path, report.megabytes, len(report.pruned))
     except Exception:
         log.exception("backup failed")
 

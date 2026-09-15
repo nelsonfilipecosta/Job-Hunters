@@ -74,10 +74,11 @@ def test_every_default_schedule_in_the_config_can_be_built() -> None:
         assert build_trigger(spec, LISBON) is not None
 
 
-def test_a_schedule_this_parser_does_not_know_is_a_config_error() -> None:
-    """Config validates the shape first, so this guards the two drifting apart."""
+@pytest.mark.parametrize("spec", ["fortnightly tue 09:00", "daily 25:00", "every 0h", "every"])
+def test_a_schedule_this_parser_cannot_build_is_a_config_error(spec: str) -> None:
+    """Config validates the shape first so this guards the two drifting apart."""
     with pytest.raises(ConfigError):
-        build_trigger("fortnightly tue 09:00", LISBON)
+        build_trigger(spec, LISBON)
 
 
 @pytest.mark.parametrize(
@@ -124,12 +125,12 @@ def test_the_scheduled_backup_writes_a_file_and_names_it_in_the_log(
 
     real = backup_module.backup_database
     monkeypatch.setattr(
-        scheduler_module, "backup_database", lambda: real(tmp_path / "backups")
+        scheduler_module, "backup_database", lambda **kwargs: real(tmp_path / "backups", **kwargs)
     )
     with caplog.at_level(logging.INFO):
         scheduled_backup()
 
-    assert "backup:" in caplog.text
+    assert "backup:" in caplog.text and "0 older removed" in caplog.text
     assert len(list((tmp_path / "backups").glob("*.db"))) == 1
 
 
