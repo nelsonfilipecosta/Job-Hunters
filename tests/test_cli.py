@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from types import SimpleNamespace
 
 import pytest
 
@@ -231,14 +232,33 @@ def test_backup_writes_a_copy_and_says_where(session, tmp_path, capsys, monkeypa
 
     real = backup_module.backup_database
     monkeypatch.setattr(
-        cli, "backup_database", lambda: real(tmp_path / "backups")
+        cli, "backup_database", lambda **kwargs: real(tmp_path / "backups", **kwargs)
     )
 
     assert main(["backup"]) == 0
     out = capsys.readouterr().out
     assert "Backed up" in out
     assert "job_hunters-" in out
+    assert "Removed" not in out
     assert len(list((tmp_path / "backups").glob("*.db"))) == 1
+
+
+def test_backup_says_how_many_older_copies_it_removed(session, tmp_path, capsys, monkeypatch) -> None:
+    """Deleting files quietly is how a backup directory ends up empty without anyone knowing."""
+    from job_hunters import backup as backup_module
+    from job_hunters import cli
+
+    out_dir = tmp_path / "backups"
+    out_dir.mkdir()
+    for stamp in ("20260101-020000", "20260108-020000", "20260115-020000"):
+        (out_dir / f"job_hunters-{stamp}.db").write_bytes(b"old")
+    real = backup_module.backup_database
+    monkeypatch.setattr(cli, "backup_database", lambda **kwargs: real(out_dir, **kwargs))
+    monkeypatch.setattr(cli, "load_system_config", lambda: SimpleNamespace(backup=SimpleNamespace(keep=2)))
+
+    assert main(["backup"]) == 0
+    assert "Removed 2 older backup(s) to keep the newest 2" in capsys.readouterr().out
+    assert len(list(out_dir.glob("*.db"))) == 2
 
 
 def test_a_backup_that_could_not_be_written_exits_1_without_a_traceback(

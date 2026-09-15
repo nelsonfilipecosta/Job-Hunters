@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from contextlib import closing
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 
@@ -16,6 +17,8 @@ log = logging.getLogger("job_hunters.backup")
 
 FILENAME_PREFIX = "job_hunters"
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
+# Only files this code named are ever pruned. Anything else in the directory is left alone.
+_BACKUP_NAME = re.compile(rf"^{FILENAME_PREFIX}-\d{{8}}-\d{{6}}(?:-\d+)?\.db$")
 
 
 class BackupError(Exception):
@@ -32,6 +35,8 @@ class BackupReport:
     tables: int
     # Tables declared by `models.py` that the backup does not hold.
     missing: tuple[str, ...] = ()
+    # Older backups removed to stay within `keep`.
+    pruned: tuple[Path, ...] = ()
 
     @property
     def megabytes(self) -> float:
@@ -44,8 +49,14 @@ def backup_database(
     *,
     db_path: Path | None = None,
     now: datetime | None = None,
+    keep: int | None = None,
 ) -> BackupReport:
-    """Writes one timestamped backup of the database and reads it back to prove it opens."""
+    """Writes one timestamped backup of the database and reads it back to prove it opens.
+
+    With `keep`, the oldest backups beyond that many are then removed. Pruning happens only
+    after the new copy has passed its check, so the directory is never emptier than it was
+    found and a failed backup removes nothing.
+    """
     source = db_path or paths.DB_PATH
     if not source.is_file():
         raise BackupError(
@@ -85,7 +96,24 @@ def backup_database(
             target, ", ".join(report.missing),
         )
     log.info("Backed up %s to %s (%.1f MB)", source, target, report.megabytes)
+    if keep is not None:
+        report = replace(report, pruned=_prune(directory, keep, target))
     return report
+
+
+def _prune(directory: Path, keep: int, latest: Path) -> tuple[Path, ...]:
+    """Removes the oldest backups so that `keep` remain. Returns what was removed."""
+    backups = sorted(
+        path for path in directory.iterdir()
+        if path.is_file() and _BACKUP_NAME.match(path.name) and path != latest
+    )
+    surplus = len(backups) + 1 - keep
+    removed: list[Path] = []
+    for path in backups[:max(surplus, 0)]:
+        path.unlink()
+        removed.append(path)
+        log.info("Removed old backup %s (keeping %s)", path, keep)
+    return tuple(removed)
 
 
 def _remove(target: Path) -> None:

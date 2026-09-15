@@ -28,7 +28,7 @@ from pathlib import Path
 
 from . import paths
 from .backup import BackupError, backup_database
-from .config import ConfigError, load_all
+from .config import ConfigError, load_all, load_system_config
 from .db import SchemaError, init_db, session_scope
 from .digest import run_digest
 from .discovery import run_discovery
@@ -88,7 +88,8 @@ def cmd_show_config(_args: argparse.Namespace) -> int:
           f"({system.schedules.digest_misfire_grace_minutes} min for the digest, "
           f"{system.schedules.discovery_misfire_grace_minutes} min for discovery, "
           f"{system.schedules.backup_misfire_grace_minutes} min for the backup)")
-    print(f"  backup               {system.schedules.backup} into {paths.BACKUP_DIR}")
+    print(f"  backup               {system.schedules.backup} into {paths.BACKUP_DIR}, "
+          f"keeping the newest {system.backup.keep}")
     print(f"  digest               {system.schedules.digest} via "
           f"{system.email.smtp_host}:{system.email.smtp_port}")
     print(f"  judge / tailor       {system.models.judge} / {system.models.tailor}")
@@ -314,10 +315,13 @@ def cmd_digest(args: argparse.Namespace) -> int:
 
 def cmd_backup(_args: argparse.Namespace) -> int:
     """Handle `job-hunters backup`: write a timestamped backup of the database."""
-    report = backup_database()
+    keep = load_system_config().backup.keep
+    report = backup_database(keep=keep)
     print(f"Backed up {report.source}")
     print(f"        to {report.path}")
     print(f"           {report.megabytes:.1f} MB, {report.tables} tables, reopened and checked.")
+    if report.pruned:
+        print(f"Removed {len(report.pruned)} older backup(s) to keep the newest {keep}.")
     if report.missing:
         print(f"Warning: the database has no {', '.join(report.missing)} table(s), so the "
               f"backup has none either. The database is older than this code: run "

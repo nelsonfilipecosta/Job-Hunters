@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -133,6 +133,67 @@ def test_a_copy_that_will_not_reopen_is_removed(tmp_path: Path) -> None:
     with pytest.raises(BackupError):
         _verify(unreadable)
     assert not unreadable.exists()
+
+
+def _older_backups(directory: Path, *days: int) -> list[Path]:
+    """Files named as backups taken this many days before NOW (oldest first)."""
+    directory.mkdir(parents=True, exist_ok=True)
+    paths = []
+    for age in sorted(days, reverse=True):
+        stamp = (NOW - timedelta(days=age)).strftime("%Y%m%d-%H%M%S")
+        path = directory / f"job_hunters-{stamp}.db"
+        path.write_bytes(b"old")
+        paths.append(path)
+    return paths
+
+
+def test_the_oldest_backups_beyond_the_kept_count_are_removed(
+    session: Session, company: Company, tmp_path: Path
+) -> None:
+    """Weekly copies of a growing database add up. `keep` bounds the directory with the oldest out first."""
+    out = tmp_path / "out"
+    oldest, older, recent = _older_backups(out, 21, 14, 7)
+    stranger = out / "notes.txt"
+    stranger.write_text("mine")
+    other = out / "other.db"
+    other.write_bytes(b"not ours")
+
+    report = backup_database(out, db_path=_db_path(), now=NOW, keep=2)
+
+    assert report.pruned == (oldest, older)
+    assert sorted(p.name for p in out.iterdir()) == sorted(
+        [recent.name, report.path.name, "notes.txt", "other.db"]
+    )
+
+
+def test_nothing_is_pruned_unless_asked(session: Session, company: Company, tmp_path: Path) -> None:
+    """Without `keep`, the directory is only ever added to."""
+    out = tmp_path / "out"
+    old = _older_backups(out, 60, 30, 7)
+    report = backup_database(out, db_path=_db_path(), now=NOW)
+    assert report.pruned == () and all(path.exists() for path in old)
+
+
+def test_the_copy_just_written_survives_pruning_whatever_its_name_says(
+    session: Session, company: Company, tmp_path: Path
+) -> None:
+    """A clock set back names the new copy older than the rest. It is still the one known to be good."""
+    out = tmp_path / "out"
+    newer = _older_backups(out, -1, -2)  # named as if taken after NOW
+    report = backup_database(out, db_path=_db_path(), now=NOW, keep=1)
+    assert report.path.exists()
+    assert report.pruned == tuple(newer)
+
+
+def test_a_backup_that_fails_prunes_nothing(tmp_path: Path) -> None:
+    """The old copies are all there is when the new one could not be made."""
+    out = tmp_path / "out"
+    old = _older_backups(out, 14, 7)
+    not_a_database = tmp_path / "text.db"
+    not_a_database.write_text("this is not sqlite")
+    with pytest.raises(BackupError):
+        backup_database(out, db_path=not_a_database, now=NOW, keep=1)
+    assert all(path.exists() for path in old)
 
 
 def _db_path() -> Path:

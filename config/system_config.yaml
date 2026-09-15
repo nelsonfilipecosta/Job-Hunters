@@ -73,3 +73,8 @@ digest:
     suppress_after: 5
     # A score moving by more than this resets the appearance counter.
     reset_on_score_delta: 10
+
+backup:
+  # How many backups to keep in `backups/`. Once a new one has been written and
+  # checked, the oldest beyond this number are removed.
+  keep: 8
