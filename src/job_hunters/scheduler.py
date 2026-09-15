@@ -1,17 +1,14 @@
-"""The process that runs ingest, score, digest and backup on a schedule.
+"""The process that runs ingest, score, digest, discovery and backup on a schedule.
 
 Runs as its own container, separate from the web process, and is what turns
 the commands in `cli.py` into something that happens without you. It registers
-four jobs on the schedules declared in `system_config.yaml`:
+five jobs on the schedules declared in `system_config.yaml`:
 
-    ingest   fetch every watched board          (default: every 2h)
-    score    judge whatever ingest turned up    (default: every 2h)
-    digest   build and send the daily email     (default: daily 08:00)
-    backup   copy the database into `backups/`  (default: weekly sun 02:00)
-
-`discovery` is configured but not registered yet: the code it would call
-arrives in Phase 5. Registering a job that cannot run would only produce a
-stack trace every week.
+    ingest     fetch every watched board                  (default: every 2h)
+    score      judge whatever ingest turned up            (default: every 2h)
+    digest     build and send the daily email             (default: daily 08:00)
+    discovery  scan the sources for companies to review   (default: weekly mon 06:00)
+    backup     copy the database into `backups/`          (default: weekly sun 02:00)
 
 Kept separate from `web.py` on purpose. If the scheduler ran inside uvicorn
 and the worker count were ever raised above one, every worker would start its
@@ -34,6 +31,7 @@ from .backup import backup_database
 from .config import ConfigError, load_system_config
 from .db import SchemaError, init_db
 from .digest import run_digest
+from .discovery import run_discovery
 from .ingest import run_ingest
 from .scoring import run_scoring
 
@@ -104,6 +102,22 @@ def scheduled_digest() -> None:
         log.exception("digest failed")
 
 
+def scheduled_discovery() -> None:
+    """Scans the discovery sources and queues new companies and logs the outcome."""
+    try:
+        report = run_discovery()
+        log.info(
+            "discovery: %s sources, %s failed, %s matched, %s new sightings, "
+            "%s new candidates, %s waiting for review",
+            len(report.sources), len(report.failures), report.total("matched"),
+            report.total("new_sightings"), report.total("new_candidates"), report.pending,
+        )
+        if report.aborted:
+            log.error("discovery: extraction stopped early: %s", report.aborted)
+    except Exception:
+        log.exception("discovery failed")
+
+
 def scheduled_backup() -> None:
     """Copies the database into `backups/` and logs where it went."""
     try:
@@ -120,11 +134,13 @@ def main() -> int:
         timezone = ZoneInfo(config.timezone)
         interval_grace = config.schedules.misfire_grace_minutes * SECONDS_PER_MINUTE
         digest_grace = config.schedules.digest_misfire_grace_minutes * SECONDS_PER_MINUTE
+        discovery_grace = config.schedules.discovery_misfire_grace_minutes * SECONDS_PER_MINUTE
         backup_grace = config.schedules.backup_misfire_grace_minutes * SECONDS_PER_MINUTE
         jobs = (
             ("ingest", scheduled_ingest, config.schedules.ingest, interval_grace),
             ("score", scheduled_score, config.schedules.score, interval_grace),
             ("digest", scheduled_digest, config.schedules.digest, digest_grace),
+            ("discovery", scheduled_discovery, config.schedules.discovery, discovery_grace),
             ("backup", scheduled_backup, config.schedules.backup, backup_grace),
         )
         triggers = [
