@@ -1,4 +1,4 @@
-"""Tests for the scan that turns the discovery sources into a list of companies.
+"""Tests for the scan that turns the discovery sources into a queue of companies.
 
 Nothing here opens a socket or calls the API. `FakeDiscoverySource` answers
 from a script, `FakeAnthropic` names companies from a script and a fake prober
@@ -128,7 +128,7 @@ def _sightings(session: Session) -> list[JobSource]:
 
 
 def test_a_structured_posting_becomes_a_candidate_with_its_board(session: Session) -> None:
-    """A named posting is stored as a sighting, probed once and listed with what the probe found."""
+    """A named posting is stored as a sighting, probed once and queued with what the probe found."""
     prober = FakeProber({"prior labs": [board("ashby", "prior-labs", 24)]})
     report = _run(session, _remoteok(sighting("1", "Prior Labs")), prober=prober)
 
@@ -146,7 +146,7 @@ def test_a_structured_posting_becomes_a_candidate_with_its_board(session: Sessio
 
 
 def test_scanning_twice_changes_nothing(session: Session) -> None:
-    """The stored sighting is the memory. A second run probes, names and lists nothing."""
+    """The stored sighting is the memory. A second run probes, names and queues nothing."""
     prober = FakeProber({"prior labs": [board("ashby", "prior-labs")]})
     sources = _remoteok(sighting("1", "Prior Labs"))
     _run(session, sources, prober=prober)
@@ -161,7 +161,7 @@ def test_scanning_twice_changes_nothing(session: Session) -> None:
     assert row.last_seen.replace(tzinfo=UTC) == NOW + timedelta(days=7)
 
 
-def test_supporting_keywords_and_excluded_titles_list_nobody(session: Session) -> None:
+def test_supporting_keywords_and_excluded_titles_queue_nobody(session: Session) -> None:
     """Only a title term or a strong keyword keeps a posting."""
     report = _run(session, _remoteok(
         sighting("1", "HelloFresh", "Menu Planner", description="Alignment with the kitchen team."),
@@ -205,7 +205,7 @@ def test_prose_is_named_by_the_model_up_to_the_cap_and_the_rest_waits(session: S
     assert {c.name for c in _candidates(session)} == {"Prior Labs", "Tufalabs", "Mechanize"}
 
 
-def test_a_posting_the_model_cannot_name_is_remembered_but_not_listed(session: Session) -> None:
+def test_a_posting_the_model_cannot_name_is_remembered_but_not_queued(session: Session) -> None:
     """A recruiter's post has no company. It is stored so it is never paid for twice."""
     extractor, client = _extractor(Extraction(company=None, roles=["Research Scientist"], careers_url=None))
     sources = _hn(comment("1", "Agency | Roles for clients\nResearch scientist positions."))
@@ -232,7 +232,7 @@ def test_a_careers_link_naming_a_board_is_tried_first_and_wins(session: Session)
 
 
 def test_a_fatal_extraction_error_stops_the_prose_and_not_the_other_sources(session: Session) -> None:
-    """A rejected key ends the model calls. The structured sources still list their companies."""
+    """A rejected key ends the model calls. The structured sources still queue their companies."""
     extractor = Extractor(FakeAnthropic(api_error(anthropic.AuthenticationError, 401)), "m")
     sources = {
         **_hn(comment("1", "Prior Labs | Berlin\nResearch scientist."),
@@ -274,7 +274,7 @@ def test_a_missing_api_key_is_named_and_the_structured_sources_still_run(
     assert {c.name for c in _candidates(session)} == {"Mechanize"}
 
 
-def test_a_watched_company_is_never_listed_by_name_or_by_board(session: Session) -> None:
+def test_a_watched_company_is_never_queued_by_name_or_by_board(session: Session) -> None:
     """Acme is in the watchlist, so "ACME, Inc." resolves to Acme's board. Neither is a candidate."""
     prober = FakeProber({"acme, inc.": [board("greenhouse", "acme")]})
     report = _run(session, _remoteok(sighting("1", "Acme"), sighting("2", "ACME, Inc.")), prober=prober)

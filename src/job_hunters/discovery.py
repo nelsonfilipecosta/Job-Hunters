@@ -1,4 +1,4 @@
-"""The scan that turns the discovery sources into a list of companies to review.
+"""The scan that turns the discovery sources into a queue of companies to review.
 
 One run per enabled source:
 
@@ -7,7 +7,7 @@ One run per enabled source:
        location and supporting keywords. Location is left out because the
        question here is which companies hire for this work and not where
        this one role sits. And the supporting keywords are left out because
-       nobody judges what passes here except the person reading the list.
+       nobody judges what passes here except the person reading the queue.
        An excluded title word drops a posting and only an included title or
        a strong keyword keeps one.
     3. Store each kept posting that is new as a `job_sources` row with no
@@ -130,7 +130,7 @@ class DiscoveryReport:
 
 @dataclass(frozen=True)
 class Watched:
-    """The companies discovery must not list because they are watched already.
+    """The companies discovery must not queue because they are watched already.
 
     Matched by name (normalized) and by board. Companies removed from the watchlist
     stay in `companies` deactivated so that the loop does not keep proposing them.
@@ -238,7 +238,7 @@ def scan_source(
     now: datetime | None = None,
     dry_run: bool = False,
 ) -> SourceReport:
-    """Fetches one source and lists what it finds. Records a `fetch_runs` row unless dry."""
+    """Fetches one source and queues what it finds. Records a `fetch_runs` row unless dry."""
     now = now or utcnow()
     source = str(adapter.source)
     outcome = SourceReport(source=source, status=FetchStatus.FAILED)
