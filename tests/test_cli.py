@@ -244,7 +244,7 @@ def test_backup_writes_a_copy_and_says_where(session, tmp_path, capsys, monkeypa
 def test_a_backup_that_could_not_be_written_exits_1_without_a_traceback(
     capsys, monkeypatch
 ) -> None:
-    """A silent failure here would only be discover when you needed it."""
+    """A silent failure here would only be discovered when you needed it."""
     from job_hunters.backup import BackupError
 
     def _raise(*_args, **_kwargs):
