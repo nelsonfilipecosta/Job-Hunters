@@ -98,7 +98,11 @@
         {% endif %}
       </div>
       <div style="font-size:12px;color:#71717a;padding-top:2px;">
-        Added to the watchlist this week. Their postings arrive with the next ingest.
+        {% if digest.new_companies %}
+          Added to the watchlist this week. Their postings arrive with the next ingest.
+        {% else %}
+          None joined the watchlist this week.
+        {% endif %}
       </div>
     </div>
     {% for company in digest.new_companies %}

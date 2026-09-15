@@ -51,10 +51,14 @@ anyway: a quiet morning and a broken pipeline look identical from an empty inbox
 NEW COMPANIES{% if digest.new_companies %} ({{ digest.new_companies | length }}){% endif %}
 
 {{ '-' * 13 }}
+{% if digest.new_companies %}
 Added to the watchlist this week. Their postings arrive with the next ingest.
 {% for company in digest.new_companies %}
   {{ company.name }} - {{ company.tier }} - {{ company.ats }} - {{ company.open_postings }} open posting{{ '' if company.open_postings == 1 else 's' }} - added {{ company.added.strftime('%d %b') }}
 {% endfor %}
+{% else %}
+None joined the watchlist this week.
+{% endif %}
 {% if digest.pending_candidates %}
   {{ digest.pending_candidates }} discovered compan{{ 'y is' if digest.pending_candidates == 1 else 'ies are' }} waiting for a decision: job-hunters promote --review
 {% endif %}
