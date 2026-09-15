@@ -17,16 +17,18 @@ normalizer parsed the location. In order:
        is what step 4 counts on the next run.
 
 Sections mirror `LocationFit`, so one vocabulary describes both. `unknown`
-routes to "Worth checking" rather than being dropped.
+routes to "Worth checking" rather than being dropped. Below the job sections,
+the email reports the promotion loop: the companies that joined the watchlist
+this week and how many are waiting for a decision.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from .actions import ActionLink, action_links
@@ -36,13 +38,17 @@ from .mailer import Message, Sender, SmtpSender
 from .models import (
     Application,
     ApplicationStatus,
+    CandidateCompany,
+    CandidateStatus,
     Company,
     DigestAppearance,
     DigestSection,
     Job,
+    JobSource,
     LocationFit,
     Score,
     WorkAuthStatus,
+    as_utc,
 )
 from .scoring import LocationMatch, best_scores, location_match
 from .templating import render as render_template
@@ -50,6 +56,9 @@ from .templating import render as render_template
 ACTIONED_STATUSES: frozenset[str] = frozenset(
     set(ApplicationStatus) - {ApplicationStatus.INTERESTED}
 )
+
+# A company counts as new for this long after it joined the `companies` table.
+NEW_COMPANY_DAYS = 7
 
 
 @dataclass(frozen=True)
@@ -151,6 +160,17 @@ class Section:
     entries: list[Entry] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class NewCompany:
+    """One company that joined the watchlist this week as the email shows it."""
+
+    name: str
+    tier: str
+    ats: str
+    open_postings: int
+    added: date
+
+
 @dataclass
 class Digest:
     """One day's email ready to render."""
@@ -161,6 +181,8 @@ class Digest:
     still_open: int
     still_open_url: str
     generated_at: datetime
+    new_companies: list[NewCompany] = field(default_factory=list)
+    pending_candidates: int = 0
 
     @property
     def entries(self) -> list[Entry]:
@@ -261,6 +283,9 @@ def build_digest(
     base_url = config.system.base_url
     links = LinkFactory(base_url, secret, config.system.actions.token_ttl_days, now)
 
+    new_companies = _new_companies(session, now)
+    pending = _pending_candidates(session)
+
     winners = best_scores(session, profile.scoring.prompt_version)
     shortlist = {
         job_id: score
@@ -275,6 +300,8 @@ def build_digest(
             still_open=0,
             still_open_url=f"{base_url}/",
             generated_at=now,
+            new_companies=new_companies,
+            pending_candidates=pending,
         )
 
     job_ids = list(shortlist)
@@ -325,7 +352,41 @@ def build_digest(
         still_open=suppressed,
         still_open_url=f"{base_url}/",
         generated_at=now,
+        new_companies=new_companies,
+        pending_candidates=pending,
     )
+
+
+def _new_companies(session: Session, now: datetime) -> list[NewCompany]:
+    """Every company that joined the `companies` table in the last week (newest first)."""
+    since = now - timedelta(days=NEW_COMPANY_DAYS)
+    open_counts = dict(
+        session.execute(
+            select(JobSource.company_id, func.count())
+            .where(JobSource.is_open.is_(True), JobSource.company_id.is_not(None))
+            .group_by(JobSource.company_id)
+        ).all()
+    )
+    rows = session.scalars(select(Company).order_by(Company.created_at.desc(), Company.id.desc()))
+    return [
+        NewCompany(
+            name=company.name,
+            tier=company.tier,
+            ats=company.ats_type,
+            open_postings=open_counts.get(company.id, 0),
+            added=as_utc(company.created_at).date(),
+        )
+        for company in rows
+        if as_utc(company.created_at) >= since
+    ]
+
+
+def _pending_candidates(session: Session) -> int:
+    """How many discovered companies are waiting in `job-hunters promote --review`."""
+    return session.scalar(
+        select(func.count()).select_from(CandidateCompany)
+        .where(CandidateCompany.status == CandidateStatus.PENDING)
+    ) or 0
 
 
 def _entry(

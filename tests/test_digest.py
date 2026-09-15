@@ -612,3 +612,65 @@ def test_a_dry_run_sends_nothing_and_records_nothing(
     assert report.sent_to is None and report.recorded == 0
     assert "Research Scientist" in report.html
     assert session.scalar(select(DigestAppearance)) is None
+
+
+def _company_added(session: Session, slug: str, days_ago: int, tier: str = "discovered") -> Company:
+    """A watched company that joined the table this many days before NOW."""
+    row = Company(slug=slug, name=slug.title(), ats_type="ashby", ats_config={"token": slug},
+                  tier=tier, created_at=NOW - timedelta(days=days_ago))
+    session.add(row)
+    session.commit()
+    return row
+
+
+def _settled(session: Session, company: Company) -> Company:
+    """The fixture company as one that joined long ago so it is not news itself."""
+    company.created_at = NOW - timedelta(days=60)
+    session.commit()
+    return company
+
+
+def test_companies_added_this_week_are_reported_with_their_open_postings(
+    session: Session, company: Company
+) -> None:
+    """A company promoted or hand-written into the watchlist is news for a week, whatever its tier."""
+    _settled(session, company)
+    fresh = _company_added(session, "prior-labs", 2)
+    _company_added(session, "old-lab", 8)
+    hand_written = _company_added(session, "by-hand", 6, tier="lab")
+    _ingest(session, fresh, make_posting("1", "Research Scientist"), make_posting("2", "Research Engineer"))
+
+    digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
+    assert [(c.name, c.open_postings, c.tier) for c in digest.new_companies] == [
+        ("Prior-Labs", 2, "discovered"), ("By-Hand", 0, "lab"),
+    ]
+    assert digest.new_companies[0].added == (NOW - timedelta(days=2)).date()
+    html = render(digest, "digest.html")
+    text = render(digest, "digest.txt")
+    assert "New Companies" in html and "Prior-Labs" in html and "2 open postings" in html
+    assert "NEW COMPANIES (2)" in text and "By-Hand" in text and "Old-Lab" not in text
+    assert hand_written.name in text
+
+
+def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session, company: Company) -> None:
+    """The queue is invisible unless the daily email says it is there."""
+    from job_hunters.models import CandidateCompany, CandidateStatus
+
+    for name, status in (("Prior Labs", CandidateStatus.PENDING), ("Mechanize", CandidateStatus.PENDING),
+                         ("Cascade", CandidateStatus.REJECTED)):
+        session.add(CandidateCompany(name=name, name_key=name.lower(), status=status,
+                                     sightings=1, roles=[], evidence=[]))
+    session.commit()
+    digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
+    assert digest.is_empty and digest.pending_candidates == 2
+    for body in render_bodies(digest):
+        assert "2 discovered companies" in body and "promote --review" in body
+
+
+def test_a_digest_with_no_company_news_has_no_section_for_it(session: Session, company: Company) -> None:
+    """The heading appears only when there is something under it."""
+    _one_job(session, _settled(session, company), 90)
+    digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
+    assert digest.new_companies == [] and digest.pending_candidates == 0
+    for body in render_bodies(digest):
+        assert "New Companies" not in body and "NEW COMPANIES" not in body
