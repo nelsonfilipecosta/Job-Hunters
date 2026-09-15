@@ -31,9 +31,10 @@ schedules:
   backup:    weekly sun 02:00
 
   # How late a missed run may still start.
-  misfire_grace_minutes: 60           # 1h 
-  digest_misfire_grace_minutes: 360   # 6h
-  backup_misfire_grace_minutes: 2880  # 2d
+  misfire_grace_minutes: 60              # 1h (ingest and score)
+  digest_misfire_grace_minutes: 360      # 6h
+  discovery_misfire_grace_minutes: 2880  # 2d
+  backup_misfire_grace_minutes: 2880     # 2d
 
 models:
   # Cheap, fast and good enough to triage. Runs on hundreds of jobs.
@@ -42,6 +43,19 @@ models:
   extract: claude-haiku-4-5
   # Runs a few times a week on work that gets sent to a human. More expensive.
   tailor:  claude-opus-5
+
+discovery:
+  # Where new companies are looked for. Each source is fetched on its own and
+  # switched on and off on its own, so one breaking never stops the others.
+  sources:
+    hn:        true
+    remoteok:  true
+    arbeitnow: true
+    remotive:  true
+  # Cap on the model calls that read a company out of HN prose, per run.
+  max_extractions_per_run: 100
+  # A company with no board found is probed again after this many days.
+  reprobe_after_days: 7
 
 email:
   # The mail server only. The email adress is set in `.env`.

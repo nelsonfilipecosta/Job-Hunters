@@ -57,6 +57,14 @@ def test_registry_covers_every_ats_the_config_allows() -> None:
     assert isinstance(get_adapter("ashby"), AshbyAdapter)
 
 
+def test_replay_names_every_source_it_knows_when_asked_for_one_it_does_not() -> None:
+    """A stored sighting from a discovery source replays too and a stranger is a readable error."""
+    from job_hunters.sources import replay_posting
+
+    with pytest.raises(KeyError, match="(?i)known:.*hn.*remoteok"):
+        replay_posting("workday", {})
+
+
 def test_unknown_ats_type_is_a_readable_error() -> None:
     """Asking for an unregistered ATS type raises a KeyError naming it."""
     with pytest.raises(KeyError, match="(?i)no adapter for ats_type 'workday'"):

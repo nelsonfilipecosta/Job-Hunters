@@ -89,6 +89,36 @@
     {% endif %}
   {% endfor %}
 
+  {% if digest.new_companies or digest.pending_candidates %}
+    <div style="padding-top:28px;">
+      <div style="font-size:16px;font-weight:700;">
+        🆕 New Companies
+        {% if digest.new_companies %}
+          <span style="font-weight:400;color:#71717a;">({{ digest.new_companies | length }})</span>
+        {% endif %}
+      </div>
+      <div style="font-size:12px;color:#71717a;padding-top:2px;">
+        Added to the watchlist this week. Their postings arrive with the next ingest.
+      </div>
+    </div>
+    {% for company in digest.new_companies %}
+      <div style="font-size:13px;padding-top:8px;">
+        <span style="font-weight:600;">{{ company.name }}</span>
+        <span style="color:#52525b;">
+          &middot; {{ company.tier }} &middot; {{ company.ats }}
+          &middot; {{ company.open_postings }} open posting{{ '' if company.open_postings == 1 else 's' }}
+          &middot; added {{ company.added.strftime('%d %b') }}
+        </span>
+      </div>
+    {% endfor %}
+    {% if digest.pending_candidates %}
+      <div style="font-size:12px;color:#71717a;padding-top:10px;">
+        {{ digest.pending_candidates }} discovered compan{{ 'y is' if digest.pending_candidates == 1 else 'ies are' }}
+        waiting for a decision: <code>job-hunters promote --review</code>
+      </div>
+    {% endif %}
+  {% endif %}
+
   {% if digest.still_open %}
     <div style="font-size:13px;color:#71717a;padding-top:24px;">
       <a href="{{ digest.still_open_url }}" style="color:#71717a;">

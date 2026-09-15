@@ -220,6 +220,7 @@ class SchedulesConfig(StrictModel):
     # How late a missed run may still start.
     misfire_grace_minutes: int = Field(default=60, ge=1, le=1440)
     digest_misfire_grace_minutes: int = Field(default=360, ge=1, le=1440)
+    discovery_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
     backup_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
 
     def specs(self) -> dict[str, str]:
@@ -274,6 +275,25 @@ class ActionsConfig(StrictModel):
     token_ttl_days: int = Field(default=90, ge=1, le=3650)
 
 
+class DiscoverySourcesConfig(StrictModel):
+    """One flag per discovery source so that a source that breaks can be switched off alone."""
+
+    hn: bool = True
+    remoteok: bool = True
+    arbeitnow: bool = True
+    remotive: bool = True
+
+    def enabled(self) -> list[str]:
+        """The names of the sources switched on, in the order they are declared."""
+        return [name for name, on in self if on]
+
+
+class DiscoveryConfig(StrictModel):
+    sources: DiscoverySourcesConfig = DiscoverySourcesConfig()
+    max_extractions_per_run: int = Field(default=100, gt=0)
+    reprobe_after_days: int = Field(default=7, ge=1)
+
+
 class SystemConfig(StrictModel):
     timezone: NonEmptyStr = "Europe/Lisbon"
     base_url: NonEmptyStr = "http://localhost:8000"
@@ -282,6 +302,7 @@ class SystemConfig(StrictModel):
     email: EmailConfig = EmailConfig()
     digest: DigestConfig = DigestConfig()
     actions: ActionsConfig = ActionsConfig()
+    discovery: DiscoveryConfig = DiscoveryConfig()
 
     @field_validator("timezone")
     @classmethod

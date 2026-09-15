@@ -1,0 +1,86 @@
+{
+ "created_at": "2026-09-01T15:01:17.000Z",
+ "created_at_i": 1788274877,
+ "id": 49522897,
+ "options": [],
+ "parent_id": null,
+ "points": 254,
+ "story_id": 49522897,
+ "text": "Please state the location and include REMOTE for remote work, REMOTE (US)\nor similar if the country is restricted, and ONSITE when remote work is <i>not</i> an option.<p>Please only post if you personally are part of the hiring company\u2014no\nrecruiting firms or job boards. One post per company. If it isn&#x27;t a household name,\nexplain what your company does.<p>Please only post if you are actively filling a position and are committed\nto replying to applicants.<p>Commenters: please don&#x27;t reply to job posts to complain about\nsomething. It&#x27;s off topic here.<p>Readers: please only email if you are personally interested in the job.<p>Searchers: try <a href=\"https:&#x2F;&#x2F;nthesis.ai&#x2F;public&#x2F;hn-who-is-hiring\" rel=\"nofollow\">https:&#x2F;&#x2F;nthesis.ai&#x2F;public&#x2F;hn-who-is-hiring</a>, <a href=\"https:&#x2F;&#x2F;dheerajck.github.io&#x2F;hnwhoishiring&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;dheerajck.github.io&#x2F;hnwhoishiring&#x2F;</a>,\n<a href=\"http:&#x2F;&#x2F;nchelluri.github.io&#x2F;hnjobs&#x2F;\" rel=\"nofollow\">http:&#x2F;&#x2F;nchelluri.github.io&#x2F;hnjobs&#x2F;</a>, <a href=\"https:&#x2F;&#x2F;hnjobs.emilburzo.com\" rel=\"nofollow\">https:&#x2F;&#x2F;hnjobs.emilburzo.com</a>.<p>Don&#x27;t miss this other fine thread: <i>Who wants to be hired?</i> <a href=\"https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=49522896\">https:&#x2F;&#x2F;news.ycombinator.com&#x2F;item?id=49522896</a>",
+ "title": "Ask HN: Who is hiring? (September 2026)",
+ "type": "story",
+ "url": null,
+ "children": [
+  {
+   "created_at": "2026-09-01T15:01:54.000Z",
+   "created_at_i": 1788274914,
+   "id": 49522903,
+   "options": [],
+   "parent_id": 49522897,
+   "points": null,
+   "story_id": 49522897,
+   "text": "Modash.io | Senior Product Engineer | Remote (Europe) | Full-time | \u20ac75k\u2013110k | <a href=\"https:&#x2F;&#x2F;modash.io\" rel=\"nofollow\">https:&#x2F;&#x2F;modash.io</a><p>Modash helps brands find, manage, and pay creators - and helps creators earn a living.<p>The product looks simple on the surface. Underneath, we index 380M+ public creator profiles across Instagram, TikTok, and YouTube so that 1,700+ brands search, evaluate, manage, and pay creators without drowning in spreadsheets and tabs.<p>We&#x27;re looking for Senior Product Engineers who like owning ambiguous problems end-to-end. No perfectly shaped tickets. You talk to customers, understand messy workflows, make product decisions, ship, and own whether it actually works.<p>The problems we care about:<p>- How do you make a 380M-profile dataset feel fast, trustworthy, and easy to explore?<p>- How do you turn chaotic influencer marketing workflows into product that feels obvious?<p>- How do you build tools that work for both small teams and brands like Stanley, Sennheiser, Birkenstock, and NordVPN??<p>We&#x27;re 85 people, raised an \u20ac11M Series A, and ARR is doubling every year. HQ is in Tallinn, engineering is fully remote across Europe.\nNo ticket factory. No seven layers of approval. Small teams, real ownership, hard product problems.<p>Engineering blog: <a href=\"https:&#x2F;&#x2F;modash.io&#x2F;engineering\" rel=\"nofollow\">https:&#x2F;&#x2F;modash.io&#x2F;engineering</a><p>Apply: <a href=\"https:&#x2F;&#x2F;apply.workable.com&#x2F;modash&#x2F;j&#x2F;C1507B65C3\" rel=\"nofollow\">https:&#x2F;&#x2F;apply.workable.com&#x2F;modash&#x2F;j&#x2F;C1507B65C3</a>",
+   "title": null,
+   "type": "comment",
+   "url": null,
+   "children": []
+  },
+  {
+   "created_at": "2026-09-01T16:15:50.000Z",
+   "created_at_i": 1788279350,
+   "id": 49524060,
+   "options": [],
+   "parent_id": 49522897,
+   "points": null,
+   "story_id": 49522897,
+   "text": "Mechanize | San Francisco, CA (Onsite) | Junior SWE ($300k + equity + bonus), SWE ($350k + equity + bonus), Research Engineer, Alignment ($300k-$400k + equity + bonus)<p>Applying takes &lt;2 min: <a href=\"https:&#x2F;&#x2F;www.mechanize.work&#x2F;apply&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;www.mechanize.work&#x2F;apply&#x2F;</a><p>We build environments that frontier AI labs use to train their models to do real-world software engineering. We have more demand than we can keep up with, so we&#x27;re hiring fast.",
+   "title": null,
+   "type": "comment",
+   "url": null,
+   "children": []
+  },
+  {
+   "created_at": "2026-09-02T15:15:21.000Z",
+   "created_at_i": 1788362121,
+   "id": 49537584,
+   "options": [],
+   "parent_id": 49522897,
+   "points": null,
+   "story_id": 49522897,
+   "text": "Prior Labs | Berlin, Freiburg, NYC | ONSITE | Full-time | ML Infra, Research Scientist&#x2F;Engineer, Backend, Full Stack<p>We build foundation models for tabular data. Deep learning transformed text and images but mostly skipped tables, which are still the data behind most clinical trials, financial models and scientific experiments. The reason is structural: no natural sequence, no spatial structure, no shared vocabulary across datasets, so the architectures and scaling laws behind LLMs don&#x27;t transfer.<p>Our approach: pre-train a transformer on millions of synthetic datasets sampled from causal-structure priors. The whole dataset goes in as context, predictions come out in one forward pass. No per-dataset training, no hyperparameter tuning, seconds instead of hours. TabPFN v2 was published in Nature and set a new state of the art; TabPFN-3 scales to 10M rows. 4M+ downloads, 8k+ GitHub stars, in production from liquid biopsy to rail maintenance. Code: <a href=\"https:&#x2F;&#x2F;github.com&#x2F;PriorLabs&#x2F;TabPFN\" rel=\"nofollow\">https:&#x2F;&#x2F;github.com&#x2F;PriorLabs&#x2F;TabPFN</a><p>Since July we&#x27;re an independent lab inside SAP, with more than EUR 1B committed over four years. Models stay open, research stays public, same team and offices.<p>Roles (most can sit in any of the three offices):<p>- Senior ML Infrastructure Engineer: own multi-cluster GPU infra (Slurm on GCP today, multi-provider next), training performance and the tooling layer. We spend tens of millions per year on compute; you own that budget.<p>- Research Scientist, Foundation Model: drive the model agenda - novel architectures, scaling from 10K to 1M+ samples, multimodal and causal directions. PhD plus top-venue publications, or equivalent.<p>- Research Engineer, Foundation Model: s",
+   "title": null,
+   "type": "comment",
+   "url": null,
+   "children": [
+    {
+     "id": 1,
+     "created_at": "2026-09-02T15:15:21.000Z",
+     "text": "Is this remote?",
+     "type": "comment",
+     "children": []
+    }
+   ]
+  },
+  {
+   "created_at": "2026-09-04T02:33:45.000Z",
+   "created_at_i": 1788489225,
+   "id": 49559854,
+   "options": [],
+   "parent_id": 49522897,
+   "points": null,
+   "story_id": 49522897,
+   "text": "Flow Traders | Research Engineer | Hong Kong&#x2F; London (onsite) | Full Time | Visa | Relocation<p>Flow Traders is a leading proprietary trading firm with an entrepreneurial and innovative Tech culture at the heart of its business. We are looking for Research Engineers in our Hong Kong office. Join us build and scale the research framework behind our systematic trading models. You\u2019ll work closely with Quantitative Researchers, drive end\u2011to\u2011end ML pipelines, and shape global standards for data\u2011driven model development. Research Engineers have joint responsibility for conducting research and delivering models.<p>You\u2019ll thrive if you have: - 8+ years in ML &#x2F; Data Science &#x2F; Research Engineering (Postdoc&#x2F;Faculty can count towards this); - Strong Python and libraries such as Ray, numpy, PyTorch, and pandas; - Solid math&#x2F;stats background; - Experience with modern dev practices &amp; cloud technologies.<p>If you&#x27;re interested, apply here: <a href=\"https:&#x2F;&#x2F;lnkd.in&#x2F;dWhh_m28\">https:&#x2F;&#x2F;lnkd.in&#x2F;dWhh_m28</a><p>Or if you&#x27;d like to see other roles at Flow Traders, please check our careers website: <a href=\"https:&#x2F;&#x2F;flowtraders.com&#x2F;careers&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;flowtraders.com&#x2F;careers&#x2F;</a>",
+   "title": null,
+   "type": "comment",
+   "url": null,
+   "children": []
+  },
+  {
+   "id": 49599999,
+   "created_at": "2026-09-05T10:00:00.000Z",
+   "text": null,
+   "type": "comment",
+   "children": []
+  }
+ ]
+}

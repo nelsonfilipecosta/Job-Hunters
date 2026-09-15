@@ -15,6 +15,7 @@ from job_hunters.scheduler import (
     build_trigger,
     scheduled_backup,
     scheduled_digest,
+    scheduled_discovery,
     scheduled_ingest,
     scheduled_score,
 )
@@ -84,6 +85,7 @@ def test_a_schedule_this_parser_does_not_know_is_a_config_error() -> None:
         (scheduled_ingest, "run_ingest"),
         (scheduled_score, "run_scoring"),
         (scheduled_digest, "run_digest"),
+        (scheduled_discovery, "run_discovery"),
         (scheduled_backup, "backup_database"),
     ],
 )
@@ -117,6 +119,7 @@ def test_the_scheduled_backup_writes_a_file_and_names_it_in_the_log(
 
 
 def test_a_weekly_job_gets_a_longer_grace_than_a_two_hourly_one() -> None:
-    """The misfire grace period for backups is longer than for other jobs."""
+    """The misfire grace period for the weekly jobs is longer than for other jobs."""
     defaults = SchedulesConfig()
     assert defaults.backup_misfire_grace_minutes > defaults.misfire_grace_minutes
+    assert defaults.discovery_misfire_grace_minutes > defaults.misfire_grace_minutes

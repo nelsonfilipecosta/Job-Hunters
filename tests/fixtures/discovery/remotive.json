@@ -1,0 +1,45 @@
+{
+ "0-legal-notice": "trimmed",
+ "job-count": 2,
+ "jobs": [
+  {
+   "id": 2091126,
+   "url": "https://remotive.com/remote-jobs/artificial-intelligence/ai-response-evaluator-2091126",
+   "title": "AI Response Evaluator",
+   "company_name": "iMerit Technology",
+   "company_logo": "https://remotive.com/job/2091126/logo",
+   "category": "Artificial Intelligence",
+   "tags": [
+    "AI/ML",
+    "research",
+    "SOLID"
+   ],
+   "job_type": "freelance",
+   "publication_date": "2026-09-11T06:49:00",
+   "candidate_required_location": "France, Japan, Turkey, Vietnam, Mexico, Norway",
+   "salary": "$10K-$20K",
+   "description": "<p>iMerit is looking for detail oriented analysts to evaluate and rank AI generated responses to image based prompts. You will judge answers on accuracy, relevance, clarity, conciseness, safety, localization, and how well they follow the user's instructions, then explain your reasoning in writing.<br>Much of the job comes down to this: look at the image, look at what the model said about it, and decide whether the two actually match.</p>\n<p><strong>What you will do</strong></p>\n<ul class=\"list-disc list-outside leading-3 -mt-2\" style=\"\">\n<li class=\"leading-normal -mb-2\" style=\"\">\n<p>Interpret conversational context and identify what the user really wanted</p>\n</li>\n<li class=\"leading-normal -mb-2\" style=\"\">\n<p>Rate and rank responses against defined quality criteria</p>\n</li>\n<li class=\"leading-normal -mb-2\" style=\"\">\n<p>Compare multiple answers and explain in writing why one wins</p>\n</li>\n<li class=\"leading-normal -mb-2\" style=\"\">\n<p>Verify factual claims using approved research sources</p>\n</li>\n<li class=\"leading-normal -mb-2\" style=\"\">\n<p>Flag tasks that cannot be reliably assessed rather than guessing</p>\n</li>\n</ul>\n<p><strong>What you bring:</strong></p>\n<ul class=\"list-dis",
+   "company_logo_url": "https://remotive.com/job/2091126/logo"
+  },
+  {
+   "id": 2086540,
+   "url": "https://remotive.com/remote-jobs/sales/inside-sales-contractor-2086540",
+   "title": "Inside Sales Contractor",
+   "company_name": "Credit Wellness, LLC",
+   "company_logo": "https://remotive.com/job/2086540/logo",
+   "category": "Sales",
+   "tags": [
+    "CRM",
+    "google sheets",
+    "financial services",
+    "Inside Sales"
+   ],
+   "job_type": "full_time",
+   "publication_date": "2026-09-08T21:47:54",
+   "candidate_required_location": "Worldwide",
+   "salary": "OTE $25k - $35k",
+   "description": "<p dir=\"ltr\" style=\"line-height: 1.38; background-color: #ffffff; margin-top: 0pt; margin-bottom: 0pt; padding: 0pt 0pt 12pt 0pt;\"><span style=\"color: #2d2d2d; background-color: transparent; font-weight: bold; font-style: normal; font-variant: normal; text-decoration: none; vertical-align: baseline; white-space: pre-wrap;\">About Us</span></p>\n<p dir=\"ltr\" style=\"line-height: 1.38; background-color: #ffffff; margin-top: 0pt; margin-bottom: 0pt; padding: 0pt 0pt 12pt 0pt;\"><span style=\"color: #2d2d2d; background-color: transparent; font-weight: 400; font-style: normal; font-variant: normal; text-decoration: none; vertical-align: baseline; white-space: pre-wrap;\">We are a financial services start up focusing on helping to improve consumer credit profiles. We are currently seeking KPI driven sales representatives looking to earn up to 45K in their first year while working remotely. We offer comprehensive training and continuous sales coaching to help you meet your financial goals.</span></p>\n<p dir=\"ltr\" style=\"line-height: 1.38; background-color: #ffffff; margin-top: 0pt; margin-bottom: 0pt; padding: 0pt 0pt 12pt 0pt;\"><span style=\"color: #2d2d2d; background-color: transparent; font-w",
+   "company_logo_url": "https://remotive.com/job/2086540/logo"
+  }
+ ]
+}

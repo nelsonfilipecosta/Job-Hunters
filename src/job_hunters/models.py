@@ -1,4 +1,4 @@
-"""SQLAlchemy definitions of the eight database tables.
+"""SQLAlchemy definitions of the nine database tables.
 
 This module is purely declarative. It describes the tables, their columns and
 the sets of values their text columns may hold. It opens no connection and runs
@@ -13,6 +13,7 @@ these classes into real tables.
     application_events  dated history behind each application
     digest_appearances  which jobs were included in which digest email
     fetch_runs          the outcome of every attempt to fetch a board
+    candidate_companies companies the discovery sources saw hiring
 
 Two of those tables hold postings, which is deliberate. `job_sources` keeps one
 row per board a posting appeared on. `jobs` keeps one row per real opening after
@@ -170,6 +171,14 @@ class DigestSection(StrEnum):
     WORTH_CHECKING = "worth_checking"
     FOLLOW_UP = "follow_up"
     STILL_OPEN = "still_open"
+
+
+class CandidateStatus(StrEnum):
+    """Where a discovered company stands in the promotion loop."""
+
+    PENDING = "pending"    # waiting in `job-hunters promote --review`
+    APPROVED = "approved"  # in the watchlist (promoted or added by hand)
+    REJECTED = "rejected"  # never shown again, but its sightings keep counting
 
 
 # ---------------------------------------------------------------------------
@@ -493,3 +502,44 @@ class FetchRun(Base):
 
     def __repr__(self) -> str:
         return f"<FetchRun {self.source} {self.status} n={self.item_count}>"
+
+
+class CandidateCompany(Base):
+    """Companies the discovery sources saw hiring and are awaiting a decision.
+
+    Each row shows one company that a discovery source saw hiring for the kind
+    of work the search profile describes, together with the job board found for
+    it and every sighting that put it here. Rows are queued for review rather
+    than appended to the watchlist, because extraction from prose is roughly
+    right but it may also be wrong and the reviewer must approve or reject it.
+    """
+
+    __tablename__ = "candidate_companies"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    name_key: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    status: Mapped[str] = mapped_column(
+        String(20), default=CandidateStatus.PENDING, index=True
+    )
+
+    # The board `discover.probe` found, if any. Empty when no Greenhouse, Lever
+    # or Ashby board answered, in which case the company cannot be watched yet.
+    ats_type: Mapped[str | None] = mapped_column(String(20))
+    ats_token: Mapped[str | None] = mapped_column(String(100))
+    board_url: Mapped[str | None] = mapped_column(Text)
+    board_jobs: Mapped[int | None] = mapped_column(Integer)
+    probed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    careers_url: Mapped[str | None] = mapped_column(Text)
+    roles: Mapped[list] = mapped_column(JSON, default=list)
+    evidence: Mapped[list] = mapped_column(JSON, default=list)
+    sightings: Mapped[int] = mapped_column(Integer, default=0)
+
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    slug: Mapped[str | None] = mapped_column(String(100))
+
+    def __repr__(self) -> str:
+        return f"<CandidateCompany {self.name!r} {self.status}>"

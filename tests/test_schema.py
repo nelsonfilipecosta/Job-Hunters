@@ -1,4 +1,4 @@
-"""Tests that the database enforces what the schema promises.
+"""Tests that the database enforces the schema definitions.
 
 Every table in `models.py` claims something: that the same posting cannot be
 stored twice, that a job cannot be judged twice under one prompt version or that
@@ -44,11 +44,12 @@ EXPECTED_TABLES = {
     "application_events",
     "digest_appearances",
     "fetch_runs",
+    "candidate_companies",
 }
 
 
 def test_all_tables_created(session: Session) -> None:
-    """All eight tables are created and nothing else is."""
+    """All nine tables are created and nothing else is."""
     assert set(inspect(session.get_bind()).get_table_names()) == EXPECTED_TABLES
 
 

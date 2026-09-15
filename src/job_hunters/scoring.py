@@ -164,6 +164,7 @@ class Prefilter:
         self._excluded_titles = TermMatcher(profile.titles.exclude)
         self._excluded_seniority = TermMatcher(profile.seniority.exclude, prefix=True)
         self._included_titles = TermMatcher(profile.titles.include)
+        self._strong = TermMatcher([*profile.titles.include, *profile.keywords.strong])
         self._keywords = TermMatcher([*profile.keywords.strong, *profile.keywords.supporting])
 
     def title_exclusion(self, title: str) -> str | None:
@@ -186,6 +187,15 @@ class Prefilter:
         return self._included_titles.first_match(title) or self._keywords.first_match(
             f"{title}\n{description or ''}"
         )
+
+    def strong_term(self, title: str, description: str | None) -> str | None:
+        """The term that marks a posting as about the target work outright or None.
+
+        An included title or a strong keyword anywhere in the text and never a
+        supporting keyword. Title terms are searched in the body too, because
+        a prose posting lists its roles wherever it likes.
+        """
+        return self._strong.first_match(f"{title}\n{description or ''}")
 
 
 # ---------------------------------------------------------------------------

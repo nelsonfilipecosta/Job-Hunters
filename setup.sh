@@ -69,3 +69,5 @@ echo "  uv run job-hunters score --dry-run             what would be judged (fre
 echo "  uv run job-hunters score --limit 20 --verbose  the first paid run"
 echo "  uv run job-hunters digest --dry-run > /tmp/digest.html   preview the email"
 echo "  uv run job-hunters digest                      send it for real"
+echo "  uv run job-hunters scan --dry-run              what the discovery sources would queue (free)"
+echo "  uv run job-hunters promote --review            companies waiting to join the watchlist"

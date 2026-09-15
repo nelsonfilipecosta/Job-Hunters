@@ -1,14 +1,14 @@
-"""What every job-board adapter produces and the one method it must implement.
+"""What every job-board adapter produces and the method it must implement.
 
 An adapter turns one company's board into a list of `RawPostings`. It is the
 only place that knows an ATS's URL scheme or JSON shape. Everything downstream
 (normalize, dedup, ingest) works on `RawPosting` alone, so adding Workday later
 means adding one module here and nothing anywhere else.
 
-The contract that matters most is in `FetchResult`. A network error, a 404 from
-a renamed board or a malformed JSON come back as `FetchResult.failed(...)`,
-because the ingest loop must be able to tell "this fetch broke" apart from "this
-board is empty".
+Discovery sources (Hacker News and the aggregators) produce the same
+`RawPosting`, with one difference: nobody told them which company to fetch, so
+each posting carries the company name the source gave it or none at all when
+the source is prose and the name has to be pulled out later.
 """
 
 from __future__ import annotations
@@ -50,6 +50,8 @@ class RawPosting:
     is_remote: bool | None = None
     location_hints: tuple[str, ...] = ()
     posted_at: datetime | None = None
+    # Only discovery sources set this.
+    company_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,14 +89,28 @@ class JobSource(Protocol):
         ...
 
 
+class DiscoverySource(Protocol):
+    """The interface a discovery source implements. One site and no company to name."""
+
+    source: str
+
+    def fetch(self) -> FetchResult:
+        """Fetches every posting the site currently lists. Never raises."""
+        ...
+
+
 class SourceError(Exception):
     """A fetch that could not complete. Adapters convert this into `FetchResult.failed`."""
 
 
-def default_client(timeout: float = DEFAULT_TIMEOUT) -> httpx2.Client:
+def default_client(
+    timeout: float = DEFAULT_TIMEOUT, *, follow_redirects: bool = False
+) -> httpx2.Client:
     """A client with the project's User-Agent. Adapters accept a replacement so tests
     can inject `httpx2.MockTransport` and never touch the network."""
-    return httpx2.Client(timeout=timeout, headers={"User-Agent": USER_AGENT})
+    return httpx2.Client(
+        timeout=timeout, headers={"User-Agent": USER_AGENT}, follow_redirects=follow_redirects
+    )
 
 
 def get_json(client: httpx2.Client, url: str) -> Any:
