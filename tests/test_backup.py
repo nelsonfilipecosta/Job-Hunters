@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from job_hunters import db as db_module
 from job_hunters.backup import BackupError, backup_database
-from job_hunters.models import Company
+from job_hunters.tables import Company
 
 NOW = datetime(2026, 9, 10, 2, 0, tzinfo=UTC)
 

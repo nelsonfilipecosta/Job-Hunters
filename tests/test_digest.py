@@ -31,7 +31,7 @@ from job_hunters.digest import (
 )
 from job_hunters.ingest import ingest_company
 from job_hunters.mailer import RecordingSender
-from job_hunters.models import (
+from job_hunters.tables import (
     Application,
     ApplicationStatus,
     Company,
@@ -669,7 +669,7 @@ def test_the_seed_list_is_not_news_but_a_company_added_later_is(session: Session
 
 def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session, company: Company) -> None:
     """The queue is invisible unless the daily email says it is there."""
-    from job_hunters.models import CandidateCompany, CandidateStatus
+    from job_hunters.tables import CandidateCompany, CandidateStatus
 
     for name, status in (("Prior Labs", CandidateStatus.PENDING), ("Mechanize", CandidateStatus.PENDING),
                          ("Cascade", CandidateStatus.REJECTED)):

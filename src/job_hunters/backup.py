@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import paths
-from .models import Base, utcnow
+from .tables import Base, utcnow
 
 log = logging.getLogger("job_hunters.backup")
 
@@ -33,7 +33,7 @@ class BackupReport:
     path: Path
     bytes_written: int
     tables: int
-    # Tables declared by `models.py` that the backup does not hold.
+    # Tables declared by `tables.py` that the backup does not hold.
     missing: tuple[str, ...] = ()
     # Older backups removed to stay within `keep`.
     pruned: tuple[Path, ...] = ()

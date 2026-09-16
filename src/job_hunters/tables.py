@@ -24,11 +24,6 @@ into a single entry.
 Scores attach to `job_sources`, not to `jobs`. Two postings on one board can
 share a title and a city and still be different roles, so a judgement is made
 about one posting's text and a job's score is the best among its open postings.
-
-The StrEnum classes below (AtsType, WorkMode and the rest) list the allowed
-values for individual columns. They are Python constants, not database CHECK
-constraints: SQLite cannot alter a constraint in place, so a database-level enum
-would mean rebuilding the table whenever a later phase adds a value.
 """
 
 from __future__ import annotations

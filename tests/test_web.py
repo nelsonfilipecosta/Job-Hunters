@@ -19,7 +19,7 @@ from conftest import FakeAdapter, make_posting
 from job_hunters.actions import Action, action_url, sign
 from job_hunters.config import ConfigError
 from job_hunters.ingest import ingest_company
-from job_hunters.models import (
+from job_hunters.tables import (
     Application,
     ApplicationStatus,
     Company,

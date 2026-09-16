@@ -38,7 +38,7 @@ from .probe import probe
 from .evaluate import run_evaluation
 from .judge import Usage, Verdict, cache_minimum_tokens
 from .mailer import DeliveryError
-from .models import CandidateCompany, Tier
+from .tables import CandidateCompany, Tier
 from .promote import PromoteError, approve, reject, review_queue, slug_for, watchlist_line
 from .scoring import Candidate, group_by_text, run_scoring
 from .sources import DISCOVER_SOURCES

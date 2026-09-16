@@ -18,7 +18,7 @@ from job_hunters.config import AppConfig, CompanyEntry, Secrets, SearchProfile, 
 from job_hunters.probe import Board
 from job_hunters.discover import DiscoverReport, Watched, reconcile, run_discover
 from job_hunters.extract import Extraction, Extractor
-from job_hunters.models import (
+from job_hunters.tables import (
     CandidateCompany,
     CandidateStatus,
     Company,

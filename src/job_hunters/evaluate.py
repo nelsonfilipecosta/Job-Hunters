@@ -40,7 +40,7 @@ from .judge import (
     load_profile_text,
     make_client,
 )
-from .models import WorkMode
+from .tables import WorkMode
 from .normalize import parse_location
 from .scoring import Prefilter, location_fit
 

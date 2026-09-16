@@ -24,7 +24,7 @@ from html.parser import HTMLParser
 from typing import Any
 
 from . import regions
-from .models import WorkMode
+from .tables import WorkMode
 
 # ---------------------------------------------------------------------------
 # HTML -> text

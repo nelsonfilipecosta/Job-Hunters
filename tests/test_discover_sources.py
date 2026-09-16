@@ -14,7 +14,7 @@ from pathlib import Path
 import httpx2
 import pytest
 
-from job_hunters.models import FetchStatus
+from job_hunters.tables import FetchStatus
 from job_hunters.sources import (
     ADAPTERS,
     DISCOVER_SOURCES,

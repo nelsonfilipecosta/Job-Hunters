@@ -20,7 +20,7 @@ from typing import Any, Protocol
 
 import httpx2
 
-from ..models import Company, FetchStatus
+from ..tables import Company, FetchStatus
 
 # Sent with every request. Public boards are free to use, but identifying
 # yourself is the polite default and makes rate-limit conversations possible.

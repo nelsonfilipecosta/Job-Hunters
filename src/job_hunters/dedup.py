@@ -30,7 +30,7 @@ from rapidfuzz import fuzz
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import DigestAppearance, Job, as_utc
+from .tables import DigestAppearance, Job, as_utc
 from .normalize import ParsedLocation, normalize_company, normalize_title, sha256
 from .sources.base import RawPosting
 

@@ -40,7 +40,7 @@ from .db import session_scope
 from .probe import Board, best_board, probe, token_from_url
 from .extract import ExtractError, Extractor
 from .judge import Usage, make_client
-from .models import (
+from .tables import (
     CandidateCompany,
     CandidateStatus,
     Company,

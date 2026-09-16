@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import httpx2
 
-from ..models import Company, SourceKind
+from ..tables import Company, SourceKind
 from .base import (
     FetchResult,
     RawPosting,

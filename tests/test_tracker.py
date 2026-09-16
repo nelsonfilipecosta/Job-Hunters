@@ -13,7 +13,7 @@ from job_hunters.actions import Action
 from job_hunters.config import AppConfig, Secrets, SearchProfile, SystemConfig
 from job_hunters.digest import build_digest
 from job_hunters.ingest import ingest_company
-from job_hunters.models import (
+from job_hunters.tables import (
     Application,
     ApplicationEvent,
     ApplicationStatus,

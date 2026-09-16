@@ -35,7 +35,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from . import paths, regions
-from .models import AtsType, Tier, WorkMode
+from .tables import AtsType, Tier, WorkMode
 
 
 class ConfigError(Exception):

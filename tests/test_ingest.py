@@ -14,7 +14,7 @@ from conftest import FakeAdapter, failed, make_posting, ok
 from job_hunters.config import CompanyEntry
 from job_hunters import ingest as ingest_module
 from job_hunters.ingest import ingest_company, run_ingest, sync_companies
-from job_hunters.models import Company, FetchRun, FetchStatus, Job, JobSource, as_utc
+from job_hunters.tables import Company, FetchRun, FetchStatus, Job, JobSource, as_utc
 from job_hunters.sources.base import parse_iso_datetime
 
 NOW = datetime(2026, 9, 1, tzinfo=UTC)

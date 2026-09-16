@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from job_hunters import paths
 from job_hunters.config import CompanyEntry, load_watchlist
-from job_hunters.models import CandidateCompany, CandidateStatus
+from job_hunters.tables import CandidateCompany, CandidateStatus
 from job_hunters.promote import (
     DISCOVERED_HEADER,
     PromoteError,

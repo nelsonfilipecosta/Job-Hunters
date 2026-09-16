@@ -350,7 +350,7 @@ def test_promote_with_an_empty_queue_says_so(session, capsys) -> None:
 
 def test_promote_lists_the_queue_with_ids_and_boards(session, capsys) -> None:
     """Each candidate prints with the id `--approve` takes and the board that was found."""
-    from job_hunters.models import CandidateCompany
+    from job_hunters.tables import CandidateCompany
 
     session.add(CandidateCompany(name="Prior Labs", name_key="prior labs", sightings=2, ats_type="ashby",
                                  ats_token="prior-labs", board_url="https://ashby.test/prior-labs", board_jobs=24,

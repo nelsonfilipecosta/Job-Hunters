@@ -13,7 +13,7 @@ import html
 
 import httpx2
 
-from ..models import Company, SourceKind
+from ..tables import Company, SourceKind
 from ..normalize import html_to_text
 from .base import (
     FetchResult,

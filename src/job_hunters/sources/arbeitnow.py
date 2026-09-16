@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 
 import httpx2
 
-from ..models import SourceKind
+from ..tables import SourceKind
 from ..normalize import html_to_text
 from .base import FetchResult, RawPosting, SourceError, default_client, get_json
 

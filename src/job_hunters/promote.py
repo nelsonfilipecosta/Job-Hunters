@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from . import paths
 from .config import CompanyEntry, ConfigError, load_watchlist
 from .discover import Watched, reconcile
-from .models import CandidateCompany, CandidateStatus, Tier, utcnow
+from .tables import CandidateCompany, CandidateStatus, Tier, utcnow
 from .normalize import normalize_company
 
 

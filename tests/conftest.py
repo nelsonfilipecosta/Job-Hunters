@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from job_hunters import db as db_module
 from job_hunters.judge import Verdict
-from job_hunters.models import Company, Job, JobSource
+from job_hunters.tables import Company, Job, JobSource
 
 
 @pytest.fixture
