@@ -1,9 +1,6 @@
 # How the system runs.
 #
-# Nothing here is secret. Secrets come from `.env`:
-#   ANTHROPIC_API_KEY
-#   ACTION_TOKEN_SECRET
-#   SMTP_PASSWORD
+# Nothing here is secret. Secrets live in `.env`.
 
 timezone: Europe/Lisbon
 

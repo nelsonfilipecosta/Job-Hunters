@@ -1,7 +1,6 @@
 # What you are looking for.
 #
-# This is the only file another person needs to rewrite to use this system for a
-# different search. Nothing here is secret. Secrets live in `.env`.
+# Nothing here is secret. Secrets live in `.env`.
 
 titles:
   # The prefilter keeps a job if the title matches or the keywords match - deliberately
