@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from job_hunters import db as db_module
 from job_hunters.judge import Verdict
-from job_hunters.models import Company, Job, JobSource
+from job_hunters.tables import Company, Job, JobSource
 
 
 @pytest.fixture
@@ -181,8 +181,8 @@ class FakeAdapter:
         return self._results[index]
 
 
-class FakeDiscoverySource:
-    """A discovery source that returns a scripted sequence of results - one per fetch() call."""
+class FakeDiscoverSource:
+    """A `discover` source that returns a scripted sequence of results - one per fetch() call."""
 
     def __init__(self, source: str, *results: FetchResult) -> None:
         """Scripts one FetchResult per call to fetch(), in order."""
@@ -191,8 +191,8 @@ class FakeDiscoverySource:
         self.calls = 0
 
     @classmethod
-    def returning(cls, source: str, *postings: RawPosting) -> "FakeDiscoverySource":
-        """A FakeDiscoverySource that always succeeds with these postings."""
+    def returning(cls, source: str, *postings: RawPosting) -> "FakeDiscoverSource":
+        """A FakeDiscoverSource that always succeeds with these postings."""
         return cls(source, FetchResult.ok(list(postings)))
 
     def fetch(self) -> FetchResult:

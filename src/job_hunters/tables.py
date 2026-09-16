@@ -13,7 +13,7 @@ these classes into real tables.
     application_events  dated history behind each application
     digest_appearances  which jobs were included in which digest email
     fetch_runs          the outcome of every attempt to fetch a board
-    candidate_companies companies the discovery sources saw hiring
+    candidate_companies companies the `discover` sources saw hiring
 
 Two of those tables hold postings, which is deliberate. `job_sources` keeps one
 row per board a posting appeared on. `jobs` keeps one row per real opening after
@@ -24,11 +24,6 @@ into a single entry.
 Scores attach to `job_sources`, not to `jobs`. Two postings on one board can
 share a title and a city and still be different roles, so a judgement is made
 about one posting's text and a job's score is the best among its open postings.
-
-The StrEnum classes below (AtsType, WorkMode and the rest) list the allowed
-values for individual columns. They are Python constants, not database CHECK
-constraints: SQLite cannot alter a constraint in place, so a database-level enum
-would mean rebuilding the table whenever a later phase adds a value.
 """
 
 from __future__ import annotations
@@ -505,9 +500,9 @@ class FetchRun(Base):
 
 
 class CandidateCompany(Base):
-    """Companies the discovery sources saw hiring and are awaiting a decision.
+    """Companies the `discover` sources saw hiring and are awaiting a decision.
 
-    Each row shows one company that a discovery source saw hiring for the kind
+    Each row shows one company that a `discover` source saw hiring for the kind
     of work the search profile describes, together with the job board found for
     it and every sighting that put it here. Rows are queued for review rather
     than appended to the watchlist, because extraction from prose is roughly
@@ -523,7 +518,7 @@ class CandidateCompany(Base):
         String(20), default=CandidateStatus.PENDING, index=True
     )
 
-    # The board `discover.probe` found, if any. Empty when no Greenhouse, Lever
+    # The board `probe.probe` found, if any. Empty when no Greenhouse, Lever
     # or Ashby board answered, in which case the company cannot be watched yet.
     ats_type: Mapped[str | None] = mapped_column(String(20))
     ats_token: Mapped[str | None] = mapped_column(String(100))

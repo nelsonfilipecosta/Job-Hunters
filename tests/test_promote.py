@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from job_hunters import paths
 from job_hunters.config import CompanyEntry, load_watchlist
-from job_hunters.models import CandidateCompany, CandidateStatus
+from job_hunters.tables import CandidateCompany, CandidateStatus
 from job_hunters.promote import (
     DISCOVERED_HEADER,
     PromoteError,
@@ -155,6 +155,10 @@ def test_watchlist_line_is_bare_when_it_can_be() -> None:
     line = watchlist_line("prior-labs", "Prior Labs", "ashby", "prior-labs", "discovered")
     assert line == "- { slug: prior-labs, name: Prior Labs, ats: ashby, token: prior-labs, tier: discovered }"
     assert 'name: "Acme: Inc"' in watchlist_line("acme", "Acme: Inc", "ashby", "acme", "discovered")
+    # Without a tier the line ends at the token and loads with the default one.
+    assert watchlist_line("prior-labs", "Prior Labs", "ashby", "prior-labs", None) == (
+        "- { slug: prior-labs, name: Prior Labs, ats: ashby, token: prior-labs }"
+    )
 
 
 @pytest.mark.parametrize("name", ["42", "Yes", "null", "1Password", 'Say "hi"', "Züri Lab"])
@@ -167,10 +171,10 @@ def test_a_name_yaml_would_misread_is_quoted_and_survives_the_round_trip(name: s
 
 
 def test_approving_without_a_board_is_refused_with_the_way_forward(session: Session, watchlist: Path) -> None:
-    """Nothing can be watched without a board so the message points at `discover`."""
+    """Nothing can be watched without a board so the message points at `probe`."""
     row = _candidate(session, "Tufalabs", ats=None)
     before = watchlist.read_text()
-    with pytest.raises(PromoteError, match="discover"):
+    with pytest.raises(PromoteError, match="job-hunters probe"):
         approve(session, str(row.id), watchlist_path=watchlist)
     assert watchlist.read_text() == before and row.status == CandidateStatus.PENDING
 

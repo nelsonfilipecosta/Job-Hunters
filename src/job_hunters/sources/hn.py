@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import httpx2
 
-from ..models import SourceKind
+from ..tables import SourceKind
 from ..normalize import html_to_text
 from .base import (
     FetchResult,

@@ -17,7 +17,7 @@ from conftest import FakeAdapter, FakeAnthropic, api_error, make_posting, ok, ve
 from job_hunters.config import SearchProfile
 from job_hunters.ingest import ingest_company
 from job_hunters.judge import Judge, Verdict
-from job_hunters.models import Company, JobSource, LocationFit, Score
+from job_hunters.tables import Company, JobSource, LocationFit, Score
 from job_hunters.scoring import (
     Prefilter,
     location_match,

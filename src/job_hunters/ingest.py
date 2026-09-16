@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session
 from .config import CompanyEntry, load_watchlist
 from .db import session_scope
 from .dedup import resolve_job
-from .models import Company, FetchRun, FetchStatus, Job, JobSource, as_utc, utcnow
+from .tables import Company, FetchRun, FetchStatus, Job, JobSource, as_utc, utcnow
 from .normalize import content_hash, parse_location, raw_hash
 from .sources import get_adapter, replay_posting
 from .sources.base import FetchResult, JobSource as JobSourceAdapter, RawPosting

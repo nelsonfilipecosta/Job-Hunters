@@ -50,7 +50,7 @@ from .judge import (
     load_profile_text,
     make_client,
 )
-from .models import Company, Job, JobSource, LocationFit, Score, WorkMode
+from .tables import Company, Job, JobSource, LocationFit, Score, WorkMode
 from .normalize import content_hash
 from .sources import replay_posting
 from .sources.base import RawPosting

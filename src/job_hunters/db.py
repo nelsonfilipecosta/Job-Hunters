@@ -16,7 +16,7 @@ from sqlalchemy import Engine, create_engine, event, inspect
 from sqlalchemy.orm import Session, sessionmaker
 
 from . import paths
-from .models import Base
+from .tables import Base
 
 _engine: Engine | None = None
 _session_factory: sessionmaker[Session] | None = None
@@ -43,7 +43,7 @@ def _apply_pragmas(dbapi_connection, _connection_record) -> None:
     # Wait up to 5s for a lock instead of raising "database is locked" instantly.
     cursor.execute("PRAGMA busy_timeout=5000")
     # SQLite by default has foreign key enforcement OFF. Turning it ON is what
-    # makes the ForeignKey declarations in `models.py`` mean anything at runtime.
+    # makes the ForeignKey declarations in `tables.py` mean anything at runtime.
     cursor.execute("PRAGMA foreign_keys=ON")
     # With WAL, NORMAL is durable against process crashes (only a power loss can
     # lose the last transactions) and much faster than FULL.
@@ -101,13 +101,13 @@ def session_scope() -> Generator[Session, None, None]:
 
 
 def missing_tables(engine: Engine) -> list[str]:
-    """Tables declared in `models.py` that the database on disk does not have."""
+    """Tables declared in `tables.py` that the database on disk does not have."""
     present = set(inspect(engine).get_table_names())
     return [name for name in Base.metadata.tables if name not in present]
 
 
 def missing_columns(engine: Engine) -> dict[str, list[str]]:
-    """Columns declared in `models.py` that a table on disk does not have.
+    """Columns declared in `tables.py` that a table on disk does not have.
 
     Only tables that already exist are inspected. Extra columns in the database are ignored.
     """

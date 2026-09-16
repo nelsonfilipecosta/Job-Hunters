@@ -14,7 +14,7 @@ from pathlib import Path
 import httpx2
 import pytest
 
-from job_hunters.models import Company, FetchStatus
+from job_hunters.tables import Company, FetchStatus
 from job_hunters.sources import (
     ADAPTERS,
     AshbyAdapter,
@@ -58,7 +58,7 @@ def test_registry_covers_every_ats_the_config_allows() -> None:
 
 
 def test_replay_names_every_source_it_knows_when_asked_for_one_it_does_not() -> None:
-    """A stored sighting from a discovery source replays too and a stranger is a readable error."""
+    """A stored sighting from a `discover` source replays too and a stranger is a readable error."""
     from job_hunters.sources import replay_posting
 
     with pytest.raises(KeyError, match="(?i)known:.*hn.*remoteok"):

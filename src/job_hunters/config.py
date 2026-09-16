@@ -35,7 +35,7 @@ from pydantic import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from . import paths, regions
-from .models import AtsType, Tier, WorkMode
+from .tables import AtsType, Tier, WorkMode
 
 
 class ConfigError(Exception):
@@ -200,27 +200,28 @@ class SearchProfile(StrictModel):
 # ---------------------------------------------------------------------------
 
 
-# "every 2h" | "daily 08:00" | "weekly mon 06:00"
+# "every 2h" | "daily 08:00" | "weekly mon 06:00". The times are range-checked here.
+_CLOCK = r"(?:[01]\d|2[0-3]):[0-5]\d"
 _SCHEDULE_RE = re.compile(
-    r"^(?:every \d+[mhd]"
-    r"|daily \d{2}:\d{2}"
-    r"|weekly (?:mon|tue|wed|thu|fri|sat|sun) \d{2}:\d{2})$"
+    r"^(?:every [1-9]\d*[mhd]"
+    rf"|daily {_CLOCK}"
+    rf"|weekly (?:mon|tue|wed|thu|fri|sat|sun) {_CLOCK})$"
 )
 
 ScheduleSpec = Annotated[str, Field(pattern=_SCHEDULE_RE.pattern)]
 
 
 class SchedulesConfig(StrictModel):
+    # Ingest scores what it fetched in the same run, so there is no `score` schedule.
     ingest: ScheduleSpec = "every 2h"
-    score: ScheduleSpec = "every 2h"
     digest: ScheduleSpec = "daily 08:00"
-    discovery: ScheduleSpec = "weekly mon 06:00"
+    discover: ScheduleSpec = "weekly mon 06:00"
     backup: ScheduleSpec = "weekly sun 03:00"
 
     # How late a missed run may still start.
-    misfire_grace_minutes: int = Field(default=60, ge=1, le=1440)
+    ingest_misfire_grace_minutes: int = Field(default=60, ge=1, le=1440)
     digest_misfire_grace_minutes: int = Field(default=360, ge=1, le=1440)
-    discovery_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
+    discover_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
     backup_misfire_grace_minutes: int = Field(default=2880, ge=1, le=5760)
 
     def specs(self) -> dict[str, str]:
@@ -275,8 +276,13 @@ class ActionsConfig(StrictModel):
     token_ttl_days: int = Field(default=90, ge=1, le=3650)
 
 
-class DiscoverySourcesConfig(StrictModel):
-    """One flag per discovery source so that a source that breaks can be switched off alone."""
+class BackupConfig(StrictModel):
+    # How many backups `backups/` holds. The oldest go once a new one is verified.
+    keep: int = Field(default=8, ge=1)
+
+
+class DiscoverSourcesConfig(StrictModel):
+    """One flag per `discover` source so that a source that breaks can be switched off alone."""
 
     hn: bool = True
     remoteok: bool = True
@@ -288,8 +294,8 @@ class DiscoverySourcesConfig(StrictModel):
         return [name for name, on in self if on]
 
 
-class DiscoveryConfig(StrictModel):
-    sources: DiscoverySourcesConfig = DiscoverySourcesConfig()
+class DiscoverConfig(StrictModel):
+    sources: DiscoverSourcesConfig = DiscoverSourcesConfig()
     max_extractions_per_run: int = Field(default=100, gt=0)
     reprobe_after_days: int = Field(default=7, ge=1)
 
@@ -302,7 +308,8 @@ class SystemConfig(StrictModel):
     email: EmailConfig = EmailConfig()
     digest: DigestConfig = DigestConfig()
     actions: ActionsConfig = ActionsConfig()
-    discovery: DiscoveryConfig = DiscoveryConfig()
+    discover: DiscoverConfig = DiscoverConfig()
+    backup: BackupConfig = BackupConfig()
 
     @field_validator("timezone")
     @classmethod

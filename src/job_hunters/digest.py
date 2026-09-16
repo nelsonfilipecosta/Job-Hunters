@@ -35,7 +35,7 @@ from .actions import ActionLink, action_links
 from .config import AppConfig, RepeatSuppressionConfig, load_all
 from .db import session_scope
 from .mailer import Message, Sender, SmtpSender
-from .models import (
+from .tables import (
     Application,
     ApplicationStatus,
     CandidateCompany,

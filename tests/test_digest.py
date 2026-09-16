@@ -31,7 +31,7 @@ from job_hunters.digest import (
 )
 from job_hunters.ingest import ingest_company
 from job_hunters.mailer import RecordingSender
-from job_hunters.models import (
+from job_hunters.tables import (
     Application,
     ApplicationStatus,
     Company,
@@ -669,7 +669,7 @@ def test_the_seed_list_is_not_news_but_a_company_added_later_is(session: Session
 
 def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session, company: Company) -> None:
     """The queue is invisible unless the daily email says it is there."""
-    from job_hunters.models import CandidateCompany, CandidateStatus
+    from job_hunters.tables import CandidateCompany, CandidateStatus
 
     for name, status in (("Prior Labs", CandidateStatus.PENDING), ("Mechanize", CandidateStatus.PENDING),
                          ("Cascade", CandidateStatus.REJECTED)):
@@ -680,6 +680,9 @@ def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session
     assert digest.is_empty and digest.pending_candidates == 2
     for body in render_bodies(digest):
         assert "2 discovered companies" in body and "promote --review" in body
+        # The queue line stands alone. Nothing joined the watchlist, so the email says that.
+        assert "None joined the watchlist this week" in body
+        assert "Added to the watchlist this week" not in body
 
 
 def test_a_digest_with_no_company_news_has_no_section_for_it(session: Session, company: Company) -> None:

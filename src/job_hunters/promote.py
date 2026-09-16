@@ -1,6 +1,6 @@
 """The review queue and the two decisions that empty it.
 
-`job-hunters promote --review` lists the companies discovery has queued.
+`job-hunters promote --review` lists the companies `discover` has queued.
 `--approve` appends one to `config/companies_watchlist.yaml` and `--reject`
 silences one. Nothing is ever appended without a person asking for it.
 
@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 
 from . import paths
 from .config import CompanyEntry, ConfigError, load_watchlist
-from .discovery import Watched, reconcile
-from .models import CandidateCompany, CandidateStatus, Tier, utcnow
+from .discover import Watched, reconcile
+from .tables import CandidateCompany, CandidateStatus, Tier, utcnow
 from .normalize import normalize_company
 
 
@@ -92,12 +92,14 @@ def slug_for(name: str) -> str:
     return slug
 
 
-def watchlist_line(slug: str, name: str, ats: str, token: str, tier: str) -> str:
-    """One watchlist entry in the flow style the file uses and quoted only where YAML needs it."""
-    return (
-        f"- {{ slug: {slug}, name: {_scalar(name)}, ats: {ats}, "
-        f"token: {token}, tier: {tier} }}"
-    )
+def watchlist_line(slug: str, name: str, ats: str, token: str, tier: str | None) -> str:
+    """One watchlist entry in the flow style the file uses and quoted only where YAML needs it.
+
+    Without a tier the entry loads with the default one. `probe` leaves it out because a company
+    you looked up yourself is not one the loop discovered.
+    """
+    tail = f", tier: {tier}" if tier else ""
+    return f"- {{ slug: {slug}, name: {_scalar(name)}, ats: {ats}, token: {token}{tail} }}"
 
 
 # Bare words YAML would read as something other than a string.
@@ -144,7 +146,7 @@ def approve(
         raise PromoteError(
             f"No Greenhouse, Lever or Ashby board was found for {candidate.name}, so there is "
             f"nothing to watch. If you know its board, add the line by hand "
-            f"(`job-hunters discover {candidate.name!r}` probes the slug patterns)."
+            f"(`job-hunters probe {candidate.name!r}` probes the slug patterns)."
         )
     display = (name or candidate.name).strip()
     chosen = slug or slug_for(display)

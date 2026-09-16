@@ -1,6 +1,6 @@
 """Tests that the database enforces the schema definitions.
 
-Every table in `models.py` claims something: that the same posting cannot be
+Every table in `tables.py` claims something: that the same posting cannot be
 stored twice, that a job cannot be judged twice under one prompt version or that
 a foreign key must point at a row that exists. A claim is only real if the
 database actually refuses the thing it forbids, so each test here tries to break
@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from conftest import make_source
 from job_hunters import db as db_module
-from job_hunters.models import (
+from job_hunters.tables import (
     Application,
     ApplicationEvent,
     ApplicationStatus,

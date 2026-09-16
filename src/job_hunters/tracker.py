@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from .actions import Action
 from .config import AppConfig, RepeatSuppressionConfig, SearchProfile
 from .digest import ACTIONED_STATUSES, appearances_since_change, suppression_state
-from .models import (
+from .tables import (
     Application,
     ApplicationEvent,
     ApplicationStatus,

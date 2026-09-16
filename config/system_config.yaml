@@ -25,15 +25,14 @@ actions:
 schedules:
   # Accepted forms: "every <N><m|h|d>", "daily HH:MM", "weekly <dow> HH:MM"
   ingest:    every 2h
-  score:     every 2h
   digest:    daily 08:00
-  discovery: weekly mon 06:00
+  discover:  weekly mon 06:00
   backup:    weekly sun 02:00
 
   # How late a missed run may still start.
-  misfire_grace_minutes: 60              # 1h (ingest and score)
+  ingest_misfire_grace_minutes: 60       # 1h
   digest_misfire_grace_minutes: 360      # 6h
-  discovery_misfire_grace_minutes: 2880  # 2d
+  discover_misfire_grace_minutes: 2880   # 2d
   backup_misfire_grace_minutes: 2880     # 2d
 
 models:
@@ -44,7 +43,7 @@ models:
   # Runs a few times a week on work that gets sent to a human. More expensive.
   tailor:  claude-opus-5
 
-discovery:
+discover:
   # Where new companies are looked for. Each source is fetched on its own and
   # switched on and off on its own, so one breaking never stops the others.
   sources:
@@ -58,7 +57,7 @@ discovery:
   reprobe_after_days: 7
 
 email:
-  # The mail server only. The email adress is set in `.env`.
+  # The mail server only. The email address is set in `.env`.
   smtp_host: smtp.gmail.com
   smtp_port: 587
 
@@ -74,3 +73,8 @@ digest:
     suppress_after: 5
     # A score moving by more than this resets the appearance counter.
     reset_on_score_delta: 10
+
+backup:
+  # How many backups to keep in `backups/`. Once a new one has been written and
+  # checked, the oldest beyond this number are removed.
+  keep: 8

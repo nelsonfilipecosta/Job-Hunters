@@ -17,15 +17,15 @@ from job_hunters.dedup import (
     titles_match,
 )
 from job_hunters.ingest import ingest_company
-from job_hunters.models import Application, ApplicationStatus, Company, Job, JobSource, Score
+from job_hunters.tables import Application, ApplicationStatus, Company, Job, JobSource, Score
 from job_hunters.normalize import normalize_title, parse_location
 
 NOW = datetime(2026, 9, 1, tzinfo=UTC)
 
 
-def _count(session: Session, model) -> int:
-    """How many rows of this model exist."""
-    return len(session.scalars(select(model)).all())
+def _count(session: Session, table) -> int:
+    """How many rows this table holds."""
+    return len(session.scalars(select(table)).all())
 
 
 def test_the_same_role_from_two_sources_collapses_to_one_job(

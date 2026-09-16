@@ -6,7 +6,7 @@
 # The slug is rarely the company name. Six of these 28 needed a non-obvious one
 # (scale -> scaleai, together -> togetherai, perplexityai -> perplexity,
 # luma -> lumaai, arize -> arizeai, liquid -> liquid-ai), which is why
-# `job-hunters discover <company>` probes variants instead of guessing.
+# `job-hunters probe <company>` probes variants instead of guessing.
 #
 # Tiers are labels for your own filtering: lab | bigtech | infra | discovered.
 # The Phase 5 promotion loop appends entries with tier: discovered.
@@ -53,7 +53,7 @@
 # Probed under multiple slug variants, no Greenhouse/Lever/Ashby board found:
 #   Mistral, Hugging Face, AI21, Contextual AI, Glean, Anysphere (Cursor),
 #   Weights & Biases, Replicate, Patronus, Humanloop, Adept, Magic.
-# Reachable only via the Phase 5 discovery sources (or by checking manually).
+# Reachable only via the Phase 5 `discover` sources (or by checking manually).
 #
 # Big tech splits in two. Workday tenants (NVIDIA, IBM, Intel, Adobe,
 # Salesforce, Qualcomm) become available if Phase 1b is built:
