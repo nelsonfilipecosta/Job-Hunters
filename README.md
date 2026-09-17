@@ -2,6 +2,17 @@
 
 A self-hosted pipeline that watches company job boards, judges every new posting against a written description of the job you want and emails you one short digest a day with only the roles worth reading. Each entry in the email carries signed links to record what you did about it and a small dashboard tracks the applications that follow.
 
+<table align="center">
+  <tr>
+    <td align="center" width="50%"><img src="docs/images/digest.png" alt="The daily digest email" width="100%"></td>
+    <td align="center" width="50%"><img src="docs/images/dashboard.png" alt="The dashboard" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Email Digest</em></td>
+    <td align="center"><em>Applications Dashboard</em></td>
+  </tr>
+</table>
+
 This project was built with the goal of making job searching more efficient. Everything that is specific to the search lives in three YAML files, so another person can adopt it by editing the configuration rather than the code. The current configuration is set for AI research roles in LLM post-training and evaluation.
 
 It is **single-user and runs on your own machine**: there is no login, no hosting and no support for more than one profile. And it **never acts on your behalf**: nothing is submitted to a company and the only email it sends is the digest to you. The pipeline that runs today is deterministic code with two LLM calls (a judge that scores postings and an extractor that reads company names out of prose). In the future, a tailoring agent that drafts tailored applications will be added to the pipeline - see [Future Work](#future-work).
