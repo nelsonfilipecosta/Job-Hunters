@@ -218,13 +218,15 @@ cd Job-Hunters
 ./setup.sh
 ```
 
-The script installs dependencies with `uv sync`, creates `profile/`, points git at the tracked pre-commit hook, creates the host database schema and, if the Docker daemon is reachable, builds the images. It is safe to re-run. Three steps remain manual:
+The script installs dependencies with `uv sync`, creates `profile/`, points git at the tracked pre-commit hook, creates the host database schema and, if the Docker daemon is reachable, builds the images. It is safe to re-run.
+
+Three steps remain manual:
 
 1. Edit the `config/search_profile.yaml`, `config/system_config.yaml` and `config/companies_watchlist.yaml` configuration files based on your job search.
 2. Crete the `.env` by running the command `cp .env.example .env` and fill it in with the API key, a random `ACTION_TOKEN_SECRET` (the file says how to generate one), the email address the digest goes to and the SMTP credentials it is sent with.
 3. Add your CV to `profile/cv.md` as a markdown file. Every markdown file in `profile/` is joined into the judge's prompt, so keep only what the judge should read.
 
-If unsure of how to fill a company's parameters in `config/companies_watchlist.yaml`, you can use `job-hunters probe <company>` to find the company's board and add them.
+If unsure of how to fill a company's parameters in `config/companies_watchlist.yaml`, you can use `job-hunters probe <company>` to find the company's board and add it.
 
 Then check it all loads:
 
@@ -233,8 +235,6 @@ uv run job-hunters show-config
 ```
 
 ### Running by Hand
-
-Every stage is a subcommand, which is the easiest way to see what the system does before letting it run on its own:
 
 ```sh
 uv run job-hunters ingest                           # fill the database from every watched board
