@@ -137,7 +137,7 @@
   {% endif %}
 
   <div style="font-size:11px;color:#a1a1aa;padding-top:28px;border-top:1px solid #e4e4e7;margin-top:28px;">
-    Built {{ digest.generated_at.strftime('%Y-%m-%d %H:%M') }} UTC.
+    Built {{ (digest.generated_at | local(digest.timezone)).strftime('%Y-%m-%d %H:%M %Z') }}.
     The action links are signed and expire. Nothing happens until you confirm
     on the page they open.
   </div>

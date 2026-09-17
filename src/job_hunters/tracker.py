@@ -405,6 +405,7 @@ class Dashboard:
 
     generated_at: datetime
     threshold: int
+    timezone: str
     pipeline: dict[str, int] = field(default_factory=dict)
     applications: tuple[TrackedApplication, ...] = ()
     dismissed: int = 0
@@ -455,6 +456,7 @@ def build_dashboard(
     return Dashboard(
         generated_at=now,
         threshold=profile.scoring.threshold,
+        timezone=config.system.timezone,
         pipeline=_pipeline(active),
         applications=active,
         dismissed=dismissed,

@@ -667,6 +667,32 @@ def test_the_seed_list_is_not_news_but_a_company_added_later_is(session: Session
     assert [c.name for c in digest.new_companies] == ["Prior Labs"]
 
 
+@pytest.mark.parametrize(
+    ("timezone", "built", "added"),
+    [
+        ("Europe/Lisbon", "2026-09-17 00:45 WEST", "added 17 Sep"),
+        ("America/Toronto", "2026-09-16 19:45 EDT", "added 16 Sep"),
+    ],
+)
+def test_the_email_prints_its_times_where_the_reader_is(
+    session: Session, company: Company, timezone: str, built: str, added: str
+) -> None:
+    """Storage stays in UTC. Only what the email prints moves to the configured timezone."""
+    _settled(session, company)
+    fresh = _company_added(session, "prior-labs", 0)
+    fresh.created_at = datetime(2026, 9, 16, 23, 30, tzinfo=UTC)
+    session.commit()
+    now = datetime(2026, 9, 16, 23, 45, tzinfo=UTC)
+    config = _config(system={**SYSTEM_DICT, "timezone": timezone})
+
+    digest = build_digest(session, config, SECRET, now=now)
+
+    assert digest.generated_at == now
+    for body in (render(digest, "digest.html"), render(digest, "digest.txt")):
+        assert built in body and added in body
+        assert "UTC" not in body
+
+
 def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session, company: Company) -> None:
     """The queue is invisible unless the daily email says it is there."""
     from job_hunters.tables import CandidateCompany, CandidateStatus

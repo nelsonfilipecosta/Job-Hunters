@@ -27,6 +27,7 @@ from job_hunters.tables import (
     Score,
 )
 from job_hunters.sources import replay_posting
+from job_hunters.templating import render
 from job_hunters.tracker import (
     UnknownJob,
     build_dashboard,
@@ -616,3 +617,33 @@ def test_open_roles_are_ordered_by_score(session: Session, company: Company) -> 
 
     titles = [role.title for role in build_dashboard(session, _config(), now=NOW).open_roles]
     assert titles == ["Research Scientist, High", "Research Scientist, Low"]
+
+
+@pytest.mark.parametrize(
+    ("timezone", "stamp", "day"),
+    [
+        ("Europe/Lisbon", "17 Sep 2026 00:45 WEST", "17 Sep 2026"),
+        ("America/Toronto", "16 Sep 2026 19:45 EDT", "16 Sep 2026"),
+    ],
+)
+def test_the_dashboard_prints_its_times_where_the_reader_is(
+    session: Session, company: Company, timezone: str, stamp: str, day: str
+) -> None:
+    """Storage stays in UTC. Only what the page prints moves to the configured timezone."""
+    job = _job(session, company)
+    clicked = datetime(2026, 9, 16, 23, 30, tzinfo=UTC)
+    perform(session, Action.APPLIED, job.id, now=clicked)
+    session.commit()
+    config = AppConfig(
+        search_profile=_profile(),
+        system=SystemConfig.model_validate({"timezone": timezone}),
+        watchlist=[], secrets=Secrets(_env_file=None),
+    )
+    now = datetime(2026, 9, 16, 23, 45, tzinfo=UTC)
+
+    state = build_dashboard(session, config, now=now)
+    page = render("dashboard.html", dashboard=state, links={}, signed=False, expired=False)
+
+    assert state.generated_at == now and state.applications[0].applied_at == clicked
+    assert stamp in page and f"applied {day}" in page and f"{day} &mdash; applied" in page
+    assert "UTC" not in page

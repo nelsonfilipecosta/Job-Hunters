@@ -7,7 +7,7 @@
 #}
 {% extends "page.html" %}
 {% block title %}Job-Hunters{% endblock %}
-{% block stamp %}{{ dashboard.generated_at.strftime('%d %b %Y %H:%M') }} UTC{% endblock %}
+{% block stamp %}{{ (dashboard.generated_at | local(dashboard.timezone)).strftime('%d %b %Y %H:%M %Z') }}{% endblock %}
 {% block content %}
 
 {% if expired %}
@@ -105,7 +105,7 @@
       {{ application.company }} &middot; <span class="pill">{{ application.status }}</span>
       &middot; via {{ application.source }}
       {% if application.applied_at %}
-        &middot; applied {{ application.applied_at.strftime('%d %b %Y') }}
+        &middot; applied {{ (application.applied_at | local(dashboard.timezone)).strftime('%d %b %Y') }}
       {% endif %}
       {% if application.tailored %}&middot; tailored{% endif %}
       {% if application.responded %}
@@ -118,7 +118,7 @@
         <ol class="timeline">
           {% for event in application.events %}
             <li>
-              {{ event.occurred_at.strftime('%d %b %Y') }} &mdash; {{ event.label }}
+              {{ (event.occurred_at | local(dashboard.timezone)).strftime('%d %b %Y') }} &mdash; {{ event.label }}
               {% if event.notes %}<span class="meta">{{ event.notes }}</span>{% endif %}
             </li>
           {% endfor %}

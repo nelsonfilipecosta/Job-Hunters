@@ -72,5 +72,5 @@ in the dashboard and they come back here if the posting or the score changes.
 {% endif %}
 
 --
-Built {{ digest.generated_at.strftime('%Y-%m-%d %H:%M') }} UTC. The action links are
+Built {{ (digest.generated_at | local(digest.timezone)).strftime('%Y-%m-%d %H:%M %Z') }}. The action links are
 signed and expire. Nothing happens until you confirm on the page they open.
