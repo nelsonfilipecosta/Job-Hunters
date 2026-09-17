@@ -15,7 +15,9 @@ A self-hosted pipeline that watches company job boards, judges every new posting
 
 This project was built with the goal of making job searching more efficient. Everything that is specific to the search lives in three YAML files, so another person can adopt it by editing the configuration rather than the code. The current configuration is set for AI research roles in LLM post-training and evaluation.
 
-It is **single-user and runs on your own machine**: there is no login, no hosting and no support for more than one profile. And it **never acts on your behalf**: nothing is submitted to a company and the only email it sends is the digest to you. The pipeline that runs today is deterministic code with two LLM calls (a judge that scores postings and an extractor that reads company names out of prose). In the future, a tailoring agent that drafts tailored applications will be added to the pipeline - see [Future Work](#future-work).
+It is **single-user and runs on your own machine**: there is no login, no hosting and no support for more than one profile. And it **never acts on your behalf**: nothing is submitted to a company and the only email it sends is the digest to you.
+
+The pipeline that runs today is deterministic code with two LLM calls (a judge that scores postings and an extractor that reads company names out of prose). In the future, a tailoring agent that drafts tailored CVs and cover letters will be added to the pipeline - see [Future Work](#future-work).
 
 ## Contents
 
