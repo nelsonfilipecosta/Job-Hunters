@@ -324,6 +324,7 @@ class TrackedApplication:
     job_id: int
     title: str
     company: str
+    tier: str
     status: str
     applied_at: datetime | None
     created_at: datetime
@@ -412,6 +413,7 @@ class Dashboard:
     funnel: tuple[Stage, ...] = ()
     by_source: tuple[Rate, ...] = ()
     by_tailoring: tuple[Rate, ...] = ()
+    by_tier: tuple[Rate, ...] = ()
     open_roles: tuple[OpenRole, ...] = ()
     open_total: int = 0
 
@@ -463,6 +465,7 @@ def build_dashboard(
         funnel=_funnel(active),
         by_source=_rates(active, lambda a: a.source),
         by_tailoring=_rates(active, lambda a: "tailored" if a.tailored else "not tailored"),
+        by_tier=_rates(active, lambda a: a.tier),
         open_roles=open_roles,
         open_total=open_total,
     )
@@ -471,17 +474,18 @@ def build_dashboard(
 def _tracked_applications(session: Session) -> tuple[TrackedApplication, ...]:
     """Every application with its job, its board and its timeline (newest first)."""
     rows = session.execute(
-        select(Application, Job, Company.name)
+        select(Application, Job, Company.name, Company.tier)
         .join(Job, Application.job_id == Job.id)
         .join(Company, Job.company_id == Company.id)
         .order_by(Application.created_at.desc(), Application.id.desc())
     ).all()
-    sources = _primary_sources(session, [job.id for _, job, _ in rows])
+    sources = _primary_sources(session, [job.id for _, job, _, _ in rows])
     return tuple(
         TrackedApplication(
             job_id=job.id,
             title=job.title,
             company=company_name,
+            tier=tier,
             status=application.status,
             applied_at=as_utc(application.applied_at),
             created_at=as_utc(application.created_at),
@@ -493,7 +497,7 @@ def _tracked_applications(session: Session) -> tuple[TrackedApplication, ...]:
                 for e in application.events
             ),
         )
-        for application, job, company_name in rows
+        for application, job, company_name, tier in rows
     )
 
 

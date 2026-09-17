@@ -183,6 +183,17 @@
       </tr>
     {% endfor %}
   </table>
+  <table style="margin-top:16px;">
+    <tr><th>By tier</th><th class="num">Applied</th><th class="num">Answered</th><th class="num">Rate</th></tr>
+    {% for row in dashboard.by_tier %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td class="num">{{ row.applied }}</td>
+        <td class="num">{{ row.responded }}</td>
+        <td class="num">{{ (row.rate * 100) | round | int }}%</td>
+      </tr>
+    {% endfor %}
+  </table>
   <p class="blurb">
     Nothing is tailored until Phase 6 writes a CV or a cover letter, so this
     second table has one row until then. It is here now because the comparison it

@@ -503,6 +503,26 @@ def test_the_response_rate_is_broken_down_by_board(
     assert rates["ashby"].rate == 0.0
 
 
+def test_the_response_rate_is_broken_down_by_tier(
+    session: Session, company: Company
+) -> None:
+    """Whether labs answer more often than companies with an AI team on the side."""
+    bigtech = Company(slug="megacorp", name="Megacorp", ats_type="lever",
+                      ats_config={"token": "megacorp"}, tier="bigtech")
+    session.add(bigtech)
+    session.commit()
+    lab = _job(session, company, "1", "Research Scientist, One")
+    corp = _job(session, bigtech, "2", "Research Scientist, Two", source="lever")
+    for job in (lab, corp):
+        perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    _advance(session, lab, EventKind.RECRUITER_SCREEN)
+
+    rates = {row.label: row for row in build_dashboard(session, _config(), now=NOW).by_tier}
+    assert rates["lab"].applied == 1 and rates["lab"].responded == 1
+    assert rates["bigtech"].applied == 1 and rates["bigtech"].responded == 0
+
+
 def test_tailored_and_untailored_applications_are_counted_apart(
     session: Session, company: Company
 ) -> None:
