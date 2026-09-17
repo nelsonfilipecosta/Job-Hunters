@@ -226,7 +226,7 @@ uv run job-hunters discover --dry-run               # what the discover sources 
 uv run job-hunters promote --review                 # companies waiting for a decision
 ```
 
-Commands run this way use the host database in `data/`. The containers use their own database in a Docker volume (SQLite's file locking is not reliable across the macOS bind-mount layer), so to act on the live one run the same commands inside a container: `docker compose exec scheduler job-hunters <command>`.
+Commands run this way use the host database in `data/`. The containers use their own database in a Docker volume (SQLite's file locking is not reliable across the macOS bind-mount layer). To act on the live database run the same commands inside a container: `docker compose exec scheduler job-hunters <command>`.
 
 ### Running with Docker
 
