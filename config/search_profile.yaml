@@ -148,15 +148,14 @@ scoring:
     - low: 40
       high: 69
       meaning: >
-        A technical role that touches the domain but is centred on something
-        else: primarily deploying someone else's models through an API and
-        building the software around them (prompting, retrieval, agents or
-        integrations), training or inference infrastructure with no experiments
-        of its own.
+        A technical role that touches the domain but is centred on primarily
+        deploying someone else's models through an API and building the software
+        around them (prompting, retrieval, agents or integrations), or training
+        and inference infrastructure with no experiments of its own.
     - low: 10
       high: 39
       meaning: >
-        Engineering or research clearly outside the domain, or a role the
+        Engineering or research clearly outside the domain or a role the
         candidate is not looking for: internships, roles that are principally
         people management, director level and above.
     - low: 0
