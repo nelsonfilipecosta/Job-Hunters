@@ -39,21 +39,21 @@ Each morning the digest job emails the jobs whose best score clears a threshold,
 The second loop is weekly and feeds the first. The discover job reads places where companies announce that they are hiring, pulls the company names out, looks for their job boards and queues the ones it finds for you to approve or reject. An approved company joins the watchlist and its postings arrive with the next fetch. Nothing joins the watchlist without you asking for it.
 
 ```
-  ┌────────────────────────┐      ┌────────────────────┐      ┌─────────────────────┐
-  │  INGEST  (every 2h)    │      │  DIGEST  (08:00)   │      │  ACTIONS (you)      │
-  │  fetch every watched   │      │  best score per    │      │  Applied / Dismiss  │
-  │  board, deduplicate,   │─────▶│  open job above    │─────▶│  via signed links,  │
-  │  then SCORE what is    │  DB  │  threshold, split  │ mail │  then the tracker   │
-  │  new: prefilter, judge │      │  by location fit   │      │  and the dashboard  │
-  └───────────▲────────────┘      └────────────────────┘      └─────────────────────┘
+  ┌────────────────────────┐      ┌────────────────────┐       ┌─────────────────────┐
+  │  INGEST  (every 2h)    │      │  DIGEST  (08:00)   │       │  ACTIONS (you)      │
+  │  fetch every watched   │      │  best score per    │       │  Applied / Dismiss  │
+  │  board, deduplicate,   │─────▶│  open job above    │──────▶│  via signed links,  │
+  │  then SCORE what is    │  DB  │  threshold, split  │ email │  then the tracker   │
+  │  new: prefilter, judge │      │  by location fit   │       │  and the dashboard  │
+  └───────────▲────────────┘      └────────────────────┘       └─────────────────────┘
               │ watchlist
-  ┌───────────┴────────────┐      ┌────────────────────┐
-  │  PROMOTE  (you)        │      │  DISCOVER (weekly) │
-  │  review the queue,     │◀─────│  read HN and three │
-  │  approve or reject     │queue │  aggregators, name │
-  │                        │      │  the companies and │
-  │                        │      │  probe their boards│
-  └────────────────────────┘      └────────────────────┘
+  ┌───────────┴────────────┐       ┌────────────────────┐
+  │  PROMOTE  (you)        │       │  DISCOVER (weekly) │
+  │  review the queue,     │◀──────│  read HN and three │
+  │  approve or reject     │ queue │  aggregators, name │
+  │                        │       │  the companies and │
+  │                        │       │  probe their boards│
+  └────────────────────────┘       └────────────────────┘
 ```
 
 Everything is stored in one SQLite database. A scheduler container runs the timed stages, a web container serves the dashboard (`http://localhost:8000`) and the action links. Every stage in the pipeline can also be manually run with a command - see [Command Reference](#command-reference).
@@ -338,14 +338,14 @@ The judge itself is measured separately. The `tests/fixtures/labeled_jobs.yaml` 
 
 ## Future Work
 
-Development is currently paused while the system runs on its schedule. The pieces below are designed and not built, in the order they are likely to arrive.
+Development is currently paused while the system runs on its schedule. The pieces below are planned but not built.
 
-**The tailoring agent.** The Draft CV and Draft Cover Letter links already sit in every digest entry and currently answer with a notice. Behind them will be a tailoring agent: a stable prompt prefix built from the CV and discrete achievement records in `profile/`, cached across calls; retrieval over the thesis and papers (kept as PDFs, extracted to text, chunked and embedded) for the technically specific jobs; and generation with `claude-opus-5` where every claim in the draft cites the profile record it came from, so a draft can be checked against the truth before it is sent. Drafting runs as a background task and reports back by email rather than blocking the click.
+- **The tailoring agent.** The Draft CV and Draft Cover Letter links already sit in every digest entry and currently answer with a notice. Behind them will be a tailoring agent: a stable prompt prefix built from the CV and discrete achievement records in `profile/`, cached across calls; retrieval over the thesis and papers (kept as PDFs, extracted to text, chunked and embedded) for the technically specific jobs; and generation with `claude-opus-5` where every claim in the draft cites the profile record it came from, so a draft can be checked against the truth before it is sent. Drafting runs as a background task and reports back by email rather than blocking the click.
 
-**The follow-up nudger.** `system_config.yaml` already declares `followup_after_days`. A daily check will find applications older than that with no subsequent event and add a "Follow up?" section to the digest.
+- **The follow-up nudger.** `system_config.yaml` already declares `followup_after_days`. A daily check will find applications older than that with no subsequent event and add a "Follow up?" section to the digest.
 
-**Workday.** NVIDIA, IBM, Intel, Adobe, Salesforce and Qualcomm run their boards on Workday, which has no public registry of tenants and needs a second request per posting for the description. The plan is a single-tenant adapter taking the tenant and site as explicit configuration on the watchlist line, added one company at a time, rather than general Workday support.
+- **Workday.** NVIDIA, IBM, Intel, Adobe, Salesforce and Qualcomm run their boards on Workday, which has no public registry of tenants and needs a second request per posting for the description. The plan is a single-tenant adapter taking the tenant and site as explicit configuration on the watchlist line, added one company at a time, rather than general Workday support.
 
-**Companies with proprietary systems.** Google, Microsoft, Amazon, Apple and Meta run their own job systems, which are neither Workday nor any supported ATS. Reaching each one is a bespoke adapter. A number of smaller AI companies have no board on any supported ATS either. These are reachable only through the discover sources or by checking by hand.
+- **Companies with proprietary systems.** Google, Microsoft, Amazon, Apple and Meta run their own job systems, which are neither Workday nor any supported ATS. Reaching each one is a bespoke adapter. A number of smaller AI companies have no board on any supported ATS either. These are reachable only through the discover sources or by checking by hand.
 
 Not planned: LinkedIn (its terms forbid the scraping and its public endpoints carry no descriptions) and a hosted multi-user version, which would be a different project with authentication, per-user secrets and data-protection obligations over stored CVs.
