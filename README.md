@@ -313,10 +313,10 @@ Three layers enforce that these files and folders stay private:
 
 ### What leaves the machine
 
-Two things are sent to the Anthropic API:
+The system calls an LLM through the API in two places and each sends a different text:
 
-- The text of postings that pass the prefilter with the markdown files in `profile/` as part of the judge's prompt.
-- The text of Hacker News comments that the extractor reads to get the company out of it.
+- **Score.** Once per group of identical postings that passed the prefilter, the judge sends the posting itself with company, title, location and description. Ahead of it, as a prefix shared by every call in the run, your CV (every markdown file in `profile/`) and the rubric, score bands, worked examples, location and work-authorization facts from `search_profile.yaml`.
+- **Discover.** Once per sighting that does not name its company, which in practice is a Hacker News comment, the extractor sends the text of that comment cut at a fixed length. Nothing from `profile/` or `search_profile.yaml` goes with it.
 
 Requests to job boards carry a `User-Agent` naming this project. The digest goes to the address in `.env` through the SMTP server in `system_config.yaml`. Nothing else is sent anywhere and nothing is ever sent to a company.
 
