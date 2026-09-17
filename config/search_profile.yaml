@@ -9,13 +9,31 @@ titles:
   include:
     - research scientist
     - research engineer
-    - member of technical staff
+    - ai scientist
+    - ai research scientist
+    - ai engineer
+    - ai research engineer
+    - artificial intelligence scientist
+    - artificial intelligence research scientist
+    - artificial intelligence engineer
+    - artificial intelligence research engineer
+    - ml scientist
+    - ml research scientist
+    - ml engineer
+    - ml research engineer
+    - machine learning scientist
+    - machine learning research scientist
+    - machine learning engineer
+    - machine learning research engineer
     - applied scientist
-    - post-training
-    - model evaluation
+    - applied research scientist
+    - applied engineer
+    - applied research engineer
   # Hard prefilter. These never reach the judge.
   exclude:
+    - consultant
     - sales
+    - marketing
     - account executive
     - recruiter
     - counsel
@@ -28,25 +46,33 @@ keywords:
   strong:
     - RLHF
     - RLAIF
+    - RLVR
+    - PPO
+    - GRPO
     - DPO
+    - reinforcement learning
     - post-training
+    - preference optimization
     - reward model
     - SFT
     - supervised fine-tuning
-    - preference optimization
+    - fine-tuning
   # Weaker signals to widen recall. The judge sorts out the noise later.
   supporting:
-    - fine-tuning
+    - pre-training
+    - pretraining
+    - model evaluation
     - evaluation
     - evals
     - alignment
     - benchmark
     - interpretability
-    - reinforcement learning
+    - llm-as-judge
+    - foundational models
 
 seniority:
   include: [mid, senior, staff]
-  exclude: [intern, director, vp, head-of]
+  exclude: [intern, trainee, manager, director]
 
 location:
   base: portugal
@@ -71,7 +97,7 @@ scoring:
   # Cap per run. The remainder carries to the next run, with oldest-unscored first.
   max_llm_scores_per_run: 300
   # Bump whenever anything below changes. It invalidates every prior score.
-  prompt_version: 1
+  prompt_version: 2
 
   # Everything from here down is pasted into the judge's prompt. Rewrite it to
   # fine-tune the search. The rubric tells the judge what to look for and how to weight
@@ -83,6 +109,14 @@ scoring:
 
     Weight second: alignment, interpretability and red-teaming research where
     the role involves running experiments rather than only writing policy.
+
+    Weight text and language above every other modality. The core of the search
+    is post-training and evaluation of language models. The same work on speech,
+    audio, vision, video or robotics models is adjacent and not core, so score
+    it a few points below where the equivalent text role would land. A multimodal
+    role counts as text work when the language model is the centre of the job
+    (post-training a VLM or evaluating text output) and as another modality when
+    it is not.
 
     Penalize pure infrastructure and platform roles with no research component
     and roles that are primarily about deploying someone else's models.
@@ -98,25 +132,27 @@ scoring:
     - low: 85
       high: 100
       meaning: >
-        The core of the search. Post-training or evaluation research on language
+        The core of the search. Post-training or evaluation work on language
         models (RLHF, RLAIF, DPO and other preference optimization, reward
         modelling, supervised fine-tuning, RL environments, benchmark and
         evaluation design) where the candidate's background is a direct match.
     - low: 70
       high: 84
       meaning: >
-        Research adjacent to the core, with real experiments: alignment,
+        Research adjacent to the core with real experiments: alignment,
         interpretability, red-teaming, training-data quality, model behaviour or
-        post-training in another modality. The candidate could credibly do the
-        work.
+        post-training in another modality. Also product engineering around
+        fine-tuning, training or evaluation, since building that product still
+        means running training jobs, curating data and designing evals. The
+        candidate could credibly do the work.
     - low: 40
       high: 69
       meaning: >
         A technical role that touches the domain but is centred on something
-        else: training or inference infrastructure, platform or product
-        engineering around fine-tuning and evals, applied deployment,
-        pretraining. Or a research role where the candidate's background is a
-        stretch.
+        else: primarily deploying someone else's models through an API and
+        building the software around them (prompting, retrieval, agents or
+        integrations), training or inference infrastructure with no experiments
+        of its own.
     - low: 10
       high: 39
       meaning: >
@@ -150,19 +186,19 @@ scoring:
     - posting: >
         "Research Engineer, Red Teaming": builds adversarial evaluations and runs
         robustness experiments on production models.
-      score: 76
+      score: 72
       reason: Adjacent research with real experiments.
     - posting: >
         "Machine Learning Engineer, Training Platform": maintains the distributed
         training stack that post-training teams use, with no experiments of its own.
-      score: 61
+      score: 66
       reason: Infrastructure next to the domain, not research in it.
     - posting: >
         "Research Program Manager": plans compute allocation and coordinates
         research programs.
-      score: 32
+      score: 39
       reason: Not a research or engineering role.
     - posting: >
         "Enterprise Account Executive" at an AI lab: sells to enterprise accounts.
-      score: 1
+      score: 4
       reason: Sales, however technical the product.
