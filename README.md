@@ -18,6 +18,15 @@ It is **single-user and runs on your own machine**: there is no login, no hostin
 
 ## Methodology
 
+The system is two loops around one database. The first loop is daily. Every two hours the ingest job fetches the boards of the companies on your watchlist, cleans and merges what it finds so that one opening listed twice counts once, and scores each new job in two steps: 
+
+1. A free prefilter on title, keywords and location drops the plainly wrong jobs.
+2. A paid LLM call reads the surviving jobs against your CV and a written rubric and returns a score from 0 to 100.
+
+Each morning the digest job emails the jobs whose best score clears a threshold, filed by how well the location fits, each with links to record what you did about it. Clicking one opens a confirmation page on the local web service and from there the tracker keeps the application's timeline and the dashboard counts what happened.
+
+The second loop is weekly and feeds the first. The discover job reads places where companies announce that they are hiring, pulls the company names out, looks for their job boards and queues the ones it finds for you to approve or reject. An approved company joins the watchlist and its postings arrive with the next fetch. Nothing joins the watchlist without you asking for it.
+
 ```
   ┌────────────────────────┐      ┌────────────────────┐      ┌─────────────────────┐
   │  INGEST  (every 2h)    │      │  DIGEST  (08:00)   │      │  ACTIONS (you)      │
