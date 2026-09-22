@@ -73,3 +73,7 @@
 # Google, Microsoft, Amazon, Apple and Meta run proprietary systems
 # (careers.google.com, amazon.jobs, jobs.apple.com, metacareers.com) and each
 # would need a bespoke adapter.
+
+# --- Discovered by the promotion loop ------------------------------------
+
+- { slug: prior-labs, name: Prior Labs, ats: ashby, token: prior-labs, tier: lab }
