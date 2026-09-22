@@ -391,7 +391,7 @@ def test_the_dashboard_lists_what_is_still_open(
         text = client.get("/").text
 
     assert "Research Scientist" in text
-    assert "Open roles" in text
+    assert "Open Roles" in text
 
 
 def test_the_dashboard_signs_the_links_beside_each_open_role(
@@ -440,7 +440,7 @@ def test_the_dashboard_shows_the_pipeline_and_the_timeline(
     assert "Pipeline" in text
     assert "applied" in text
     assert "Funnel" in text
-    assert "Response rate" in text
+    assert "Response Rate" in text
 
 
 def test_a_dashboard_with_nothing_on_it_says_so(session: Session) -> None:
