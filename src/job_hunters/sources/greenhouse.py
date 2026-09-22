@@ -25,6 +25,7 @@ from .base import (
 )
 
 BOARD_URL = "https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
+PAGE_URL = "https://job-boards.greenhouse.io/{token}"
 
 
 class GreenhouseAdapter:
