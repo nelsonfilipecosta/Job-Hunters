@@ -717,10 +717,12 @@ def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session
     digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
     assert digest.is_empty and digest.pending_candidates == 2
     for body in render_bodies(digest):
-        assert "2 discovered companies" in body and "promote --review" in body
-        # The queue line stands alone. Nothing joined the watchlist, so the email says that.
-        assert "None joined the watchlist this week" in body
+        assert "Discovered Companies (2)" in body or "DISCOVERED COMPANIES (2)" in body
+        assert "promote --review" in body
+        assert digest.candidates_url in body, "the line has to reach the page that decides"
+        # The queue stands alone. Nothing joined the watchlist, so nothing says one did.
         assert "Added to the watchlist this week" not in body
+        assert "New Companies" not in body and "NEW COMPANIES" not in body
 
 
 def test_a_digest_with_no_company_news_has_no_section_for_it(session: Session, company: Company) -> None:

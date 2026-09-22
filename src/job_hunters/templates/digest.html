@@ -100,7 +100,7 @@
     </div>
   {% endif %}
 
-  {% if digest.new_companies or digest.pending_candidates %}
+  {% if digest.new_companies %}
     <div style="padding-top:28px;">
       <div style="font-size:16px;font-weight:700;">
         🆕 New Companies
@@ -109,12 +109,8 @@
         {% endif %}
       </div>
       <div style="font-size:12px;color:#71717a;padding-top:2px;">
-        {% if digest.new_companies %}
-          Added to the watchlist this week. Their postings are already part of the ingest
-          and every role scoring {{ digest.threshold }} or above appears in the sections above.
-        {% else %}
-          None joined the watchlist this week.
-        {% endif %}
+        Added to the watchlist this week. Their postings are already part of the ingest
+        and every role scoring {{ digest.threshold }} or above appears in the sections above.
       </div>
     </div>
     {% for company in digest.new_companies %}
@@ -127,12 +123,19 @@
         </span>
       </div>
     {% endfor %}
-    {% if digest.pending_candidates %}
-      <div style="font-size:12px;color:#71717a;padding-top:10px;">
-        {{ digest.pending_candidates }} discovered compan{{ 'y is' if digest.pending_candidates == 1 else 'ies are' }}
-        waiting for a decision: <code>job-hunters promote --review</code>
+  {% endif %}
+
+  {% if digest.pending_candidates %}
+    <div style="font-size:13px;color:#71717a;padding-top:24px;">
+      <a href="{{ digest.candidates_url }}" style="color:#71717a;">
+        Discovered Companies ({{ digest.pending_candidates }}) &rarr;
+      </a>
+      <div style="font-size:12px;padding-top:2px;">
+        Seen hiring and waiting for a decision. Approve or reject them on the dashboard
+        or with <code>job-hunters promote --review</code>. Nothing joins the watchlist
+        until you say so.
       </div>
-    {% endif %}
+    </div>
   {% endif %}
 
   <div style="font-size:11px;color:#a1a1aa;padding-top:28px;border-top:1px solid #e4e4e7;margin-top:28px;">
