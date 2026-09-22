@@ -99,7 +99,8 @@
       </div>
       <div style="font-size:12px;color:#71717a;padding-top:2px;">
         {% if digest.new_companies %}
-          Added to the watchlist this week. Their postings arrive with the next ingest.
+          Added to the watchlist this week. Their postings are already part of the ingest
+          and every role scoring {{ digest.threshold }} or above appears in the sections above.
         {% else %}
           None joined the watchlist this week.
         {% endif %}
@@ -129,9 +130,9 @@
         Still Open ({{ digest.still_open }}) &rarr;
       </a>
       <div style="font-size:12px;padding-top:2px;">
-        Shown often enough already and neither applied to nor dismissed. They
-        are still in the dashboard and they come back here if the posting or
-        the score changes.
+        Shown in {{ digest.suppress_after }} consecutive digests and neither applied to
+        nor dismissed. They are still in the dashboard and they come back to the
+        sections above if the posting or the score changes.
       </div>
     </div>
   {% endif %}

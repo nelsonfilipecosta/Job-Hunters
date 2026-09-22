@@ -183,6 +183,7 @@ class Digest:
     threshold: int
     still_open: int
     still_open_url: str
+    suppress_after: int
     generated_at: datetime
     timezone: str
     new_companies: list[NewCompany] = field(default_factory=list)
@@ -303,6 +304,7 @@ def build_digest(
             threshold=profile.scoring.threshold,
             still_open=0,
             still_open_url=f"{base_url}/",
+            suppress_after=suppression.suppress_after,
             generated_at=now,
             timezone=config.system.timezone,
             new_companies=new_companies,
@@ -356,6 +358,7 @@ def build_digest(
         threshold=profile.scoring.threshold,
         still_open=suppressed,
         still_open_url=f"{base_url}/",
+        suppress_after=suppression.suppress_after,
         generated_at=now,
         timezone=config.system.timezone,
         new_companies=new_companies,

@@ -52,7 +52,8 @@ NEW COMPANIES{% if digest.new_companies %} ({{ digest.new_companies | length }})
 
 {{ '-' * 13 }}
 {% if digest.new_companies %}
-Added to the watchlist this week. Their postings arrive with the next ingest.
+Added to the watchlist this week. Their postings are already part of the ingest and
+every role scoring {{ digest.threshold }} or above appears in the sections above.
 {% for company in digest.new_companies %}
   {{ company.name }} - {{ company.tier }} - {{ company.ats }} - {{ company.open_postings }} open posting{{ '' if company.open_postings == 1 else 's' }} - added {{ company.added.strftime('%d %b') }}
 {% endfor %}
@@ -67,8 +68,9 @@ None joined the watchlist this week.
 
 STILL OPEN ({{ digest.still_open }})
 {{ digest.still_open_url }}
-Shown often enough already and neither applied to nor dismissed. They are still
-in the dashboard and they come back here if the posting or the score changes.
+Shown in {{ digest.suppress_after }} consecutive digests and neither applied to nor
+dismissed. They are still in the dashboard and they come back to the sections above
+if the posting or the score changes.
 {% endif %}
 
 --

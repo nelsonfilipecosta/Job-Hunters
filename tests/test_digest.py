@@ -306,6 +306,18 @@ def test_a_job_shown_past_suppress_after_is_folded_into_a_count(
     assert digest.still_open == 1
 
 
+def test_the_still_open_line_says_how_many_showings_fold_a_job(
+    session: Session, company: Company
+) -> None:
+    """The blurb quotes the configured `suppress_after` days."""
+    job = _one_job(session, company, 90)
+    _shown_on(session, job, [5, 6, 7])
+    digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
+    assert digest.suppress_after == 3
+    for body in render_bodies(digest):
+        assert "Shown in 3 consecutive digests" in body
+
+
 def test_suppression_can_be_turned_off_entirely(session: Session, company: Company) -> None:
     """`enabled: false` means a job keeps its place however many times it has been shown."""
     job = _one_job(session, company, 90)
