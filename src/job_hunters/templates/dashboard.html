@@ -190,4 +190,104 @@
   <p class="empty">Nothing to compare until the first application is recorded.</p>
 {% endif %}
 
+<h2 id="discovered">Discovered Companies{% if discovered %} ({{ discovered | length }}){% endif %}</h2>
+<p class="blurb">
+  Seen hiring by the weekly discover run, with a job board found for them. Approving one
+  appends it to <code>companies_watchlist.yaml</code>.
+  Nothing is fetched until the next ingest ({{ ingest_schedule }}), which is when an approved
+  company's postings arrive and start being judged like every other.
+  Rejecting takes a company out of the queue for good.
+  "Sightings" counts the ads from the discover sources that matched your profile, which
+  is what put the company here. It is not the size of its board.
+</p>
+{% if discovered %}
+  <table>
+    <colgroup><col><col style="width:22%;"><col style="width:10%;"><col style="width:16%;"></colgroup>
+    <tr>
+      <th>Company</th><th>Board</th>
+      <th class="mid">Sightings</th><th class="mid">{% if signed %}Decision{% else %}&nbsp;{% endif %}</th>
+    </tr>
+    {% for entry in discovered %}
+      <tr>
+        <td>
+          {% if entry.page_url %}
+            <a href="{{ entry.page_url }}" rel="noreferrer">{{ entry.name }}</a>
+          {% else %}
+            {{ entry.name }}
+          {% endif %}
+          {% if entry.roles %}
+            <div class="meta">
+              {{ entry.roles[:3] | join('; ') }}
+              {% if entry.roles | length > 3 %}
+                &middot; and {{ entry.roles | length - 3 }} more
+              {% endif %}
+            </div>
+          {% endif %}
+        </td>
+        <td class="meta">{{ entry.ats }} {{ entry.token }}</td>
+        <td class="mid">{{ entry.sightings }}</td>
+        <td class="mid">
+          {% if signed %}
+            {% for link in decisions[entry.id] %}
+              <a href="{{ link.url }}">{{ link.label }}</a>{% if not loop.last %} &middot; {% endif %}
+            {% endfor %}
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  {% if not signed %}
+    <p class="blurb warn">
+      ACTION_TOKEN_SECRET is not set, so no link can be signed. Add it to
+      <code>.env</code> and reload.
+    </p>
+  {% endif %}
+{% else %}
+  <p class="empty">Nothing waiting. <code>job-hunters discover</code> fills the queue.</p>
+{% endif %}
+
+{% if boardless %}
+  <details>
+    <summary>No Board Found ({{ boardless | length }})</summary>
+    <p class="blurb">
+      Seen hiring, but no Greenhouse, Lever or Ashby board answered, so there is nothing
+      to watch yet. Each is probed again every week and joins the list above if one turns up.
+    </p>
+    <table>
+      <colgroup><col><col style="width:10%;"><col style="width:16%;"></colgroup>
+      <tr>
+        <th>Company</th><th class="mid">Sightings</th>
+        <th class="mid">{% if signed %}Decision{% else %}&nbsp;{% endif %}</th>
+      </tr>
+      {% for entry in boardless %}
+        <tr>
+          <td>
+            {% if entry.page_url %}
+              <a href="{{ entry.page_url }}" rel="noreferrer">{{ entry.name }}</a>
+            {% else %}
+              {{ entry.name }}
+            {% endif %}
+            {% if entry.roles %}
+              <div class="meta">
+                {{ entry.roles[:3] | join('; ') }}
+                {% if entry.roles | length > 3 %}
+                  &middot; and {{ entry.roles | length - 3 }} more
+                {% endif %}
+              </div>
+            {% endif %}
+          </td>
+          <td class="mid">{{ entry.sightings }}</td>
+          <td class="mid">
+            {% if signed %}
+              {% for link in decisions[entry.id] %}
+                <a href="{{ link.url }}">{{ link.label }}</a>
+              {% endfor %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </details>
+{% endif %}
+
 {% endblock %}

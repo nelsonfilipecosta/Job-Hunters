@@ -646,7 +646,10 @@ def test_the_dashboard_prints_its_times_where_the_reader_is(
     now = datetime(2026, 9, 16, 23, 45, tzinfo=UTC)
 
     state = build_dashboard(session, config, now=now)
-    page = render("dashboard.html", dashboard=state, links={}, signed=False, expired=False)
+    page = render(
+        "dashboard.html", dashboard=state, links={}, signed=False, expired=False,
+        discovered=(), boardless=(), decisions={}, ingest_schedule="every 2h",
+    )
 
     assert state.generated_at == now and state.applications[0].applied_at == clicked
     assert stamp in page and f"applied {day}" in page and f"{day} &mdash; applied" in page

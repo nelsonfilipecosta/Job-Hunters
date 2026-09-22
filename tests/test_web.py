@@ -8,7 +8,9 @@ that does not.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,11 +18,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from conftest import FakeAdapter, make_posting
-from job_hunters.actions import Action, action_url, sign
+from job_hunters.actions import Action, CandidateAction, action_url, sign, sign_candidate
 from job_hunters.config import ConfigError, load_search_profile
 from job_hunters.ingest import ingest_company
+from job_hunters.normalize import normalize_company
 from job_hunters.tables import (
     Application,
+    CandidateCompany,
+    CandidateStatus,
     ApplicationStatus,
     Company,
     Job,
@@ -473,3 +478,324 @@ def test_a_job_title_cannot_become_markup(
     for page in (dashboard, confirmation):
         assert "<script>alert(1)</script>" not in page
         assert "&lt;script&gt;" in page
+
+
+@pytest.fixture
+def watchlist(tmp_path, monkeypatch) -> Path:
+    """A watchlist of this test's own, so approving from a page never edits `config/`."""
+    target = tmp_path / "companies_watchlist.yaml"
+    target.write_text(
+        "- { slug: anthropic, name: Anthropic, ats: greenhouse, token: anthropic, tier: lab }\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("job_hunters.paths.WATCHLIST_PATH", target)
+    return target
+
+
+@pytest.fixture(autouse=True)
+def no_tier_call(monkeypatch) -> None:
+    """No test reaches the API. A suggestion is a bonus and every page works without one."""
+    monkeypatch.setattr("job_hunters.web.suggest_tier", lambda *_args, **_kwargs: None)
+
+
+def _candidate(session: Session, name: str, *, ats: str | None = "ashby",
+               token: str | None = None, status: str = CandidateStatus.PENDING) -> CandidateCompany:
+    """One queued company with a board unless `ats` is None."""
+    row = CandidateCompany(
+        name=name, name_key=normalize_company(name), status=status, sightings=2,
+        ats_type=ats, ats_token=token or (name.lower().replace(" ", "-") if ats else None),
+        board_url="https://ashby.test/x" if ats else None, board_jobs=24 if ats else None,
+        careers_url="https://example.test/careers", roles=["Research Scientist"],
+        evidence=[{"source": "hn", "source_job_id": "1", "title": f"{name} | Berlin",
+                   "url": "https://news.ycombinator.com/item?id=1", "seen": "2026-09-14"}],
+    )
+    session.add(row)
+    session.commit()
+    return row
+
+
+def _decided(session: Session, candidate_id: int) -> CandidateCompany:
+    """The candidate as the database now has it. The app writes in its own session."""
+    session.expire_all()
+    return session.get(CandidateCompany, candidate_id)
+
+
+def _candidate_token(action: CandidateAction, candidate_id: int) -> str:
+    """One signed company token for these tests."""
+    return sign_candidate(SECRET, action, candidate_id, ttl_days=TTL, now=NOW)
+
+
+def test_the_dashboard_lists_the_queue_with_boards_apart_from_those_without(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """Approving needs a board, so the two are not offered the same decisions."""
+    _candidate(session, "Prior Labs")
+    _candidate(session, "Tufalabs", ats=None)
+
+    with TestClient(app) as client:
+        page = client.get("/").text
+
+    assert "Discovered Companies (1)" in page and "No Board Found (1)" in page
+    assert "Sightings" in page and "24 posting" not in page, "the board's size is not the count"
+    assert page.count(">Approve</a>") == 1, "only the company with a board can be approved"
+    assert page.count(">Reject</a>") == 2
+
+
+def test_the_queue_says_when_an_approval_takes_effect(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """A company added now is not fetched now and a reader who is not told will wonder."""
+    _candidate(session, "Prior Labs")
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert "next ingest" in page and "every 2h" in page
+
+
+def test_the_queue_hides_its_links_when_nothing_can_be_signed(
+    session: Session, monkeypatch, watchlist: Path
+) -> None:
+    """Rows with dead buttons would read as broken, so the reason is printed instead."""
+    monkeypatch.delenv("ACTION_TOKEN_SECRET", raising=False)
+    monkeypatch.setattr(
+        "job_hunters.config.Secrets.optional",
+        lambda self, name: None if name == "action_token_secret" else "x",
+    )
+    _candidate(session, "Prior Labs")
+
+    with TestClient(app) as client:
+        page = client.get("/").text
+
+    assert "Prior Labs" in page and "ACTION_TOKEN_SECRET is not set" in page
+    assert "/c/" not in page
+
+
+def test_approving_from_the_page_appends_the_line_and_shows_it(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """The line is the only copy outside the file and an editor can overwrite the file."""
+    row = _candidate(session, "Prior Labs")
+    token = _candidate_token(CandidateAction.APPROVE, row.id)
+
+    with TestClient(app) as client:
+        assert "Prior Labs" in client.get(f"/c/{token}").text
+        done = client.post(f"/c/{token}", data={"slug": "prior-labs", "name": "Prior Labs",
+                                                "tier": "lab"})
+
+    assert done.status_code == 200
+    assert "added to the watchlist" in done.text.lower()
+    assert "slug: prior-labs" in done.text and "tier: lab" in done.text
+    assert "slug: prior-labs" in watchlist.read_text()
+    decided = _decided(session, row.id)
+    assert decided.status == CandidateStatus.APPROVED and decided.slug == "prior-labs"
+
+
+def test_the_confirm_page_offers_the_fields_the_command_takes(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """Approving from a button alone would file every company under the extractor's spelling."""
+    row = _candidate(session, "Artificial Intelligence Underwriting Company")
+    with TestClient(app) as client:
+        page = client.get(f"/c/{_candidate_token(CandidateAction.APPROVE, row.id)}").text
+
+    assert 'name="slug"' in page and 'name="name"' in page and 'name="tier"' in page
+    assert 'value="artificial-intelligence-underwriting-company"' in page
+    for tier in ("lab", "bigtech", "infra", "discovered"):
+        assert f'value="{tier}"' in page
+
+
+def test_a_suggested_tier_is_the_one_already_chosen(
+    session: Session, signed: str, watchlist: Path, monkeypatch
+) -> None:
+    """The suggestion is only useful if the reviewer can take it by pressing the button."""
+    from job_hunters.tables import Tier
+
+    row = _candidate(session, "Prior Labs")
+    monkeypatch.setattr(
+        "job_hunters.web.suggest_tier",
+        lambda *_args, **_kwargs: (Tier.LAB, "it trains foundation models"),
+    )
+    with TestClient(app) as client:
+        page = client.get(f"/c/{_candidate_token(CandidateAction.APPROVE, row.id)}").text
+
+    assert '<option value="lab" selected>' in page
+    assert "it trains foundation models" in page
+
+
+def test_a_page_still_works_when_no_tier_can_be_suggested(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """No API key, no network or a refused call must not stop a company being approved."""
+    row = _candidate(session, "Prior Labs")
+    with TestClient(app) as client:
+        page = client.get(f"/c/{_candidate_token(CandidateAction.APPROVE, row.id)}").text
+
+    assert '<option value="discovered" selected>' in page
+    assert "suggestion" not in page
+
+
+def test_approving_twice_says_so_instead_of_writing_a_second_line(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """A link found again months later decides from the state it finds (like every other action)."""
+    row = _candidate(session, "Prior Labs")
+    token = _candidate_token(CandidateAction.APPROVE, row.id)
+
+    with TestClient(app) as client:
+        client.post(f"/c/{token}", data={"slug": "prior-labs", "name": "Prior Labs", "tier": "lab"})
+        again = client.post(f"/c/{token}", data={"slug": "prior-labs", "name": "Prior Labs",
+                                                 "tier": "lab"})
+
+    assert "already in the watchlist as prior-labs" in again.text
+    assert watchlist.read_text().count("slug: prior-labs") == 1
+
+
+def test_a_slug_the_file_already_has_comes_back_as_a_fixable_form(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """The reviewer can pick another slug, so this is a question and not a dead end."""
+    row = _candidate(session, "Anthropic Labs", ats="greenhouse", token="anthropic-labs")
+    before = watchlist.read_text()
+
+    with TestClient(app) as client:
+        answer = client.post(
+            f"/c/{_candidate_token(CandidateAction.APPROVE, row.id)}",
+            data={"slug": "anthropic", "name": "Anthropic Labs", "tier": "lab"},
+        )
+
+    assert "anthropic" in answer.text and "already in" in answer.text
+    assert 'name="slug"' in answer.text and 'value="anthropic"' in answer.text
+    assert watchlist.read_text() == before
+    assert _decided(session, row.id).status == CandidateStatus.PENDING
+
+
+def test_a_company_with_no_board_cannot_be_approved_from_a_page_either(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """A signed link is not a way around the rule that there has to be something to watch."""
+    row = _candidate(session, "Tufalabs", ats=None)
+    token = _candidate_token(CandidateAction.APPROVE, row.id)
+
+    with TestClient(app) as client:
+        page = client.get(f"/c/{token}").text
+        posted = client.post(f"/c/{token}", data={"slug": "tufalabs", "tier": "lab"})
+
+    for body in (page, posted.text):
+        assert "no greenhouse, lever or ashby board was found" in body.lower()
+    assert "slug: tufalabs" not in watchlist.read_text()
+    assert _decided(session, row.id).status == CandidateStatus.PENDING
+
+
+def test_rejecting_from_the_page_takes_it_out_of_the_queue(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """The queue only shrinks if rejecting is as easy as approving."""
+    row = _candidate(session, "Tufalabs", ats=None)
+    token = _candidate_token(CandidateAction.REJECT, row.id)
+
+    with TestClient(app) as client:
+        assert "for good" in client.get(f"/c/{token}").text
+        done = client.post(f"/c/{token}")
+        page = client.get("/").text
+
+    assert done.status_code == 200 and "rejected" in done.text.lower()
+    assert _decided(session, row.id).status == CandidateStatus.REJECTED
+    assert "Tufalabs" not in page
+
+
+def test_a_company_token_is_not_a_job_token(session: Session, company: Company, signed: str) -> None:
+    """The two id spaces overlap, so the signed bytes say which kind they are."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        crossed = client.get(f"/a/{_candidate_token(CandidateAction.APPROVE, job.id)}")
+        other_way = client.get(f"/c/{_token(Action.APPLIED, job.id)}")
+
+    assert crossed.status_code == 400 and other_way.status_code == 400
+    for response in (crossed, other_way):
+        assert "cannot be trusted" in response.text
+
+
+def test_a_company_name_cannot_become_markup(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """Names are read out of prose by a model, so they are escaped like any board's text."""
+    row = _candidate(session, "Prior <script>alert(1)</script> Labs")
+    with TestClient(app) as client:
+        page = client.get("/").text
+        confirmation = client.get(f"/c/{_candidate_token(CandidateAction.APPROVE, row.id)}").text
+
+    for body in (page, confirmation):
+        assert "<script>alert(1)</script>" not in body
+        assert "&lt;script&gt;" in body
+
+
+def test_every_queued_company_with_a_board_is_a_link(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """The aggregators name a company without saying where it hires, so the board stands in."""
+    named = _candidate(session, "Prior Labs")
+    named.careers_url = None
+    session.commit()
+
+    with TestClient(app) as client:
+        page = client.get("/").text
+
+    assert 'href="https://jobs.ashbyhq.com/prior-labs"' in page
+
+
+def test_a_rejection_offers_the_way_back(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """Rejecting is permanent, so the one thing it must survive is a misclick."""
+    row = _candidate(session, "Tufalabs", ats=None)
+
+    with TestClient(app) as client:
+        done = client.post(f"/c/{_candidate_token(CandidateAction.REJECT, row.id)}")
+        assert "Undo" in done.text
+        undo = re.search(r'action="([^"]*/c/[^"]+)"', done.text).group(1)
+        back = client.post(undo)
+        page = client.get("/").text
+
+    assert "back in the queue" in back.text
+    assert _decided(session, row.id).status == CandidateStatus.PENDING
+    assert _decided(session, row.id).decided_at is None
+    assert "Tufalabs" in page, "and it is waiting for a decision again"
+
+
+def test_undoing_what_was_never_rejected_says_so(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """A link found twice decides from the state it finds (like every other action)."""
+    row = _candidate(session, "Tufalabs", ats=None)
+    token = _candidate_token(CandidateAction.UNREJECT, row.id)
+
+    with TestClient(app) as client:
+        page = client.get(f"/c/{token}").text
+        posted = client.post(f"/c/{token}")
+
+    for body in (page, posted.text):
+        assert "nothing to undo" in body
+    assert _decided(session, row.id).status == CandidateStatus.PENDING
+
+
+def test_an_approved_company_cannot_be_undone_into_the_queue(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """Leaving the watchlist is an edit to that file and not a decision taken here."""
+    row = _candidate(session, "Prior Labs")
+    with TestClient(app) as client:
+        client.post(f"/c/{_candidate_token(CandidateAction.APPROVE, row.id)}",
+                    data={"slug": "prior-labs", "name": "Prior Labs", "tier": "lab"})
+        refused = client.post(f"/c/{_candidate_token(CandidateAction.UNREJECT, row.id)}")
+
+    assert "is in the watchlist" in refused.text
+    assert _decided(session, row.id).status == CandidateStatus.APPROVED
+
+
+def test_the_queue_does_not_offer_undo_beside_every_company(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """Undo belongs to the page that rejected and not to a row that has decided nothing."""
+    _candidate(session, "Prior Labs")
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert ">Undo</a>" not in page
