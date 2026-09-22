@@ -43,6 +43,14 @@ anyway: a quiet morning and a broken pipeline look identical from an empty inbox
 {% endfor %}
 {% endif %}
 {% endfor %}
+{% if digest.still_open %}
+
+STILL OPEN ({{ digest.still_open }})
+{{ digest.still_open_url }}
+Shown in {{ digest.suppress_after }} consecutive digests and neither applied to nor
+dismissed. They are still in the dashboard and they come back to the sections above
+if the posting or the score changes.
+{% endif %}
 {% if digest.new_companies or digest.pending_candidates %}
 
 NEW COMPANIES{% if digest.new_companies %} ({{ digest.new_companies | length }}){% endif %}
@@ -60,14 +68,6 @@ None joined the watchlist this week.
 {% if digest.pending_candidates %}
   {{ digest.pending_candidates }} discovered compan{{ 'y is' if digest.pending_candidates == 1 else 'ies are' }} waiting for a decision: job-hunters promote --review
 {% endif %}
-{% endif %}
-{% if digest.still_open %}
-
-STILL OPEN ({{ digest.still_open }})
-{{ digest.still_open_url }}
-Shown in {{ digest.suppress_after }} consecutive digests and neither applied to nor
-dismissed. They are still in the dashboard and they come back to the sections above
-if the posting or the score changes.
 {% endif %}
 
 --

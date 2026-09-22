@@ -87,6 +87,19 @@
     {% endif %}
   {% endfor %}
 
+  {% if digest.still_open %}
+    <div style="font-size:13px;color:#71717a;padding-top:24px;">
+      <a href="{{ digest.still_open_url }}" style="color:#71717a;">
+        Still Open ({{ digest.still_open }}) &rarr;
+      </a>
+      <div style="font-size:12px;padding-top:2px;">
+        Shown in {{ digest.suppress_after }} consecutive digests and neither applied to
+        nor dismissed. They are still in the dashboard and they come back to the
+        sections above if the posting or the score changes.
+      </div>
+    </div>
+  {% endif %}
+
   {% if digest.new_companies or digest.pending_candidates %}
     <div style="padding-top:28px;">
       <div style="font-size:16px;font-weight:700;">
@@ -120,19 +133,6 @@
         waiting for a decision: <code>job-hunters promote --review</code>
       </div>
     {% endif %}
-  {% endif %}
-
-  {% if digest.still_open %}
-    <div style="font-size:13px;color:#71717a;padding-top:24px;">
-      <a href="{{ digest.still_open_url }}" style="color:#71717a;">
-        Still Open ({{ digest.still_open }}) &rarr;
-      </a>
-      <div style="font-size:12px;padding-top:2px;">
-        Shown in {{ digest.suppress_after }} consecutive digests and neither applied to
-        nor dismissed. They are still in the dashboard and they come back to the
-        sections above if the posting or the score changes.
-      </div>
-    </div>
   {% endif %}
 
   <div style="font-size:11px;color:#a1a1aa;padding-top:28px;border-top:1px solid #e4e4e7;margin-top:28px;">
