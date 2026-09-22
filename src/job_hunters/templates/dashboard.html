@@ -44,7 +44,7 @@
           {% endif %}
           <div class="meta">{{ role.company }}</div>
         </td>
-        <td class="meta">{{ role.location }} &middot; {{ role.work_mode }}</td>
+        <td class="meta">{{ role.location }} &middot; {{ role.work_mode | capitalize }}</td>
         <td class="num">
           {{ role.appearances }}
           {% if role.suppressed %}<span class="warn" title="The digest has stopped showing this">&#9679;</span>{% endif %}

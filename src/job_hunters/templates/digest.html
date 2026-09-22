@@ -51,7 +51,7 @@
           </div>
 
           <div style="font-size:12px;color:#52525b;padding-top:4px;">
-            {{ entry.company }} &middot; {{ entry.location }} &middot; {{ entry.work_mode }}
+            {{ entry.company }} &middot; {{ entry.location }} &middot; {{ entry.work_mode | capitalize }}
             {% if entry.repeat_note %}
               &middot; <span style="color:#b45309;">{{ entry.repeat_note }}</span>
             {% endif %}
