@@ -23,9 +23,6 @@
   Scoring {{ dashboard.threshold }} or above and neither applied to nor dismissed.
   "Digests" counts how many it has been sent in since it last materially changed,
   which is the same count repeat suppression works from.
-  {% if dashboard.open_suppressed %}
-    {{ dashboard.open_suppressed }} of them the email has stopped showing.
-  {% endif %}
 </p>
 {% if dashboard.open_roles %}
   <table>
@@ -130,8 +127,7 @@
 
 <h2>Funnel</h2>
 <p class="blurb">
-  How many applications ever reached each stage, counted from the timeline rather
-  than from where they stand now. One rejected after an onsite still reached the onsite.
+  How many applications have reached each stage. One rejected after an onsite still reached the onsite.
 </p>
 {% if dashboard.applied_total %}
   <table>
