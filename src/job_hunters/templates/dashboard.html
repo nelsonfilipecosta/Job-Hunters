@@ -27,12 +27,12 @@
 {% if dashboard.open_roles %}
   <table>
     <tr>
-      <th class="num">Score</th><th>Role</th><th>Where</th>
-      <th class="num">Digests</th><th>{% if signed %}Action{% else %}&nbsp;{% endif %}</th>
+      <th class="mid">Score</th><th>Role</th><th>Where</th>
+      <th class="mid">Digests</th><th class="mid">{% if signed %}Action{% else %}&nbsp;{% endif %}</th>
     </tr>
     {% for role in dashboard.open_roles %}
       <tr>
-        <td class="num">{{ role.score }}</td>
+        <td class="mid">{{ role.score }}</td>
         <td>
           {% if role.apply_url %}
             <a href="{{ role.apply_url }}" rel="noreferrer">{{ role.title }}</a>
@@ -42,11 +42,11 @@
           <div class="meta">{{ role.company }}</div>
         </td>
         <td class="meta">{{ role.location }} &middot; {{ role.work_mode | capitalize }}</td>
-        <td class="num">
+        <td class="mid">
           {{ role.appearances }}
           {% if role.suppressed %}<span class="warn" title="The digest has stopped showing this">&#9679;</span>{% endif %}
         </td>
-        <td>
+        <td class="mid">
           {% if signed %}
             {% for link in links[role.job_id] %}
               <a href="{{ link.url }}">{{ link.label }}</a>{% if not loop.last %} &middot; {% endif %}
@@ -131,15 +131,21 @@
 </p>
 {% if dashboard.applied_total %}
   <table>
-    <tr><th>Stage</th><th class="num">Count</th><th class="num">Of applied ({{ dashboard.applied_total }})</th><th>&nbsp;</th></tr>
+    <colgroup>
+      <col><col style="width:40%;"><col style="width:14%;"><col style="width:14%;">
+    </colgroup>
+    <tr>
+      <th>Stage</th><th>&nbsp;</th>
+      <th class="num">Count</th><th class="num">Of applied ({{ dashboard.applied_total }})</th>
+    </tr>
     {% for stage in dashboard.funnel %}
       <tr>
         <td>{{ stage.label }}</td>
-        <td class="num">{{ stage.count }}</td>
-        <td class="num">{{ (stage.share_of_applied * 100) | round | int }}%</td>
-        <td style="width:40%;">
+        <td>
           <div class="bar"><span style="width:{{ (stage.share_of_applied * 100) | round(1) }}%;"></span></div>
         </td>
+        <td class="num">{{ stage.count }}</td>
+        <td class="num">{{ (stage.share_of_applied * 100) | round | int }}%</td>
       </tr>
     {% endfor %}
   </table>
