@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from conftest import FakeAdapter, make_posting
 from job_hunters.actions import Action, action_url, sign
-from job_hunters.config import ConfigError
+from job_hunters.config import ConfigError, load_search_profile
 from job_hunters.ingest import ingest_company
 from job_hunters.tables import (
     Application,
@@ -45,6 +45,7 @@ def signed(monkeypatch) -> str:
 def _job(session: Session, company: Company, title: str = "Research Scientist",
          *, score: int = 90) -> Job:
     """One ingested posting judged as the job it deduplicated to."""
+    prompt_version = load_search_profile().scoring.prompt_version
     ingest_company(
         session, company,
         FakeAdapter.returning(
@@ -59,7 +60,8 @@ def _job(session: Session, company: Company, title: str = "Research Scientist",
             source_id=posting.id, score=score, summary="A post-training role. It fits.",
             rationale="Because.", matched_areas=["RLHF"], concerns=[],
             work_authorization="eligible", location_fit=LocationFit.PRIORITY,
-            prompt_version=1, model="claude-haiku-4-5", content_hash=posting.content_hash,
+            prompt_version=prompt_version, model="claude-haiku-4-5",
+            content_hash=posting.content_hash,
         )
     )
     session.commit()
