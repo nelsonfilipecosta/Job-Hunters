@@ -533,24 +533,18 @@ def _pipeline(applications: tuple[TrackedApplication, ...]) -> dict[str, int]:
 
 
 def _funnel(applications: tuple[TrackedApplication, ...]) -> tuple[Stage, ...]:
-    """How many applications ever reached each stage.
-
-    Counted from the events and not from the current status. An application that was
-    rejected after an onsite still reached the onsite. The first stage is counted as
-    `sent` rather than from its event, so that this table and the response rate below
-    are always shares of the same number.
-    """
+    """How many applications ever reached each stage past being sent."""
     reached = {stage: 0 for stage in FUNNEL_STAGES}
     for application in applications:
         kinds = {event.event for event in application.events}
         for stage in FUNNEL_STAGES:
             if stage in kinds:
                 reached[stage] += 1
-    reached[EventKind.APPLIED] = sum(1 for a in applications if a.sent)
-    applied = reached[EventKind.APPLIED]
+    applied = sum(1 for a in applications if a.sent)
     return tuple(
         Stage(stage, count, count / applied if applied else 0.0)
         for stage, count in reached.items()
+        if stage != EventKind.APPLIED
     )
 
 

@@ -449,10 +449,12 @@ def test_the_funnel_counts_stages_reached_and_not_where_things_stand(
     session.commit()
     _advance(session, job, EventKind.RECRUITER_SCREEN, EventKind.ONSITE, EventKind.REJECTED)
 
-    reached = {stage.name: stage.count for stage in build_dashboard(session, _config(), now=NOW).funnel}
-    assert reached[EventKind.APPLIED] == 1
+    dashboard = build_dashboard(session, _config(), now=NOW)
+    reached = {stage.name: stage.count for stage in dashboard.funnel}
+    assert dashboard.applied_total == 1
     assert reached[EventKind.ONSITE] == 1
     assert reached[EventKind.OFFER] == 0
+    assert EventKind.APPLIED not in reached, "a row saying all of them were sent is always 100%"
 
 
 def test_the_funnel_share_is_measured_against_what_was_applied_to(
@@ -466,8 +468,9 @@ def test_the_funnel_share_is_measured_against_what_was_applied_to(
     session.commit()
     _advance(session, first, EventKind.RECRUITER_SCREEN)
 
-    stages = {stage.name: stage for stage in build_dashboard(session, _config(), now=NOW).funnel}
-    assert stages[EventKind.APPLIED].share_of_applied == 1.0
+    dashboard = build_dashboard(session, _config(), now=NOW)
+    stages = {stage.name: stage for stage in dashboard.funnel}
+    assert dashboard.applied_total == 2
     assert stages[EventKind.RECRUITER_SCREEN].share_of_applied == 0.5
 
 

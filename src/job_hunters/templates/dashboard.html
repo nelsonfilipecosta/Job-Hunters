@@ -135,7 +135,7 @@
 </p>
 {% if dashboard.applied_total %}
   <table>
-    <tr><th>Stage</th><th class="num">Count</th><th class="num">Of applied</th><th>&nbsp;</th></tr>
+    <tr><th>Stage</th><th class="num">Count</th><th class="num">Of applied ({{ dashboard.applied_total }})</th><th>&nbsp;</th></tr>
     {% for stage in dashboard.funnel %}
       <tr>
         <td>{{ stage.label }}</td>
