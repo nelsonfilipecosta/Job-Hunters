@@ -460,7 +460,7 @@ def test_a_job_held_back_only_by_its_authorization_says_the_location_was_fine(
     entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
     note = entry.section_note.lower()
     assert "the location qualifies" in note
-    assert "the work authorization does not" in note
+    assert "the work authorization is unclear" in note
 
 
 def test_that_answer_still_names_the_office_when_it_is_not_the_obvious_one(
@@ -477,7 +477,7 @@ def test_that_answer_still_names_the_office_when_it_is_not_the_obvious_one(
     note = entry.section_note.lower()
     assert "the location qualifies" in note
     assert "(via us)" in note, "the office that earned it is named even here"
-    assert "the work authorization does not" in note
+    assert "the work authorization is blocked" in note
 
 
 def test_every_worth_checking_entry_explains_itself(

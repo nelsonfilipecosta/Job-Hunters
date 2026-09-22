@@ -137,7 +137,10 @@ class Entry:
         if self.fit == LocationFit.UNKNOWN:
             return "Location could not be settled."
         if self.work_authorization != WorkAuthStatus.ELIGIBLE:
-            return f"The location qualifies{self._via}. The work authorization does not."
+            return (
+                f"The location qualifies{self._via}, but the work authorization "
+                f"is {self.work_authorization}."
+            )
         return f"{self.fit} via {self.matched_place}" if self._via else ""
 
     @property

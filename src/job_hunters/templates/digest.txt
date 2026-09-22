@@ -25,9 +25,6 @@ anyway: a quiet morning and a broken pipeline look identical from an empty inbox
 {% if entry.section_note %}
   {{ entry.section_note }}
 {% endif %}
-{% if entry.work_authorization != 'eligible' %}
-  Work Authorization: {{ entry.work_authorization }}
-{% endif %}
 {% if entry.repeat_note %}
   {{ entry.repeat_note }}
 {% endif %}
