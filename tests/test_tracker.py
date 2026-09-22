@@ -526,25 +526,6 @@ def test_the_response_rate_is_broken_down_by_tier(
     assert rates["bigtech"].applied == 1 and rates["bigtech"].responded == 0
 
 
-def test_tailored_and_untailored_applications_are_counted_apart(
-    session: Session, company: Company
-) -> None:
-    """The comparison only means anything if both sides were counted the same way from the start."""
-    tailored = _job(session, company, "1", "Research Scientist, One")
-    plain = _job(session, company, "2", "Research Scientist, Two")
-    for job in (tailored, plain):
-        perform(session, Action.APPLIED, job.id, now=NOW)
-    session.commit()
-    row = session.scalar(select(Application).where(Application.job_id == tailored.id))
-    row.cover_letter_path = "data/drafts/cover-letter.md"
-    session.commit()
-    _advance(session, tailored, EventKind.RECRUITER_SCREEN)
-
-    rates = {r.label: r for r in build_dashboard(session, _config(), now=NOW).by_tailoring}
-    assert rates["tailored"].applied == 1 and rates["tailored"].responded == 1
-    assert rates["not tailored"].applied == 1 and rates["not tailored"].responded == 0
-
-
 def test_a_job_the_digest_has_stopped_showing_is_still_here(
     session: Session, company: Company
 ) -> None:

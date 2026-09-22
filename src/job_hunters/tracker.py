@@ -412,7 +412,6 @@ class Dashboard:
     dismissed: int = 0
     funnel: tuple[Stage, ...] = ()
     by_source: tuple[Rate, ...] = ()
-    by_tailoring: tuple[Rate, ...] = ()
     by_tier: tuple[Rate, ...] = ()
     open_roles: tuple[OpenRole, ...] = ()
     open_total: int = 0
@@ -464,7 +463,6 @@ def build_dashboard(
         dismissed=dismissed,
         funnel=_funnel(active),
         by_source=_rates(active, lambda a: a.source),
-        by_tailoring=_rates(active, lambda a: "tailored" if a.tailored else "not tailored"),
         by_tier=_rates(active, lambda a: a.tier),
         open_roles=open_roles,
         open_total=open_total,

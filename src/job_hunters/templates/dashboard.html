@@ -154,14 +154,12 @@
 <h2>Response rate</h2>
 <p class="blurb">
   A reply of any kind, including a rejection. Being ghosted is the absence of one.
-  {% if dashboard.applied_total %}
-    Overall, {{ (dashboard.response_rate * dashboard.applied_total) | round | int }} of
-    {{ dashboard.applied_total }} answered
-    ({{ (dashboard.response_rate * 100) | round | int }}%).
-  {% endif %}
 </p>
 {% if dashboard.by_source %}
   <table>
+    <colgroup>
+      <col><col style="width:14%;"><col style="width:14%;"><col style="width:14%;">
+    </colgroup>
     <tr><th>By board</th><th class="num">Applied</th><th class="num">Answered</th><th class="num">Rate</th></tr>
     {% for row in dashboard.by_source %}
       <tr>
@@ -173,17 +171,9 @@
     {% endfor %}
   </table>
   <table style="margin-top:16px;">
-    <tr><th>By tailoring</th><th class="num">Applied</th><th class="num">Answered</th><th class="num">Rate</th></tr>
-    {% for row in dashboard.by_tailoring %}
-      <tr>
-        <td>{{ row.label }}</td>
-        <td class="num">{{ row.applied }}</td>
-        <td class="num">{{ row.responded }}</td>
-        <td class="num">{{ (row.rate * 100) | round | int }}%</td>
-      </tr>
-    {% endfor %}
-  </table>
-  <table style="margin-top:16px;">
+    <colgroup>
+      <col><col style="width:14%;"><col style="width:14%;"><col style="width:14%;">
+    </colgroup>
     <tr><th>By tier</th><th class="num">Applied</th><th class="num">Answered</th><th class="num">Rate</th></tr>
     {% for row in dashboard.by_tier %}
       <tr>
@@ -194,11 +184,6 @@
       </tr>
     {% endfor %}
   </table>
-  <p class="blurb">
-    Nothing is tailored until Phase 6 writes a CV or a cover letter, so this
-    second table has one row until then. It is here now because the comparison it
-    is for only means anything if both sides were counted the same way from the start.
-  </p>
 {% else %}
   <p class="empty">Nothing to compare until the first application is recorded.</p>
 {% endif %}
