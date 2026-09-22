@@ -1,14 +1,13 @@
-"""Tests for the review queue and the two decisions that empty it.
+"""Tests for the review queue and the three decisions that move a company through it.
 
-`approve` writes `companies_watchlist.yaml`, so every test here works on a
-copy of the real file in a temporary directory and checks that the copy still
-loads afterwards.
+Every test works on a small watchlist of its own rather than copied from `config/`,
+because these tests queue companies by name and approving one in real life would make
+the fixture and the repository's file collide.
 """
 
 from __future__ import annotations
 
 import os
-import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,7 +15,6 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from job_hunters import paths
 from job_hunters.config import CompanyEntry, load_watchlist
 from job_hunters.tables import CandidateCompany, CandidateStatus
 from job_hunters.promote import (
@@ -35,9 +33,13 @@ NOW = datetime(2026, 9, 14, 9, 0, tzinfo=UTC)
 
 @pytest.fixture
 def watchlist(tmp_path: Path) -> Path:
-    """A copy of the repository's watchlist that a test may append to."""
+    """A watchlist of its own that a test may append to."""
     target = tmp_path / "companies_watchlist.yaml"
-    shutil.copy(paths.WATCHLIST_PATH, target)
+    target.write_text(
+        "- { slug: anthropic, name: Anthropic, ats: greenhouse, token: anthropic, tier: lab }\n"
+        "- { slug: cohere, name: Cohere, ats: ashby, token: cohere, tier: lab }\n",
+        encoding="utf-8",
+    )
     return target
 
 
