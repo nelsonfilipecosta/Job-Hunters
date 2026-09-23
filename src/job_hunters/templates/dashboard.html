@@ -125,6 +125,52 @@
   </div>
 {% endfor %}
 
+{% if dashboard.dismissed_roles %}
+  <details>
+    <summary>Dismissed ({{ dashboard.dismissed_total }})</summary>
+    <p class="blurb">
+      Taken out of the open roles. Nothing was deleted and undismissing a job puts it back
+      among the open roles with the number of digest counts untouched.
+    </p>
+    <table>
+      <tr>
+        <th class="mid">Score</th><th>Role</th><th>Where</th>
+        <th class="mid">Dismissed</th><th class="mid">{% if signed %}Decision{% else %}&nbsp;{% endif %}</th>
+      </tr>
+      {% for role in dashboard.dismissed_roles %}
+        <tr>
+          <td class="mid">{{ role.score if role.score is not none else '&mdash;' | safe }}</td>
+          <td>
+            {% if role.apply_url %}
+              <a href="{{ role.apply_url }}" rel="noreferrer">{{ role.title }}</a>
+            {% else %}
+              {{ role.title }}
+            {% endif %}
+            <div class="meta">{{ role.company }}</div>
+          </td>
+          <td class="meta">{{ role.location }} &middot; {{ role.work_mode | capitalize }}</td>
+          <td class="mid meta">
+            {{ (role.dismissed_at | local(dashboard.timezone)).strftime('%d %b %Y') }}
+          </td>
+          <td class="mid">
+            {% if signed %}
+              {% for link in links[role.job_id] %}
+                <a href="{{ link.url }}">{{ link.label }}</a>{% if not loop.last %} &middot; {% endif %}
+              {% endfor %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+    {% if dashboard.dismissed_total > dashboard.dismissed_roles | length %}
+      <p class="blurb">
+        Showing the most recent {{ dashboard.dismissed_roles | length }} of
+        {{ dashboard.dismissed_total }}.
+      </p>
+    {% endif %}
+  </details>
+{% endif %}
+
 <h2>Funnel</h2>
 <p class="blurb">
   How many applications have reached each stage. One rejected after an onsite still reached the onsite.
@@ -295,7 +341,7 @@
     <summary>Rejected ({{ rejected_total }})</summary>
     <p class="blurb">
       Turned down and out of the queue. Their sightings keep counting and nothing was
-      deleted, so undoing one puts it back in the queue exactly as it was.
+      deleted, so undoing a rejection puts back the company in the queue exactly as it was.
     </p>
     <table>
       <colgroup><col><col style="width:22%;"><col style="width:10%;"><col style="width:16%;"></colgroup>

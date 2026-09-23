@@ -844,3 +844,64 @@ def test_nothing_rejected_means_no_section_at_all(
     with TestClient(app) as client:
         page = client.get("/").text
     assert "Rejected (" not in page
+
+
+def test_the_dashboard_offers_a_dismissed_job_the_two_ways_out(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """Changing your mind is either "I applied anyway" or "put it back" and nothing else."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.DISMISS, job.id)}")
+        page = client.get("/").text
+
+    section = page[page.find("Dismissed (1)"):]
+    assert "Research Scientist" in section
+    assert ">Applied</a>" in section and ">Undismiss</a>" in section
+    assert ">Dismiss</a>" not in section, "it is already dismissed"
+
+
+def test_undismissing_from_the_page_puts_the_job_back(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """The link asks first and then the job is open again."""
+    job = _job(session, company)
+    token = _token(Action.UNDISMISS, job.id)
+
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.DISMISS, job.id)}")
+        asked = client.get(f"/a/{token}").text
+        assert "Undismiss" in asked and "open roles" in asked
+        done = client.post(f"/a/{token}")
+        page = client.get("/").text
+
+    assert "Back among the open roles" in done.text
+    assert "Still Open" in done.text, "and the email's counter is unchanged, which it says"
+    assert _status(session, job.id) is None, "the row is gone, not reset"
+    assert "Dismissed (" not in page
+    assert "Research Scientist" in page[:page.find("Pipeline")], "it is an open role again"
+
+
+def test_undismissing_never_deletes_an_application(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """A forged or stale link must not be a way to discard an application and its timeline."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        refused = client.post(f"/a/{_token(Action.UNDISMISS, job.id)}")
+
+    assert "refused" in refused.text
+    assert _status(session, job.id) == ApplicationStatus.APPLIED
+
+
+def test_the_digest_links_do_not_include_undismissing(
+    session: Session, company: Company, signed: str
+) -> None:
+    """A dismissed job is not in the email, so the email has nothing to undo."""
+    from job_hunters.actions import action_links
+
+    links = action_links("http://localhost:8000", SECRET, 1, ttl_days=TTL, now=NOW)
+    assert [link.label for link in links] == [
+        "Draft CV", "Draft Cover Letter", "Applied", "Dismiss",
+    ]

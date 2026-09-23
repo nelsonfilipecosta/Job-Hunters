@@ -28,6 +28,7 @@ class Action(StrEnum):
     DRAFT_COVER_LETTER = "draft_cover_letter"
     APPLIED = "applied"
     DISMISS = "dismiss"
+    UNDISMISS = "undismiss"
 
 
 ACTION_LABELS: dict[Action, str] = {
@@ -35,7 +36,13 @@ ACTION_LABELS: dict[Action, str] = {
     Action.DRAFT_COVER_LETTER: "Draft Cover Letter",
     Action.APPLIED: "Applied",
     Action.DISMISS: "Dismiss",
+    Action.UNDISMISS: "Undismiss",
 }
+
+# What the email carries under every entry.
+DIGEST_ACTIONS: tuple[Action, ...] = (
+    Action.DRAFT_CV, Action.DRAFT_COVER_LETTER, Action.APPLIED, Action.DISMISS,
+)
 
 
 class CandidateAction(StrEnum):
@@ -168,10 +175,15 @@ def action_links(
     job_id: int,
     *,
     ttl_days: int,
-    only: tuple[Action, ...] = tuple(Action),
+    only: tuple[Action, ...] = DIGEST_ACTIONS,
     **kwargs,
 ) -> tuple[ActionLink, ...]:
-    """The signed links for one job, labelled and in the order `Action` declares them."""
+    """The signed links for one job, labelled and in the order `Action` declares them.
+
+    `only` defaults to what the email prints rather than to every member of
+    `Action`, so an action added later has to be asked for by name instead of
+    appearing under every entry.
+    """
     return tuple(
         ActionLink(
             ACTION_LABELS[action],

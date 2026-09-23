@@ -655,3 +655,97 @@ def test_the_dashboard_prints_its_times_where_the_reader_is(
     assert state.generated_at == now and state.applications[0].applied_at == clicked
     assert stamp in page and f"applied {day}" in page and f"{day} &mdash; applied" in page
     assert "UTC" not in page
+
+
+def test_undismissing_removes_the_dismissal_and_nothing_else(
+    session: Session, company: Company
+) -> None:
+    """A dismissal undone leaves nothing worth keeping, so the row goes rather than changes."""
+    job = _job(session, company)
+    perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+    assert _applications(session)[0].status == ApplicationStatus.DISMISSED
+
+    outcome = perform(session, Action.UNDISMISS, job.id, now=NOW)
+    session.commit()
+
+    assert outcome.changed
+    assert _applications(session) == [], "the job is as it was before it was dismissed"
+    state = build_dashboard(session, _config(), now=NOW)
+    assert [role.job_id for role in state.open_roles] == [job.id]
+    assert state.dismissed == 0 and state.dismissed_roles == ()
+
+
+def test_undismissing_refuses_to_delete_an_application(
+    session: Session, company: Company
+) -> None:
+    """The guard `_dismiss` applies in reverse: an applied row carries history and stays."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    outcome = perform(session, Action.UNDISMISS, job.id, now=NOW)
+    session.commit()
+
+    assert not outcome.changed and "refused" in outcome.detail
+    rows = _applications(session)
+    assert len(rows) == 1 and rows[0].status == ApplicationStatus.APPLIED
+    assert rows[0].applied_at is not None
+
+
+def test_undismissing_a_job_that_was_never_dismissed_changes_nothing(
+    session: Session, company: Company
+) -> None:
+    """A link decides from the state it finds and most jobs have no row at all."""
+    job = _job(session, company)
+    outcome = perform(session, Action.UNDISMISS, job.id, now=NOW)
+    session.commit()
+    assert not outcome.changed and _applications(session) == []
+
+
+def test_the_dashboard_lists_what_was_dismissed_with_its_score_now(
+    session: Session, company: Company
+) -> None:
+    """The score decides what undismissing would do, so it is the current one and not the old one."""
+    job = _job(session, company, score=90)
+    perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW)
+    assert state.dismissed_total == 1
+    role = state.dismissed_roles[0]
+    assert role.job_id == job.id and role.score == 90
+    assert role.dismissed_at == NOW, "`created_at` is the moment of the dismissal"
+
+
+def test_the_dismissed_list_is_capped_and_counts_the_rest(
+    session: Session, company: Company
+) -> None:
+    """Dismissals only accumulate, so the page shows the newest and says how many there are."""
+    # Titles that no fuzzy pass would read as one opening, so these stay three jobs.
+    for index, title in enumerate(("Research Scientist", "Applied Scientist", "Data Engineer")):
+        job = _job(session, company, str(index), title)
+        perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW, dismissed_limit=2)
+    assert state.dismissed_total == 3 and len(state.dismissed_roles) == 2
+
+
+def test_a_dismissed_job_is_asked_about_before_it_comes_back(
+    session: Session, company: Company
+) -> None:
+    """The confirm page and the POST read the same rule, so a page with a button can act."""
+    job = _job(session, company)
+    perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+
+    card = job_card(session, job.id, prompt_version=1)
+    confirmable, explanation = can_confirm(Action.UNDISMISS, card)
+    assert confirmable and "open roles" in explanation
+
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    applied = job_card(session, job.id, prompt_version=1)
+    refused, why = can_confirm(Action.UNDISMISS, applied)
+    assert not refused and "not a dismissal" in why

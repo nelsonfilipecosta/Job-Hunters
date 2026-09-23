@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .actions import Action
@@ -176,6 +176,17 @@ def can_confirm(action: Action, card: JobCard) -> tuple[bool, str]:
         if card.status in APPLIED_STATUSES:
             return False, f"Already recorded as {card.status}. There is nothing left to do."
         return True, "Records the application and starts its timeline."
+    if action is Action.UNDISMISS:
+        if card.status == ApplicationStatus.DISMISSED:
+            return True, (
+                "Puts it back among the open roles as though it had never been dismissed."
+            )
+        if card.status in APPLIED_STATUSES:
+            return False, (
+                f"This job is recorded as {card.status}, which is not a dismissal. "
+                f"Nothing here would undo that."
+            )
+        return False, "This job is not dismissed, so there is nothing to undo."
     if card.status == ApplicationStatus.DISMISSED:
         return False, "Already dismissed. It is not in the digest."
     if card.status in APPLIED_STATUSES:
@@ -203,7 +214,9 @@ def perform(
     application = _application_for(session, job_id)
     if action is Action.APPLIED:
         return _mark_applied(session, application, job_id, now)
-    return _dismiss(session, application, job_id)
+    if action is Action.UNDISMISS:
+        return _undismiss(session, application)
+    return _dismiss(session, application, job_id, now)
 
 
 def _mark_applied(
@@ -223,7 +236,7 @@ def _mark_applied(
             status=application.status,
         )
     if application is None:
-        application = Application(job_id=job_id)
+        application = Application(job_id=job_id, created_at=now)
         session.add(application)
     application.status = ApplicationStatus.APPLIED
     application.applied_at = now
@@ -245,7 +258,9 @@ def _mark_applied(
     )
 
 
-def _dismiss(session: Session, application: Application | None, job_id: int) -> Outcome:
+def _dismiss(
+    session: Session, application: Application | None, job_id: int, now: datetime
+) -> Outcome:
     """Takes a job out of the digest, unless it was applied to."""
     if application is not None and application.status in APPLIED_STATUSES:
         return Outcome(
@@ -266,7 +281,7 @@ def _dismiss(session: Session, application: Application | None, job_id: int) -> 
             status=ApplicationStatus.DISMISSED,
         )
     if application is None:
-        application = Application(job_id=job_id)
+        application = Application(job_id=job_id, created_at=now)
         session.add(application)
     application.status = ApplicationStatus.DISMISSED
     return Outcome(
@@ -278,6 +293,38 @@ def _dismiss(session: Session, application: Application | None, job_id: int) -> 
             "same job still works if you change your mind."
         ),
         status=ApplicationStatus.DISMISSED,
+    )
+
+
+def _undismiss(session: Session, application: Application | None) -> Outcome:
+    """Deletes a dismissal so the job is open again and refuses to delete anything else."""
+    if application is None:
+        return Outcome(
+            changed=False,
+            headline="Nothing was changed",
+            detail="This job was not dismissed, so there was nothing to undo.",
+        )
+    if application.status != ApplicationStatus.DISMISSED:
+        return Outcome(
+            changed=False,
+            headline="Nothing was changed",
+            detail=(
+                f"This job is recorded as {application.status}, which is not a dismissal. "
+                f"Undoing it would discard that record, so it was refused."
+            ),
+            status=application.status,
+        )
+    session.delete(application)
+    session.flush()
+    return Outcome(
+        changed=True,
+        headline="Back among the open roles",
+        detail=(
+            "The dismissal is gone and the job is listed again. The email counts how "
+            "many digests it has already appeared in and that count is unchanged, so a "
+            "job it had stopped showing may stay in the \"Still Open\" line until its "
+            "score or its posting changes."
+        ),
     )
 
 
@@ -315,6 +362,25 @@ class TimelineEvent:
     def label(self) -> str:
         """The event name in the words a person uses for it."""
         return self.event.replace("_", " ")
+
+
+@dataclass(frozen=True)
+class DismissedRole:
+    """One job taken out of the digest, as the dashboard lists it.
+
+    `score` is the job's score now and not what it scored when it was dismissed,
+    because it decides what undismissing would actually do. A job that has since
+    fallen below the threshold comes back to no list at all.
+    """
+
+    job_id: int
+    title: str
+    company: str
+    location: str
+    work_mode: str
+    score: int | None
+    dismissed_at: datetime
+    apply_url: str | None
 
 
 @dataclass(frozen=True)
@@ -410,6 +476,8 @@ class Dashboard:
     pipeline: dict[str, int] = field(default_factory=dict)
     applications: tuple[TrackedApplication, ...] = ()
     dismissed: int = 0
+    dismissed_roles: tuple[DismissedRole, ...] = ()
+    dismissed_total: int = 0
     funnel: tuple[Stage, ...] = ()
     by_source: tuple[Rate, ...] = ()
     by_tier: tuple[Rate, ...] = ()
@@ -444,6 +512,7 @@ def build_dashboard(
     *,
     now: datetime | None = None,
     open_limit: int = 200,
+    dismissed_limit: int = 25,
 ) -> Dashboard:
     """Counts the pipeline, the funnel and the response rates in one pass over the tables."""
     now = now or utcnow()
@@ -454,6 +523,9 @@ def build_dashboard(
     open_roles, open_total = _open_roles(
         session, profile, config.system.digest.repeat_suppression, limit=open_limit
     )
+    dismissed_roles, dismissed_total = _dismissed_roles(
+        session, profile, limit=dismissed_limit
+    )
     return Dashboard(
         generated_at=now,
         threshold=profile.scoring.threshold,
@@ -461,6 +533,8 @@ def build_dashboard(
         pipeline=_pipeline(active),
         applications=active,
         dismissed=dismissed,
+        dismissed_roles=dismissed_roles,
+        dismissed_total=dismissed_total,
         funnel=_funnel(active),
         by_source=_rates(active, lambda a: a.source),
         by_tier=_rates(active, lambda a: a.tier),
@@ -496,6 +570,41 @@ def _tracked_applications(session: Session) -> tuple[TrackedApplication, ...]:
             ),
         )
         for application, job, company_name, tier in rows
+    )
+
+
+def _dismissed_roles(
+    session: Session, profile: SearchProfile, *, limit: int
+) -> tuple[tuple[DismissedRole, ...], int]:
+    """The most recently dismissed jobs and how many there are in total."""
+    where = Application.status == ApplicationStatus.DISMISSED
+    total = session.scalar(select(func.count()).select_from(Application).where(where)) or 0
+    if not total:
+        return (), 0
+    rows = session.execute(
+        select(Application, Job, Company.name)
+        .join(Job, Application.job_id == Job.id)
+        .join(Company, Job.company_id == Company.id)
+        .where(where)
+        .order_by(Application.created_at.desc(), Application.id.desc())
+        .limit(limit)
+    ).all()
+    winners = best_scores(session, profile.scoring.prompt_version)
+    return (
+        tuple(
+            DismissedRole(
+                job_id=job.id,
+                title=job.title,
+                company=company_name,
+                location=job.location_raw or job.region,
+                work_mode=job.work_mode,
+                score=winners[job.id].score if job.id in winners else None,
+                dismissed_at=as_utc(application.created_at),
+                apply_url=job.apply_url,
+            )
+            for application, job, company_name in rows
+        ),
+        total,
     )
 
 

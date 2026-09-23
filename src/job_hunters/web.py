@@ -78,13 +78,17 @@ log = logging.getLogger("job_hunters.web")
 # reach an honest page from the email, but there is no reason to print one here.
 DASHBOARD_ACTIONS: tuple[Action, ...] = (Action.APPLIED, Action.DISMISS)
 
-# A company with no board found cannot be approved, so it is only offered the
-# decision it can take.
+# The options offered to a dismissed posting.
+DISMISSED_ACTIONS: tuple[Action, ...] = (Action.APPLIED, Action.UNDISMISS)
+
+# The options offered for a discovered company with no dashboard.
 REJECT_ONLY: tuple[CandidateAction, ...] = (CandidateAction.REJECT,)
 
-# A rejected company is offered the way back and nothing else. Approving one is
-# refused while it is rejected, so an Approve link there would be a dead end.
+# The options offered for a discovered company that was already rejected.
 UNDO_ONLY: tuple[CandidateAction, ...] = (CandidateAction.UNREJECT,)
+
+# How many dismissed jobs the dashnoard lists.
+DISMISSED_SHOWN = 25
 
 # How many rejections the dashboard lists.
 REJECTED_SHOWN = 25
@@ -135,7 +139,7 @@ def dashboard(expired: str | None = None) -> HTMLResponse:
     config = load_all()
     secret = config.secrets.optional("action_token_secret")
     with session_scope() as session:
-        state = build_dashboard(session, config)
+        state = build_dashboard(session, config, dismissed_limit=DISMISSED_SHOWN)
         # `review_queue` reconciles against `companies_watchlist.yaml` first, so a
         # company approved elsewhere has already left the queue by the time it is drawn.
         queue = tuple(queued(candidate) for candidate in review_queue(session))
@@ -146,6 +150,10 @@ def dashboard(expired: str | None = None) -> HTMLResponse:
     if secret:
         links = {role.job_id: _links_for(config, secret, role.job_id)
                  for role in state.open_roles}
+        links |= {
+            role.job_id: _links_for(config, secret, role.job_id, only=DISMISSED_ACTIONS)
+            for role in state.dismissed_roles
+        }
         decisions = {entry.id: _decisions_for(config, secret, entry) for entry in queue}
         decisions |= {
             entry.id: candidate_links(
@@ -444,14 +452,19 @@ def _resolve(config: AppConfig, token: str) -> SignedAction | Response:
         )
 
 
-def _links_for(config: AppConfig, secret: str, job_id: int) -> tuple[ActionLink, ...]:
-    """The signed links printed beside one role on the dashboard."""
+def _links_for(
+    config: AppConfig,
+    secret: str,
+    job_id: int,
+    only: tuple[Action, ...] = DASHBOARD_ACTIONS,
+) -> tuple[ActionLink, ...]:
+    """The signed links printed beside one job on the dashboard."""
     return action_links(
         config.system.base_url,
         secret,
         job_id,
         ttl_days=config.system.actions.token_ttl_days,
-        only=DASHBOARD_ACTIONS,
+        only=only,
     )
 
 
