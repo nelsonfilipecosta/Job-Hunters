@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from conftest import FakeAdapter, make_posting
 from job_hunters.actions import Action, CandidateAction, action_url, sign, sign_candidate
-from job_hunters.config import ConfigError, load_search_profile
+from job_hunters.config import ConfigError, load_all, load_search_profile
 from job_hunters.ingest import ingest_company
 from job_hunters.normalize import normalize_company
 from job_hunters.tables import (
@@ -905,3 +906,95 @@ def test_the_digest_links_do_not_include_undismissing(
     assert [link.label for link in links] == [
         "Draft CV", "Draft Cover Letter", "Applied", "Dismiss",
     ]
+
+
+def test_an_application_card_offers_to_add_an_event(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """The tracker measures a process that nothing else can record a step of."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        page = client.get("/").text
+
+    assert ">Add an event</a>" in page
+
+
+def test_the_event_form_offers_every_step_and_todays_date(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """A date field carries no time, so the day offered is the day where the reader is."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        page = client.get(f"/a/{_token(Action.ADD_EVENT, job.id)}").text
+
+    for kind in ("recruiter_screen", "technical", "onsite", "offer", "rejected", "note"):
+        assert f'value="{kind}"' in page
+    today = datetime.now(ZoneInfo(load_all().system.timezone)).date().isoformat()
+    assert f'name="occurred_on" value="{today}"' in page
+    assert "applied" in page, "the timeline so far is on the page it is added to"
+
+
+def test_recording_a_step_writes_it_and_says_where_the_application_stands(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """The point of the form is that the funnel and the pipeline have something to read."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        done = client.post(
+            f"/a/{_token(Action.ADD_EVENT, job.id)}",
+            data={"event": "recruiter_screen", "occurred_on": "2026-09-20",
+                  "notes": "Twenty minutes, mostly logistics."},
+        )
+        page = client.get("/").text
+
+    assert "Recorded: recruiter screen" in done.text and "in_process" in done.text
+    assert _status(session, job.id) == ApplicationStatus.IN_PROCESS
+    assert "Twenty minutes, mostly logistics." in page
+    assert "20 Sep 2026" in page, "the date a reader picked is the date they are shown"
+
+
+def test_a_refused_step_comes_back_as_the_same_form(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """Another date or another step would work, so this is a question and not a dead end."""
+    job = _job(session, company)
+    token = _token(Action.ADD_EVENT, job.id)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        client.post(f"/a/{token}", data={"event": "offer", "occurred_on": "2026-09-20"})
+        again = client.post(f"/a/{token}", data={"event": "offer", "occurred_on": "2026-09-28"})
+
+    assert "only happens once" in again.text
+    assert 'name="event"' in again.text and 'value="2026-09-28"' in again.text
+
+
+def test_a_date_that_is_not_a_date_changes_nothing(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """A browser sends a date field, but a hand-made post can send anything."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        answer = client.post(
+            f"/a/{_token(Action.ADD_EVENT, job.id)}",
+            data={"event": "technical", "occurred_on": "last tuesday"},
+        )
+
+    assert "not a date" in answer.text
+    assert _status(session, job.id) == ApplicationStatus.APPLIED
+
+
+def test_the_form_says_so_when_there_is_no_application_to_add_to(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """A link kept from a job later dismissed opens a page that explains rather than a form."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.DISMISS, job.id)}")
+        page = client.get(f"/a/{_token(Action.ADD_EVENT, job.id)}").text
+
+    assert "no application here to add to" in page
+    assert 'name="event"' not in page

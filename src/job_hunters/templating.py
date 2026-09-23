@@ -7,7 +7,7 @@ holds both halves of the digest email and the pages the web application serves.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, date, datetime
 from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -38,6 +38,13 @@ def environment() -> Environment:
 def to_local(moment: datetime, timezone: str) -> datetime:
     """The same instant expressed in the configured timezone (for display only)."""
     return moment.astimezone(ZoneInfo(timezone))
+
+
+def from_local_date(day: str, timezone: str) -> datetime:
+    """A date a reader typed is read as noon where they are and stored in UTC."""
+    chosen = date.fromisoformat(day)
+    local = datetime(chosen.year, chosen.month, chosen.day, 12, tzinfo=ZoneInfo(timezone))
+    return local.astimezone(UTC)
 
 
 def render(template: str, **context) -> str:

@@ -5,14 +5,15 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
+from conftest import FakeAdapter, make_posting
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from conftest import FakeAdapter, make_posting
 from job_hunters.actions import Action
-from job_hunters.config import AppConfig, Secrets, SearchProfile, SystemConfig
+from job_hunters.config import AppConfig, SearchProfile, Secrets, SystemConfig
 from job_hunters.digest import build_digest
 from job_hunters.ingest import ingest_company
+from job_hunters.sources import replay_posting
 from job_hunters.tables import (
     Application,
     ApplicationEvent,
@@ -26,7 +27,6 @@ from job_hunters.tables import (
     LocationFit,
     Score,
 )
-from job_hunters.sources import replay_posting
 from job_hunters.templating import render
 from job_hunters.tracker import (
     UnknownJob,
@@ -34,6 +34,8 @@ from job_hunters.tracker import (
     can_confirm,
     job_card,
     perform,
+    record_event,
+    timeline,
 )
 
 NOW = datetime(2026, 9, 9, 6, 0, tzinfo=UTC)
@@ -648,7 +650,7 @@ def test_the_dashboard_prints_its_times_where_the_reader_is(
     state = build_dashboard(session, config, now=now)
     page = render(
         "dashboard.html", dashboard=state, links={}, signed=False, expired=False,
-        discovered=(), boardless=(), rejected=(), rejected_total=0, decisions={},
+        discovered=(), boardless=(), rejected=(), rejected_total=0, decisions={}, events={},
         ingest_schedule="every 2h",
     )
 
@@ -749,3 +751,129 @@ def test_a_dismissed_job_is_asked_about_before_it_comes_back(
     applied = job_card(session, job.id, prompt_version=1)
     refused, why = can_confirm(Action.UNDISMISS, applied)
     assert not refused and "not a dismissal" in why
+
+
+def test_an_event_lands_on_the_timeline_and_moves_the_status(
+    session: Session, company: Company
+) -> None:
+    """The funnel reads events and the pipeline reads the status, so one write feeds both."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    outcome = record_event(session, job.id, EventKind.RECRUITER_SCREEN, NOW + timedelta(days=3))
+    session.commit()
+
+    assert outcome.changed and outcome.status == ApplicationStatus.IN_PROCESS
+    steps = timeline(session, job.id)
+    assert [step.event for step in steps] == [EventKind.APPLIED, EventKind.RECRUITER_SCREEN]
+    state = build_dashboard(session, _config(), now=NOW)
+    assert state.pipeline == {ApplicationStatus.IN_PROCESS: 1}
+    assert {stage.name: stage.count for stage in state.funnel}[EventKind.RECRUITER_SCREEN] == 1
+
+
+def test_a_note_is_dated_without_claiming_the_process_moved(
+    session: Session, company: Company
+) -> None:
+    """Something worth remembering is not a step, so the status stays where it was."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    outcome = record_event(session, job.id, EventKind.NOTE, NOW, "Referred by a friend.")
+    session.commit()
+
+    assert outcome.changed and outcome.status == ApplicationStatus.APPLIED
+    assert timeline(session, job.id)[-1].notes == "Referred by a friend."
+
+
+def test_a_note_can_be_added_as_often_as_there_is_something_to_say(
+    session: Session, company: Company
+) -> None:
+    """Notes are the one kind with nothing to be duplicated: two on one day is two notes."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    assert record_event(session, job.id, EventKind.NOTE, NOW, "First.").changed
+    assert record_event(session, job.id, EventKind.NOTE, NOW, "Second.").changed
+    session.commit()
+    assert len(timeline(session, job.id)) == 3
+
+
+def test_a_step_that_repeats_is_refused_only_on_a_day_it_already_has(
+    session: Session, company: Company
+) -> None:
+    """Two technical rounds are two events and one clicked twice is one."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    assert record_event(session, job.id, EventKind.TECHNICAL, NOW).changed
+    again = record_event(session, job.id, EventKind.TECHNICAL, NOW + timedelta(hours=2))
+    assert not again.changed and "already recorded on that date" in again.detail
+
+    later = record_event(session, job.id, EventKind.TECHNICAL, NOW + timedelta(days=7))
+    session.commit()
+    assert later.changed, "a second round a week later is a second event"
+    assert len(timeline(session, job.id)) == 3
+
+
+def test_a_step_that_ends_a_process_is_refused_outright(
+    session: Session, company: Company
+) -> None:
+    """An offer happens once, so a second one is a double-click and not a second offer."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    assert record_event(session, job.id, EventKind.OFFER, NOW).changed
+    again = record_event(session, job.id, EventKind.OFFER, NOW + timedelta(days=30))
+    session.commit()
+
+    assert not again.changed and "only happens once" in again.detail
+    assert len(timeline(session, job.id)) == 2
+
+
+def test_the_last_event_decides_the_status_and_the_funnel_keeps_the_rest(
+    session: Session, company: Company
+) -> None:
+    """A rejection after an onsite still reached the onsite, which is what the funnel is for."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    record_event(session, job.id, EventKind.ONSITE, NOW + timedelta(days=5))
+    record_event(session, job.id, EventKind.REJECTED, NOW + timedelta(days=9))
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW)
+    assert state.pipeline == {ApplicationStatus.REJECTED: 1}
+    reached = {stage.name: stage.count for stage in state.funnel}
+    assert reached[EventKind.ONSITE] == 1
+    assert state.applications[0].responded, "a rejection is still an answer"
+
+
+def test_there_has_to_be_an_application_to_add_to(session: Session, company: Company) -> None:
+    """A job nobody applied to has no timeline and a dismissed one is not a process."""
+    job = _job(session, company)
+    nothing = record_event(session, job.id, EventKind.RECRUITER_SCREEN, NOW)
+    assert not nothing.changed and "no application here" in nothing.detail
+
+    perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+    dismissed = record_event(session, job.id, EventKind.RECRUITER_SCREEN, NOW)
+    assert not dismissed.changed
+    assert timeline(session, job.id) == ()
+
+
+def test_a_step_this_tracker_does_not_know_is_refused(
+    session: Session, company: Company
+) -> None:
+    """The form offers a fixed list, so anything else arrived from somewhere it should not."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    outcome = record_event(session, job.id, "promoted_to_cto", NOW)
+    session.commit()
+    assert not outcome.changed and len(timeline(session, job.id)) == 1

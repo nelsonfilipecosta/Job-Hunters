@@ -1,0 +1,85 @@
+{# Adding one dated step to an application's timeline.
+
+   The form is here rather than on the dashboard card for the same reason every
+   other action has a page: a GET changes nothing and the page has room to show
+   what is already recorded so the step being added is one you have not added.
+#}
+{% extends "page.html" %}
+{% block title %}Add an event — {{ card.title }}{% endblock %}
+{% block content %}
+
+<h2>Add an event</h2>
+<p class="blurb">Nothing has changed yet.</p>
+
+{% if refusal %}
+  <div class="banner">{{ refusal }}</div>
+{% endif %}
+
+<div class="card">
+  <div style="font-size:15px;font-weight:600;">
+    {% if card.apply_url %}
+      <a href="{{ card.apply_url }}" rel="noreferrer">{{ card.title }}</a>
+    {% else %}
+      {{ card.title }}
+    {% endif %}
+  </div>
+  <div class="meta" style="padding-top:4px;">
+    {{ card.company }} &middot; {{ card.location }} &middot; {{ card.work_mode | capitalize }}
+    {% if card.status %}&middot; <span class="pill">{{ card.status }}</span>{% endif %}
+  </div>
+  {% if timeline %}
+    <ol class="timeline">
+      {% for step in timeline %}
+        <li>
+          {{ (step.occurred_at | local(timezone)).strftime('%d %b %Y') }} &mdash; {{ step.label }}
+          {% if step.notes %}<span class="meta">{{ step.notes }}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+</div>
+
+{% if confirmable %}
+  <p class="blurb">
+    The step you record moves the application with it: a screen, a technical round or
+    an onsite puts it in process, while an offer, a rejection, a withdrawal or being
+    ghosted ends it. A note dates something worth remembering and moves nothing.
+    Nothing here is ever edited or deleted, so a mistake is corrected by recording
+    what happened next.
+  </p>
+  <form method="post" action="/a/{{ token }}">
+    <table>
+      <colgroup><col style="width:18%;"><col></colgroup>
+      <tr>
+        <th>Step</th>
+        <td>
+          <select name="event">
+            {% for kind in kinds %}
+              <option value="{{ kind }}"{% if kind == event %} selected{% endif %}>{{ kind.replace('_', ' ') }}</option>
+            {% endfor %}
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <th>Date</th>
+        <td><input type="date" name="occurred_on" value="{{ occurred_on }}"></td>
+      </tr>
+      <tr>
+        <th>Note</th>
+        <td><input type="text" name="notes" value="{{ notes }}" size="48" placeholder="optional"></td>
+      </tr>
+    </table>
+    <div class="actions" style="padding-top:16px;">
+      <button type="submit">Record</button>
+      <a href="/">Cancel</a>
+    </div>
+  </form>
+{% else %}
+  <p>
+    There is no application here to add to. A timeline starts when a job is marked
+    applied and a dismissed job has none.
+  </p>
+  <div class="actions"><a href="/">Back to the dashboard</a></div>
+{% endif %}
+
+{% endblock %}

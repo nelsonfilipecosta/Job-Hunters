@@ -29,6 +29,7 @@ class Action(StrEnum):
     APPLIED = "applied"
     DISMISS = "dismiss"
     UNDISMISS = "undismiss"
+    ADD_EVENT = "add_event"
 
 
 ACTION_LABELS: dict[Action, str] = {
@@ -37,6 +38,7 @@ ACTION_LABELS: dict[Action, str] = {
     Action.APPLIED: "Applied",
     Action.DISMISS: "Dismiss",
     Action.UNDISMISS: "Undismiss",
+    Action.ADD_EVENT: "Add an Event",
 }
 
 # What the email carries under every entry.

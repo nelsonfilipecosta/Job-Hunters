@@ -109,19 +109,26 @@
         &middot; <span class="good">answered</span>
       {% endif %}
     </div>
-    {% if application.events %}
-      <details{% if application.events | length > 1 %} open{% endif %}>
-        <summary>{{ application.events | length }} event(s)</summary>
-        <ol class="timeline">
-          {% for event in application.events %}
-            <li>
-              {{ (event.occurred_at | local(dashboard.timezone)).strftime('%d %b %Y') }} &mdash; {{ event.label }}
-              {% if event.notes %}<span class="meta">{{ event.notes }}</span>{% endif %}
-            </li>
-          {% endfor %}
-        </ol>
-      </details>
-    {% endif %}
+    <div class="row">
+      <div>
+        {% if application.events %}
+          <details{% if application.events | length > 1 %} open{% endif %}>
+            <summary>{{ application.events | length }} event(s)</summary>
+            <ol class="timeline">
+              {% for event in application.events %}
+                <li>
+                  {{ (event.occurred_at | local(dashboard.timezone)).strftime('%d %b %Y') }} &mdash; {{ event.label }}
+                  {% if event.notes %}<span class="meta">{{ event.notes }}</span>{% endif %}
+                </li>
+              {% endfor %}
+            </ol>
+          </details>
+        {% endif %}
+      </div>
+      {% if signed %}
+        <a class="meta" href="{{ events[application.job_id] }}">Add an event</a>
+      {% endif %}
+    </div>
   </div>
 {% endfor %}
 

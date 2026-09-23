@@ -59,6 +59,32 @@ FUNNEL_STAGES: tuple[str, ...] = (
     EventKind.ONSITE, EventKind.OFFER,
 )
 
+# What recording one event does to the application's status. A `note` is the
+# exception: it dates something worth remembering without claiming the process
+# moved. The last event recorded wins, so a rejection after an offer leaves the
+# status `rejected` while the funnel still shows the offer was reached.
+EVENT_STATUS: dict[str, str] = {
+    EventKind.APPLIED: ApplicationStatus.APPLIED,
+    EventKind.RECRUITER_SCREEN: ApplicationStatus.IN_PROCESS,
+    EventKind.TECHNICAL: ApplicationStatus.IN_PROCESS,
+    EventKind.ONSITE: ApplicationStatus.IN_PROCESS,
+    EventKind.OFFER: ApplicationStatus.OFFER,
+    EventKind.REJECTED: ApplicationStatus.REJECTED,
+    EventKind.WITHDRAWN: ApplicationStatus.WITHDRAWN,
+    EventKind.GHOSTED: ApplicationStatus.GHOSTED,
+}
+
+# Terminal events are idempotent. Clicking on them twice changes nothing.
+TERMINAL_EVENTS: frozenset[str] = frozenset(
+    {EventKind.OFFER, EventKind.REJECTED, EventKind.WITHDRAWN, EventKind.GHOSTED}
+)
+
+# The steps a process can genuinely repeat (e.g., two technical rounds). These
+# are idempotent if clicked twice on the same day.
+REPEATABLE_EVENTS: frozenset[str] = frozenset(
+    {EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL, EventKind.ONSITE}
+)
+
 # What counts as somebody at the company answering.
 RESPONSE_EVENTS: frozenset[str] = frozenset(
     {EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL, EventKind.ONSITE,
@@ -326,6 +352,103 @@ def _undismiss(session: Session, application: Application | None) -> Outcome:
             "score or its posting changes."
         ),
     )
+
+
+def timeline(session: Session, job_id: int) -> tuple[TimelineEvent, ...]:
+    """What is already recorded against one job (oldest first)."""
+    application = _application_for(session, job_id)
+    if application is None:
+        return ()
+    return tuple(
+        TimelineEvent(event.event, as_utc(event.occurred_at), event.notes)
+        for event in application.events
+    )
+
+
+def record_event(
+    session: Session,
+    job_id: int,
+    event: str,
+    occurred_at: datetime,
+    notes: str | None = None,
+) -> Outcome:
+    """Adds one dated step to an application's timeline and moves its status with it.
+
+    Refuses rather than writes when there is nothing to add to, when the event is
+    not one this project knows and when the same step is already recorded (except for
+    the steps that can genuinely repeat - these are refused only if clicked twice on
+    the same day). Events are never edited or removed, so a mistake is corrected by
+    recording what actually happened next.
+    """
+    if event not in set(EventKind):
+        return Outcome(changed=False, headline="Nothing was changed",
+                       detail=f"{event!r} is not a step this tracker knows.")
+    application = _application_for(session, job_id)
+    if application is None or application.status == ApplicationStatus.DISMISSED:
+        return Outcome(
+            changed=False,
+            headline="Nothing was changed",
+            detail=(
+                "There is no application here to add to. Mark the job applied first."
+                "and its timeline starts with that."
+            ),
+            status=application.status if application is not None else None,
+        )
+    clash = _duplicate_event(session, application.id, event, occurred_at)
+    if clash is not None:
+        return Outcome(
+            changed=False, headline="Already recorded", detail=clash,
+            status=application.status,
+        )
+
+    session.add(
+        ApplicationEvent(
+            application_id=application.id, event=event, occurred_at=occurred_at,
+            notes=(notes or "").strip() or None,
+        )
+    )
+    moved = EVENT_STATUS.get(event)
+    if moved is not None:
+        application.status = moved
+        if event == EventKind.APPLIED and application.applied_at is None:
+            application.applied_at = occurred_at
+    session.flush()
+    return Outcome(
+        changed=True,
+        headline=f"Recorded: {event.replace('_', ' ')}",
+        detail=(
+            "It is on the timeline and counts towards the funnel."
+            if moved is None
+            else f"It is on the timeline, and the application now stands at {moved}."
+        ),
+        status=application.status,
+    )
+
+
+def _duplicate_event(
+    session: Session, application_id: int, event: str, occurred_at: datetime
+) -> str | None:
+    """Why this step is already recorded or None when it may be added."""
+    existing = session.scalars(
+        select(ApplicationEvent).where(
+            ApplicationEvent.application_id == application_id,
+            ApplicationEvent.event == event,
+        )
+    ).all()
+    if not existing:
+        return None
+    label = event.replace("_", " ")
+    if event in REPEATABLE_EVENTS:
+        day = as_utc(occurred_at).date()
+        if any(as_utc(row.occurred_at).date() == day for row in existing):
+            return (
+                f"A {label} is already recorded on that date. A second one on another "
+                f"day is fine - two technical rounds are two events."
+            )
+        return None
+    if event == EventKind.NOTE:
+        return None
+    return f"This application already has a {label} and it only happens once."
 
 
 def _application_for(session: Session, job_id: int) -> Application | None:

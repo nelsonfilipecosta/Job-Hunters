@@ -59,10 +59,12 @@ from .promote import (
     review_queue,
     unreject,
 )
-from .tables import CandidateCompany, CandidateStatus, Tier
-from .templating import render
+from .tables import CandidateCompany, CandidateStatus, Tier, utcnow
+from .templating import from_local_date, render, to_local
 from .tiering import suggest_tier
 from .tracker import (
+    ApplicationStatus,
+    EventKind,
     JobCard,
     Outcome,
     UnknownJob,
@@ -70,6 +72,8 @@ from .tracker import (
     can_confirm,
     job_card,
     perform,
+    record_event,
+    timeline,
 )
 
 log = logging.getLogger("job_hunters.web")
@@ -147,12 +151,19 @@ def dashboard(expired: str | None = None) -> HTMLResponse:
         turned_down = tuple(queued(candidate) for candidate in turned_down)
     links: dict[int, tuple[ActionLink, ...]] = {}
     decisions: dict[int, tuple[ActionLink, ...]] = {}
+    events: dict[int, str] = {}
     if secret:
         links = {role.job_id: _links_for(config, secret, role.job_id)
                  for role in state.open_roles}
         links |= {
             role.job_id: _links_for(config, secret, role.job_id, only=DISMISSED_ACTIONS)
             for role in state.dismissed_roles
+        }
+        events = {
+            application.job_id: _links_for(
+                config, secret, application.job_id, only=(Action.ADD_EVENT,)
+            )[0].url
+            for application in state.applications
         }
         decisions = {entry.id: _decisions_for(config, secret, entry) for entry in queue}
         decisions |= {
@@ -167,6 +178,7 @@ def dashboard(expired: str | None = None) -> HTMLResponse:
             "dashboard.html",
             dashboard=state,
             links=links,
+            events=events,
             signed=bool(secret),
             expired=expired is not None,
             discovered=tuple(entry for entry in queue if entry.has_board),
@@ -193,6 +205,9 @@ def confirm(token: str) -> Response:
         except UnknownJob:
             return _gone(resolved.job_id)
 
+    if resolved.action is Action.ADD_EVENT:
+        return _event_page(config, card, token)
+
     confirmable, explanation = can_confirm(resolved.action, card)
     return HTMLResponse(
         render(
@@ -208,12 +223,15 @@ def confirm(token: str) -> Response:
 
 
 @app.post("/a/{token}", response_class=HTMLResponse)
-def execute(token: str) -> Response:
+async def execute(request: Request, token: str) -> Response:
     """Carries out one confirmed action. Posting the same link twice changes nothing."""
     config = load_all()
     resolved = _resolve(config, token)
     if not isinstance(resolved, SignedAction):
         return resolved
+    if resolved.action is Action.ADD_EVENT:
+        form = dict(parse_qsl((await request.body()).decode("utf-8")))
+        return _record_event(config, resolved.job_id, form, token)
 
     try:
         card, outcome = _act(config, resolved)
@@ -410,6 +428,72 @@ def _candidate_page(
             suggested=suggestion is not None,
         )
     )
+
+
+def _event_page(
+    config: AppConfig,
+    card: JobCard,
+    token: str,
+    *,
+    refusal: str | None = None,
+    chosen: dict[str, str] | None = None,
+) -> HTMLResponse:
+    """The form that adds one step to a timeline with the timeline for context."""
+    chosen = chosen or {}
+    with session_scope() as session:
+        steps = timeline(session, card.job_id)
+    today = to_local(utcnow(), config.system.timezone).date().isoformat()
+    return HTMLResponse(
+        render(
+            "event.html",
+            card=card,
+            token=token,
+            timeline=steps,
+            timezone=config.system.timezone,
+            kinds=[kind.value for kind in EventKind],
+            event=chosen.get("event") or EventKind.RECRUITER_SCREEN.value,
+            occurred_on=chosen.get("occurred_on") or today,
+            notes=chosen.get("notes", ""),
+            refusal=refusal,
+            confirmable=card.status is not None
+            and card.status != ApplicationStatus.DISMISSED,
+        )
+    )
+
+
+def _record_event(
+    config: AppConfig, job_id: int, form: dict[str, str], token: str
+) -> Response:
+    """Writes one timeline event or hands the form back with what was wrong."""
+    day = (form.get("occurred_on") or "").strip()
+    try:
+        occurred_at = from_local_date(day, config.system.timezone)
+    except ValueError:
+        occurred_at = None
+
+    with session_scope() as session:
+        try:
+            card = job_card(session, job_id, config.search_profile.scoring.prompt_version)
+        except UnknownJob:
+            return _gone(job_id)
+        if occurred_at is None:
+            outcome = Outcome(
+                changed=False,
+                headline="Nothing was changed",
+                detail=f"{day!r} is not a date this page can read.",
+                status=card.status,
+            )
+        else:
+            outcome = record_event(
+                session, job_id, form.get("event", ""), occurred_at, form.get("notes")
+            )
+        if not outcome.changed:
+            # Fixable at the same page: another date, another step or nothing at all.
+            return _event_page(config, card, token, refusal=outcome.detail, chosen=form)
+        card = job_card(session, job_id, config.search_profile.scoring.prompt_version)
+
+    log.info("event %s on job %s: %s", form.get("event"), job_id, outcome.headline)
+    return HTMLResponse(render("outcome.html", card=card, outcome=outcome))
 
 
 def _act(config: AppConfig, resolved: SignedAction) -> tuple[JobCard, Outcome]:
