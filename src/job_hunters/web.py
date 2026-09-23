@@ -55,6 +55,7 @@ from .promote import (
     approve,
     queued,
     reject,
+    rejected,
     review_queue,
     unreject,
 )
@@ -73,13 +74,20 @@ from .tracker import (
 
 log = logging.getLogger("job_hunters.web")
 
-# The two  actions the tracker can carry out today. Drafting is Phase 6 and its links
+# The two actions the tracker can carry out today. Drafting is Phase 6 and its links
 # reach an honest page from the email, but there is no reason to print one here.
 DASHBOARD_ACTIONS: tuple[Action, ...] = (Action.APPLIED, Action.DISMISS)
 
 # A company with no board found cannot be approved, so it is only offered the
 # decision it can take.
 REJECT_ONLY: tuple[CandidateAction, ...] = (CandidateAction.REJECT,)
+
+# A rejected company is offered the way back and nothing else. Approving one is
+# refused while it is rejected, so an Approve link there would be a dead end.
+UNDO_ONLY: tuple[CandidateAction, ...] = (CandidateAction.UNREJECT,)
+
+# How many rejections the dashboard lists.
+REJECTED_SHOWN = 25
 
 # Redirect after a POST and the status that means "look over there instead".
 SEE_OTHER = 303
@@ -131,12 +139,21 @@ def dashboard(expired: str | None = None) -> HTMLResponse:
         # `review_queue` reconciles against `companies_watchlist.yaml` first, so a
         # company approved elsewhere has already left the queue by the time it is drawn.
         queue = tuple(queued(candidate) for candidate in review_queue(session))
+        turned_down, rejected_total = rejected(session, limit=REJECTED_SHOWN)
+        turned_down = tuple(queued(candidate) for candidate in turned_down)
     links: dict[int, tuple[ActionLink, ...]] = {}
     decisions: dict[int, tuple[ActionLink, ...]] = {}
     if secret:
         links = {role.job_id: _links_for(config, secret, role.job_id)
                  for role in state.open_roles}
         decisions = {entry.id: _decisions_for(config, secret, entry) for entry in queue}
+        decisions |= {
+            entry.id: candidate_links(
+                config.system.base_url, secret, entry.id,
+                ttl_days=config.system.actions.token_ttl_days, only=UNDO_ONLY,
+            )
+            for entry in turned_down
+        }
     return HTMLResponse(
         render(
             "dashboard.html",
@@ -146,6 +163,8 @@ def dashboard(expired: str | None = None) -> HTMLResponse:
             expired=expired is not None,
             discovered=tuple(entry for entry in queue if entry.has_board),
             boardless=tuple(entry for entry in queue if not entry.has_board),
+            rejected=turned_down,
+            rejected_total=rejected_total,
             decisions=decisions,
             ingest_schedule=config.system.schedules.ingest,
         )

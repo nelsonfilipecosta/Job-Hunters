@@ -648,7 +648,8 @@ def test_the_dashboard_prints_its_times_where_the_reader_is(
     state = build_dashboard(session, config, now=now)
     page = render(
         "dashboard.html", dashboard=state, links={}, signed=False, expired=False,
-        discovered=(), boardless=(), decisions={}, ingest_schedule="every 2h",
+        discovered=(), boardless=(), rejected=(), rejected_total=0, decisions={},
+        ingest_schedule="every 2h",
     )
 
     assert state.generated_at == now and state.applications[0].applied_at == clicked

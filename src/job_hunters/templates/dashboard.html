@@ -290,4 +290,51 @@
   </details>
 {% endif %}
 
+{% if rejected %}
+  <details>
+    <summary>Rejected ({{ rejected_total }})</summary>
+    <p class="blurb">
+      Turned down and out of the queue. Their sightings keep counting and nothing was
+      deleted, so undoing one puts it back in the queue exactly as it was.
+    </p>
+    <table>
+      <colgroup><col><col style="width:22%;"><col style="width:10%;"><col style="width:16%;"></colgroup>
+      <tr>
+        <th>Company</th><th>Board</th>
+        <th class="mid">Sightings</th><th class="mid">{% if signed %}Decision{% else %}&nbsp;{% endif %}</th>
+      </tr>
+      {% for entry in rejected %}
+        <tr>
+          <td>
+            {% if entry.page_url %}
+              <a href="{{ entry.page_url }}" rel="noreferrer">{{ entry.name }}</a>
+            {% else %}
+              {{ entry.name }}
+            {% endif %}
+            {% if entry.decided_at %}
+              <span class="meta">
+                &middot; rejected {{ (entry.decided_at | local(dashboard.timezone)).strftime('%d %b %Y') }}
+              </span>
+            {% endif %}
+          </td>
+          <td class="meta">{% if entry.has_board %}{{ entry.ats }} {{ entry.token }}{% endif %}</td>
+          <td class="mid">{{ entry.sightings }}</td>
+          <td class="mid">
+            {% if signed %}
+              {% for link in decisions[entry.id] %}
+                <a href="{{ link.url }}">{{ link.label }}</a>
+              {% endfor %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+    {% if rejected_total > rejected | length %}
+      <p class="blurb">
+        Showing the most recent {{ rejected | length }} of {{ rejected_total }}.
+      </p>
+    {% endif %}
+  </details>
+{% endif %}
+
 {% endblock %}

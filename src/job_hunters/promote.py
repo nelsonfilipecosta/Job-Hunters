@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import paths
@@ -86,6 +86,7 @@ class Queued:
     sightings: int
     sources: tuple[str, ...]
     seen: tuple[tuple[str, str], ...]
+    decided_at: datetime | None = None
 
     @property
     def has_board(self) -> bool:
@@ -114,7 +115,21 @@ def queued(candidate: CandidateCompany) -> Queued:
             for item in evidence[-2:]
             if item.get("title")
         ),
+        decided_at=candidate.decided_at,
     )
+
+
+def rejected(session: Session, limit: int = 25) -> tuple[list[CandidateCompany], int]:
+    """The most recently rejected companies and how many there are in total."""
+    where = CandidateCompany.status == CandidateStatus.REJECTED
+    total = session.scalar(select(func.count()).select_from(CandidateCompany).where(where)) or 0
+    rows = session.scalars(
+        select(CandidateCompany)
+        .where(where)
+        .order_by(CandidateCompany.decided_at.desc(), CandidateCompany.id.desc())
+        .limit(limit)
+    ).all()
+    return list(rows), total
 
 
 def find_candidate(session: Session, ref: str) -> CandidateCompany:

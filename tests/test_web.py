@@ -699,7 +699,8 @@ def test_rejecting_from_the_page_takes_it_out_of_the_queue(
 
     assert done.status_code == 200 and "rejected" in done.text.lower()
     assert _decided(session, row.id).status == CandidateStatus.REJECTED
-    assert "Tufalabs" not in page
+    assert "No Board Found" not in page, "it has left the queue"
+    assert "Rejected (1)" in page and ">Undo</a>" in page, "and is listed where it can come back"
 
 
 def test_a_company_token_is_not_a_job_token(session: Session, company: Company, signed: str) -> None:
@@ -799,3 +800,47 @@ def test_the_queue_does_not_offer_undo_beside_every_company(
     with TestClient(app) as client:
         page = client.get("/").text
     assert ">Undo</a>" not in page
+
+
+def test_the_dashboard_lists_what_was_rejected_and_offers_only_the_way_back(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """This is the way to undo a rejected company after closing the page that rejected it."""
+    row = _candidate(session, "Tufalabs", ats=None)
+    with TestClient(app) as client:
+        client.post(f"/c/{_candidate_token(CandidateAction.REJECT, row.id)}")
+        page = client.get("/").text
+
+    section = page[page.find("Rejected (1)"):]
+    assert "Tufalabs" in section
+    today = datetime.now(UTC).strftime("%d %b %Y")
+    assert f"rejected {today}" in section, "the date is how a misclick is found again"
+    assert ">Undo</a>" in section
+    assert ">Approve</a>" not in section, "approving a rejected company is refused, so it is not offered"
+
+
+def test_the_rejected_list_is_capped_and_says_so(
+    session: Session, signed: str, watchlist: Path, monkeypatch
+) -> None:
+    """The rejected companies list only accumulates so it needs an end."""
+    monkeypatch.setattr("job_hunters.web.REJECTED_SHOWN", 2)
+    for name in ("One Co", "Two Co", "Three Co"):
+        row = _candidate(session, name, ats=None)
+        with TestClient(app) as client:
+            client.post(f"/c/{_candidate_token(CandidateAction.REJECT, row.id)}")
+
+    with TestClient(app) as client:
+        page = client.get("/").text
+
+    assert "Rejected (3)" in page
+    assert "Showing the most recent 2 of 3" in page
+
+
+def test_nothing_rejected_means_no_section_at_all(
+    session: Session, signed: str, watchlist: Path
+) -> None:
+    """An empty fold is a row of furniture that says nothing."""
+    _candidate(session, "Prior Labs")
+    with TestClient(app) as client:
+        page = client.get("/").text
+    assert "Rejected (" not in page
