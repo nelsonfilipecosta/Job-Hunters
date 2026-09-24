@@ -166,10 +166,14 @@ def _describe_regions(tokens: list[str]) -> str:
 
 def _describe_bands(bands: list[ScoreBand]) -> list[str]:
     """The scale as the model reads it. Highest band first whatever order config lists them in."""
-    return [
-        f"- {band.low} to {band.high}: {band.meaning.strip()}"
-        for band in sorted(bands, key=lambda band: band.low, reverse=True)
-    ]
+    described: list[str] = []
+    for band in sorted(bands, key=lambda band: band.low, reverse=True):
+        # A band carries a whole description, so only its first line rides the
+        # bullet. The rest is indented under it or it would read as more bands.
+        head, *rest = band.meaning.strip().splitlines()
+        described.append(f"- {band.low} to {band.high}: {head}")
+        described += [f"  {line}" for line in rest]
+    return described
 
 
 def _describe_examples(examples: list[ScoreExample]) -> list[str]:
@@ -191,7 +195,6 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
     """
     location = profile.location
     auth = location.work_authorization
-    seniority = profile.seniority
     scoring = profile.scoring
     lines = [
         "You screen job postings for one specific candidate. For each posting you are "
@@ -208,36 +211,6 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
         "",
         scoring.rubric.strip(),
         "",
-        f"Seniority sought: {', '.join(seniority.include) or 'any'}. "
-        f"Not sought: {', '.join(seniority.exclude) or 'none'}.",
-        f"Title patterns the search treats as a strong signal: "
-        f"{', '.join(profile.titles.include)}.",
-        f"Domain vocabulary that marks the target work: "
-        f"{', '.join(profile.keywords.strong)}."
-        f"Weaker signals: "
-        f"{', '.join(profile.keywords.supporting) or 'none'}.",
-        "",
-        "# Declared facts you must not second-guess",
-        "",
-        f"The candidate is based in {location.base}. The following is declared and "
-        "is not for you to infer:",
-        f"- Can work without visa sponsorship in: {_describe_regions(auth.have)}.",
-        f"- Would need sponsorship in: {_describe_regions(auth.need_sponsorship) or 'nowhere listed'}.",
-        "",
-        "Do not reason about immigration law and do not guess whether a company "
-        "would sponsor. Location preferences are applied by code, not by you.",
-        "",
-        "For `work_authorization`, answer one question only: does the posting text "
-        "itself state a requirement that contradicts the declared status?",
-        "- blocked: the text explicitly requires something the candidate does not "
-        "hold, such as citizenship of a specific country, a security clearance, or "
-        "an existing right to work in a country listed under 'would need "
-        "sponsorship' together with a statement that sponsorship is not offered.",
-        "- unclear: the text hints at such a restriction without stating it plainly, "
-        "or the requirement depends on which of several listed locations applies.",
-        "- eligible: the text states nothing that conflicts with the declared "
-        "status. This is the default when the posting is silent.",
-        "",
         "# How to score",
         "",
         "Give a score from 0 to 100 for how well the role fits the rubric and the "
@@ -249,6 +222,26 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
     if scoring.examples:
         lines += ["", "# Calibration examples", "", *_describe_examples(scoring.examples)]
     lines += [
+        "",
+        "# Declared facts you must not guess",
+        "",
+        f"- The candidate is based in {location.base}.",
+        f"- Can work without visa sponsorship in: {_describe_regions(auth.have)}.",
+        f"- Would need sponsorship in: {_describe_regions(auth.need_sponsorship) or 'nowhere listed'}.",
+        "",
+        "Do not reason about immigration law and do not guess whether a company "
+        "would sponsor. Location preferences are applied by code and not by you.",
+        "",
+        "For `work_authorization`, answer only one question: does the posting text "
+        "itself state a requirement that contradicts the declared status?",
+        "- blocked: the text explicitly requires something the candidate does not "
+        "hold, such as citizenship of a specific country, a security clearance, or "
+        "an existing right to work in a country listed under 'would need "
+        "sponsorship' together with a statement that sponsorship is not offered.",
+        "- unclear: the text hints at such a restriction without stating it plainly, "
+        "or the requirement depends on which of several listed locations applies.",
+        "- eligible: the text states nothing that conflicts with the declared "
+        "status. This is the default when the posting is silent.",
         "",
         "# The answer",
         "",

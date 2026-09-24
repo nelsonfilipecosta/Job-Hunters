@@ -32,17 +32,20 @@ titles:
   # Hard prefilter. These never reach the judge.
   exclude:
     - consultant
-    - sales
-    - marketing
-    - account executive
-    - recruiter
-    - counsel
-    - policy lead
-    - customer success
-    - solutions architect
+    - consultants
+    - consulting
+    - intern
+    - interns
+    - internship
+    - internships
+    - trainee
+    - trainees
+    - traineeship
+    - traineeships
 
 keywords:
   # Domain vocabulary specific enough that its presence alone justifies a look.
+  # Used by the prefilter and the company discovery filter.
   strong:
     - RLHF
     - RLAIF
@@ -50,29 +53,24 @@ keywords:
     - PPO
     - GRPO
     - DPO
+    - SFT
+    - LLM-as-a-judge
+    - LLM-as-judge
+  # Weaker signals to widen recall. The judge sorts out the noise later.
+  # Used only by the prefilter. These terms are not used to discover new companies.
+  supporting:
     - reinforcement learning
     - post-training
+    - pre-training
+    - fine-tuning
     - preference optimization
     - reward model
-    - SFT
-    - supervised fine-tuning
-    - fine-tuning
-  # Weaker signals to widen recall. The judge sorts out the noise later.
-  supporting:
-    - pre-training
-    - pretraining
     - model evaluation
     - evaluation
     - evals
     - alignment
-    - benchmark
     - interpretability
-    - llm-as-judge
     - foundational models
-
-seniority:
-  include: [mid, senior, staff]
-  exclude: [intern, trainee, manager, director]
 
 location:
   base: portugal
@@ -94,110 +92,293 @@ location:
 scoring:
   # Below this value a job is stored but never shown in the digest.
   threshold: 70
-  # Cap per run. The remainder carries to the next run, with oldest-unscored first.
+  # Cap per run. The remainder carries to the next run (oldest unscored first).
   max_llm_scores_per_run: 300
-  # Bump whenever anything below changes. It invalidates every prior score.
-  prompt_version: 2
+  # Increase whenever anything below changes to recalculate all the scores.
+  prompt_version: 3
 
   # Everything from here down is pasted into the judge's prompt. Rewrite it to
-  # fine-tune the search. The rubric tells the judge what to look for and how to weight
-  # it. Required.
+  # fine-tune the search. The rubric states what is the goal of the search and
+  # the bands below carry the detail. Required.
   rubric: |
-    Weight post-training and evaluation work most heavily: RLHF/RLAIF, DPO and
-    other preference optimization, reward modelling, supervised fine-tuning and
-    the design of evaluations and benchmarks for language models.
+    The candidate is looking for research and engineering roles that train and
+    evaluate language models, with post-training and evaluation at the centre
+    of the search. The bands below run from that centre outwards. Place each
+    role in the band whose description best matches its duties.
 
-    Weight second: alignment, interpretability and red-teaming research where
-    the role involves running experiments rather than only writing policy.
+    Weight post-training work above evaluation work within the same band.
+    Requirements that match the candidate's background, as well as work in the
+    health, environmental and AI safety sectors, also move a role toward the
+    top of its band. Requirements that do not match move it toward the bottom.
+    None of these moves a role into another band.
 
-    Weight text and language above every other modality. The core of the search
-    is post-training and evaluation of language models. The same work on speech,
-    audio, vision, video or robotics models is adjacent and not core, so score
-    it a few points below where the equivalent text role would land. A multimodal
-    role counts as text work when the language model is the centre of the job
-    (post-training a VLM or evaluating text output) and as another modality when
-    it is not.
+    Fixed-term roles such as fellowships, residencies and postdocs rank like
+    permanent ones. Internships and trainee positions are not a match, and
+    neither are roles that are principally people management, director level
+    and above.
 
-    Penalize pure infrastructure and platform roles with no research component
-    and roles that are primarily about deploying someone else's models.
-
-    Do not penalize a job for being at a small company. A four-person lab doing
-    post-training research is a better match than a large company's generic ML
-    engineering opening.
-
-  # How the judge turns its opinion into a number. Bands must cover 0 to 100
-  # with no gap and no overlap. A gap leaves the model to invent its own meaning
-  # for the scores that fall in it. Required.
+  # How the judge turns its opinion into a number and where every kind of role
+  # belongs. Bands must cover 0 to 100 with no gap and no overlap. Required.
   bands:
-    - low: 85
+    - low: 90
       high: 100
-      meaning: >
-        The core of the search. Post-training or evaluation work on language
-        models (RLHF, RLAIF, DPO and other preference optimization, reward
-        modelling, supervised fine-tuning, RL environments, benchmark and
-        evaluation design) where the candidate's background is a direct match.
+      meaning: |
+        Core research. Research on training and evaluating language models.
+        Work mainly about training data, multimodal models or agents goes to
+        the "Training data", "Multimodal models" and "Agents" bands, while
+        general post-training roles that touch them stay here. Sub-fields
+        include:
+        - Pre- and mid-training: scaling laws; architecture; tokenization;
+          optimizers and training stability; continued pre-training for a
+          domain or language.
+        - Post-training: supervised fine-tuning; RLHF and RLAIF; DPO and other
+          preference optimization; RL for reasoning, math and code; reward
+          modelling and reward hacking; distillation; safety and behaviour
+          training (refusals, jailbreak robustness, honesty, hallucinations);
+          parameter-efficient fine-tuning, model merging, continual learning
+          and unlearning; training dynamics and generalization.
+        - Evaluation: designing evaluations and benchmarks; LLM-as-a-judge;
+          human and pairwise evaluation; dangerous-capability evaluations;
+          evaluation methodology.
+    - low: 80
+      high: 89
+      meaning: |
+        Applied training and evaluation. The same work as in the "Core research"
+        band, but done for a product or client: engineering and applied roles
+        that train, fine-tune, align or evaluate language models and run the
+        experiments themselves. The models can be someone else's, as with
+        fine-tuning, adapting open-weight models and evaluation teams for
+        products built on API models. Roles that only deploy someone else's
+        models belong in the "Software around AI models" or "ML platforms"
+        bands.
     - low: 70
-      high: 84
-      meaning: >
-        Research adjacent to the core with real experiments: alignment,
-        interpretability, red-teaming, training-data quality, model behaviour or
-        post-training in another modality. Also product engineering around
-        fine-tuning, training or evaluation, since building that product still
-        means running training jobs, curating data and designing evals. The
-        candidate could credibly do the work.
-    - low: 40
+      high: 79
+      meaning: |
+        Alignment and interpretability. Research on alignment, interpretability
+        and red-teaming, in roles that run experiments rather than only writing
+        policy. Topics include: scalable oversight; model organisms of
+        misalignment; mechanistic interpretability, such as circuits and sparse
+        autoencoders; probing; activation steering; red-teaming language models,
+        such as jailbreak attacks and automated red-teaming. Red-teaming agents
+        and control of agents belong in the "Agents" band.
+    - low: 60
       high: 69
-      meaning: >
-        A technical role that touches the domain but is centred on primarily
-        deploying someone else's models through an API and building the software
-        around them (prompting, retrieval, agents or integrations), or training
-        and inference infrastructure with no experiments of its own.
-    - low: 10
+      meaning: |
+        Training data. Research on language-model training data: curating,
+        filtering and mixing pre-training data; generating synthetic data;
+        designing human-feedback data and measuring its quality, including
+        annotator agreement.
+    - low: 50
+      high: 59
+      meaning: |
+        Multimodal models. Training or evaluating multimodal models built
+        around a language model, in research or applied roles. This includes:
+        multimodal pre-training and post-training; language models that
+        understand or generate speech, audio, images or video; multimodal
+        evaluations and benchmarks.
+    - low: 40
+      high: 49
+      meaning: |
+        Agents. Training or evaluating agents built around a language model, in
+        research or applied roles. This includes: multi-turn RL for tool use,
+        coding and computer use; RL environments; agent and long-horizon
+        evaluations; agent safety, such as prompt-injection robustness,
+        red-teaming agents and AI control. It also includes agent research that
+        doesn't train models, such as planning, memory, multi-agent systems and
+        multi-agent debate.
+    - low: 30
       high: 39
-      meaning: >
-        Engineering or research clearly outside the domain or a role the
-        candidate is not looking for: internships, roles that are principally
-        people management, director level and above.
+      meaning: |
+        Software around AI models. Roles that build software around AI models
+        without training them, as most consulting companies do: products and
+        pipelines built on API models or off-the-shelf models deployed in the
+        cloud; agents built on existing models; chatbots, RAG, retrieval and
+        prompting.
+    - low: 20
+      high: 29
+      meaning: |
+        ML platforms. Platform, MLOps and infrastructure roles that build and
+        run the systems that train, deploy, serve and monitor models, rather
+        than products built on them. This includes infrastructure within training
+        teams, such as rollout systems, evaluation harnesses and distributed
+        training across GPU clusters.
+    - low: 10
+      high: 19
+      meaning: |
+        Adjacent work. Annotation, other model types, inference-time methods
+        and classic NLP.
+        - Annotation: producing training or evaluation data rather than
+          researching it, such as writing and ranking model responses, grading
+          outputs or writing red-team prompts.
+        - Research or applied roles that train models other than language
+          models: speech, audio, vision or video models without a central
+          language model; RL for robotics, games or control; recommender and
+          ranking models; and protein or DNA models, even when called language
+          models.
+        - Research on inference-time methods, such as decoding, sampling or
+          test-time search, as well as classic NLP research, such as dialogue
+          or discourse.
     - low: 0
       high: 9
-      meaning: >
-        Not a technical research or engineering role at all: sales, marketing,
-        legal, finance, recruiting, support or operations.
+      meaning: |
+        Not a match. Roles outside the search entirely and any role the rubric
+        rules out.
 
   # How to read a posting (appended after the bands). Optional.
   guidance: >
-    Judge the work the role actually consists of, not the team it sits in or the
-    words in the title: a post-training team can be hiring a Kubernetes engineer.
-    Do not reward or penalize company size or prestige. A four-person lab doing
-    post-training research outranks a large company's generic machine-learning
-    opening. When the posting covers several possible teams or tracks, score the
-    best fit among them and say which in the rationale.
+    Judge each role by its listed duties, not its title or the team it sits in.
+    An "Alignment" role running RLHF experiments belongs in the "Core research"
+    band, while an "RLHF Specialist" who ranks model responses belongs in the
+    "Adjacent work" band. If a role's duties span several bands, place it by its
+    main duties. When a posting offers several teams or tracks, score the best
+    fit and name it in the rationale. If the duties are unclear, use the most
+    likely reading and say so in the rationale. Do not reward or penalize company
+    size or prestige. A small lab doing post-training research outranks a large
+    company's generic machine-learning opening.
 
-  # Worked examples anchoring the scale. Optional, but a handful of them is the
-  # cheapest way to correct a judge that scores too high or too low.
+  # Worked examples anchoring the scale. A handful of them is the cheapest
+  # way to ground the judge. Optional.
   examples:
     - posting: >
-        "Research Scientist, Preference Learning" at a twelve-person lab: designs
-        reward models and DPO variants and runs the ablations.
-      score: 93
+        "AI Research Scientist" at a digital-health company: researches fine-tuning,
+        alignment and post-training (SFT, RLHF) of language models for clinical and
+        therapeutic use. Turns research into production systems and publishes in top
+        AI venues and clinical journals.
+      score: 98
       reason: >
-        The core of the search and a direct match for the candidate's work preferences.
+        Post-training research with SFT and RLHF is the centre of "Core research".
+        Publishing at top AI venues and the health focus puts it at the very top of the
+        candidate's preferences.
     - posting: >
-        "Research Engineer, Red Teaming": builds adversarial evaluations and runs
-        robustness experiments on production models.
+        "Research Scientist, Post-training" at a frontier AI lab: improves the flagship
+        model's reasoning and instruction following with SFT, RLHF and RL, and supports
+        tool-use training for the agent product.
+      score: 97
+      reason: >
+        Improving reasoning and instruction following with SFT, RLHF and RL is "Core
+        research", and supporting tool-use training doesn't move the role to "Agents"
+        because agent work isn't its main duty.
+    - posting: >
+        "Fellows Program, Reinforcement Learning" at an AI lab: a funded and mentored
+        fellowship in which each fellow runs an empirical project on open-source models
+        and public APIs, aiming for a paper. Possible projects include RL algorithms
+        research, a study of generalization, RL environments that improve the lab's models
+        in the fellow's domain or on safety tasks, and model-based tools to improve
+        training-data quality.
+      score: 95
+      reason: >
+        Scored on its best track, RL algorithms research, which puts it in "Core
+        research", and as a fellowship it ranks like a permanent role. The mentored
+        project aimed at a paper is a direct route into post-training research.
+    - posting: >
+        "Research Scientist, Evaluation" at a 15-person open-weights lab: designs
+        benchmarks and LLM-as-a-judge methods for post-training, measures how well they
+        agree with human ratings and publishes the results.
+      score: 91
+      reason: >
+        Benchmark and LLM-as-a-judge research is "Core research" regardless of the lab's
+        size, but the candidate's preference for post-training over evaluation puts it
+        at the bottom of the band.
+    - posting: >
+        "Machine Learning Engineer, LLM Fine-tuning" at an AI tech company: fine-tunes
+        open-weight models with SFT and DPO on client data and runs the evaluations that
+        decide which model is delivered.
+      score: 88
+      reason: >
+        Fine-tuning open-weight models for clients is engineering rather than research,
+        which places it in "Applied training and evaluation". Its hands-on SFT and DPO
+        experiments put it at the top of that band.
+    - posting: >
+        "Applied Scientist, LLM Evaluation" at a legal-tech company: builds test sets
+        and LLM-as-a-judge graders for a contract-review product built on an API model,
+        and checks the graders against lawyers' ratings.
+      score: 80
+      reason: >
+        Evaluating a product built on someone else's API model still counts as "Applied
+        training and evaluation" since the role runs its own experiments, but the
+        candidate's preference for post-training over evaluation puts it at the bottom
+        of the band.
+    - posting: >
+        "Research Scientist, Interpretability" at an AI safety nonprofit: trains sparse
+        autoencoders on open-weight language models and uses the features to detect and
+        steer sycophantic behaviour.
+      score: 79
+      reason: >
+        Training sparse autoencoders to detect and steer behaviour is hands-on
+        interpretability research, which isthe candidate's top preference in "Alignment
+        and interpretability". The AI safety nonprofit is a further plus.
+    - posting: >
+        "Research Fellow, Adversarial Robustness" at an AI lab: a six-month fellowship
+        that develops automated jailbreak attacks on chat models and measures how well
+        safety training holds up, with mentorship and compute provided.
       score: 72
-      reason: Adjacent research with real experiments.
+      reason: >
+        Jailbreak attacks on chat models are red-teaming research, which belongs in
+        "Alignment and interpretability" but ranks lowest in that band for the candidate.
+        Red-teaming agents would go to "Agents".
     - posting: >
-        "Machine Learning Engineer, Training Platform": maintains the distributed
-        training stack that post-training teams use, with no experiments of its own.
-      score: 66
-      reason: Infrastructure next to the domain, not research in it.
+        "Research Scientist, Synthetic Data" at a foundation-model start-up: generates
+        synthetic instruction and reasoning data with language models, filters it for
+        quality and runs fine-tuning ablations to measure which data helps.
+      score: 68
+      reason: >
+        Generating and filtering synthetic data makes this "Training data" work even
+        though it runs fine-tuning ablations. The hands-on ablations put it near the
+        top of the band.
     - posting: >
-        "Research Program Manager": plans compute allocation and coordinates
-        research programs.
-      score: 39
-      reason: Not a research or engineering role.
+        "Research Engineer, Vision-Language Post-training" at a document-processing
+        company: runs SFT and preference optimization to improve how the company's
+        vision-language model reads charts and scanned documents, and builds benchmarks
+        to track it.
+      score: 55
+      reason: >
+        Post-training a vision-language model belongs in "Multimodal models" even though
+        it uses SFT and preference optimization. Those methods are the positions's main
+        draw for the candidate.
     - posting: >
-        "Enterprise Account Executive" at an AI lab: sells to enterprise accounts.
-      score: 4
-      reason: Sales, however technical the product.
+        "Research Engineer, Agentic RL" at a coding-assistant start-up: builds sandboxed
+        repository environments and runs multi-turn RL so the model can fix bugs and
+        pass tests across a codebase.
+      score: 43
+      reason: >
+        Multi-turn RL in sandboxed repositories trains a coding agent, so it belongs in
+        "Agents" rather than with RL for code in "Core research".
+    - posting: >
+        "Agentic AI Engineer" at an IT consulting company: builds multi-agent workflows
+        and RAG pipelines on API models for client projects with no model training.
+      score: 34
+      reason: >
+        Building multi-agent workflows and RAG pipelines on API models without training
+        anything is "Software around AI models", whatever the "agentic" title suggests.
+    - posting: >
+        "Research Engineer, Post-training Infrastructure" at a large AI lab: builds and
+        scales the rollout, distributed-training and evaluation-harness systems that
+        post-training researchers use, without running experiments of its own.
+      score: 27
+      reason: >
+        Building rollout, training and evaluation systems without running experiments is
+        infrastructure within a training team, so it belongs in "ML platforms" despite
+        the research title. Working next to post-training researchers puts it near the
+        top of the band.
+    - posting: >
+        "Postdoctoral Researcher, Discourse Parsing" at a university NLP group: develops
+        multilingual discourse relation recognition models for a three-year project.
+      score: 16
+      reason: >
+        Discourse parsing is classic NLP research, so it belongs in "Adjacent work". The
+        close match with the candidate's background lifts it within the band but not
+        out of it.
+    - posting: >
+        "Research Scientist Intern, Post-training" at a large tech company: a 12-week
+        internship for current PhD students running RLHF experiments.
+      score: 7
+      reason: >
+        The rubric rules out internships, so running RLHF experiments doesn't get this
+        role out of "Not a match".
+    - posting: >
+        "Director of Post-training" at an AI scale-up: manages four research teams,
+        sets the roadmap and owns hiring and budget, with no hands-on research.
+      score: 3
+      reason: >
+        Managing four teams with no hands-on research is director-level people
+        management, which the rubric rules out whatever the field.
