@@ -66,12 +66,12 @@ digest:
     enabled: true
     # Appearances before a job is demoted to the bottom of its section.
     demote_after: 3
-    # Appearances before it is folded into a one-line "Still Open (12) ->" link.
+    # Appearances before it is folded into a one-line "Still Open (n) ->" link.
     suppress_after: 5
     # A score moving by more than this resets the appearance counter.
     reset_on_score_delta: 10
 
 backup:
   # How many backups to keep in `backups/`. Once a new one has been written and
-  # checked, the oldest beyond this number are removed.
+  # checked, the oldest beyond this number is removed.
   keep: 8

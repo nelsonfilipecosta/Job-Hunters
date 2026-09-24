@@ -1,7 +1,6 @@
 # Which companies to watch.
 #
 # Tiers are labels for your own filtering: lab | bigtech | infra | discovered.
-# The promotion loop appends entries with tier: discovered.
 
 # --- AI labs and model companies ------------------------------------------
 

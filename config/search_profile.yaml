@@ -56,7 +56,7 @@ keywords:
     - SFT
     - LLM-as-a-judge
     - LLM-as-judge
-  # Weaker signals to widen recall. The judge sorts out the noise later.
+  # Weaker signals to widen prefilter recall. The judge sorts out the noise later.
   # Used only by the prefilter. These terms are not used to discover new companies.
   supporting:
     - reinforcement learning
@@ -95,7 +95,7 @@ scoring:
   # Cap per run. The remainder carries to the next run (oldest unscored first).
   max_llm_scores_per_run: 300
   # Increase whenever anything below changes to recalculate all the scores.
-  prompt_version: 3
+  prompt_version: 4
 
   # Everything from here down is pasted into the judge's prompt. Rewrite it to
   # fine-tune the search. The rubric states what is the goal of the search and
