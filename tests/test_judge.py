@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 from conftest import FakeAnthropic, api_error, verdict
-from job_hunters.config import ConfigError, load_search_profile
+from job_hunters.config import ConfigError, ScoreBand, load_search_profile
 from job_hunters.judge import (
     MAX_DESCRIPTION_CHARS,
     Judge,
@@ -73,7 +73,10 @@ def test_the_scoring_guide_comes_from_config_and_not_from_this_module() -> None:
     prompt = build_system_prompt(profile, "# CV\nPhD in NLP.")
 
     band = profile.scoring.bands[0]
-    assert f"- {band.low} to {band.high}: {band.meaning.strip()}" in prompt
+    head, *rest = band.meaning.strip().splitlines()
+    assert f"- {band.low} to {band.high}: {head}" in prompt
+    for line in rest:
+        assert f"  {line}" in prompt, "the rest of a band's description is carried too"
     assert profile.scoring.guidance.strip() in prompt
     example = profile.scoring.examples[0]
     assert f"Score {example.score}: {example.reason.strip()}" in prompt
@@ -199,3 +202,16 @@ def test_an_empty_profile_directory_is_a_config_error(tmp_path) -> None:
     """No CV means no judge: said plainly rather than as an empty prompt."""
     with pytest.raises(ConfigError, match="cv.md"):
         load_profile_text(tmp_path)
+
+
+def test_a_band_description_of_several_lines_is_indented_under_its_bullet() -> None:
+    """An unindented second line would read as another band and invent a range."""
+    profile = load_search_profile()
+    wide = profile.model_copy(deep=True)
+    wide.scoring.bands = [
+        ScoreBand(low=0, high=100, meaning="Everything.\n- including this\n- and this")
+    ]
+    prompt = build_system_prompt(wide, "# CV")
+
+    assert "- 0 to 100: Everything." in prompt
+    assert "\n  - including this\n  - and this" in prompt
