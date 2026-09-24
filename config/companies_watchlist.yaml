@@ -90,3 +90,5 @@
 - { slug: anterior, name: Anterior, ats: ashby, token: anterior, tier: discovered }
 - { slug: shared-context-lab, name: Shared Context Lab, ats: ashby, token: sharedcontextlab, tier: lab }
 - { slug: pathos-ai, name: Pathos AI, ats: ashby, token: pathos, tier: discovered }
+- { slug: janestreet, name: Janestreet, ats: greenhouse, token: janestreet, tier: bigtech }
+- { slug: benchling, name: Benchling, ats: ashby, token: benchling, tier: infra }
