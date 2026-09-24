@@ -76,3 +76,17 @@
 # --- Discovered by the promotion loop ------------------------------------
 
 - { slug: prior-labs, name: Prior Labs, ats: ashby, token: prior-labs, tier: lab }
+- { slug: deliveroo, name: Deliveroo, ats: greenhouse, token: deliveroo, tier: bigtech }
+- { slug: sonarsource, name: Sonarsource, ats: lever, token: sonarsource, tier: infra }
+- { slug: flow-traders, name: Flow Traders, ats: greenhouse, token: flowtraders, tier: discovered }
+- { slug: latchbio, name: LatchBio, ats: ashby, token: latchbio, tier: infra }
+- { slug: artificial-analysis, name: Artificial Analysis, ats: ashby, token: artificialanalysis, tier: infra }
+- { slug: arago, name: Arago, ats: ashby, token: arago, tier: discovered }
+- { slug: aisi, name: Aisi, ats: greenhouse, token: aisi, tier: discovered }
+- { slug: artificial-intelligence-underwriting-company, name: Artificial Intelligence Underwriting Company, ats: ashby, token: aiuc, tier: discovered }
+- { slug: mechanize, name: Mechanize, ats: ashby, token: mechanize, tier: discovered }
+- { slug: posthog, name: PostHog, ats: ashby, token: posthog, tier: infra }
+- { slug: starbridge, name: Starbridge, ats: ashby, token: starbridge, tier: discovered }
+- { slug: anterior, name: Anterior, ats: ashby, token: anterior, tier: discovered }
+- { slug: shared-context-lab, name: Shared Context Lab, ats: ashby, token: sharedcontextlab, tier: lab }
+- { slug: pathos-ai, name: Pathos AI, ats: ashby, token: pathos, tier: discovered }
