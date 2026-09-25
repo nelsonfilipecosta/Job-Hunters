@@ -215,7 +215,7 @@ def failed(error: str = "HTTP 429 for https://example.test") -> FetchResult:
 def verdict(score: int = 80, **overrides) -> Verdict:
     """A complete Verdict with one score and boring defaults for everything else."""
     fields = dict(
-        score=score, summary="A role. It fits.", rationale="Because.",
+        band="A fit", score=score, summary="A role. It fits.", rationale="Because.",
         matched_areas=["post-training"], concerns=[], work_authorization="eligible",
     )
     fields.update(overrides)

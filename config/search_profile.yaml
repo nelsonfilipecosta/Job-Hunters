@@ -95,7 +95,7 @@ scoring:
   # Cap per run. The remainder carries to the next run (oldest unscored first).
   max_llm_scores_per_run: 300
   # Increase whenever anything below changes to recalculate all the scores.
-  prompt_version: 4
+  prompt_version: 5
 
   # Everything from here down is pasted into the judge's prompt. Rewrite it to
   # fine-tune the search. The rubric states what is the goal of the search and
@@ -110,7 +110,6 @@ scoring:
     Requirements that match the candidate's background, as well as work in the
     health, environmental and AI safety sectors, also move a role toward the
     top of its band. Requirements that do not match move it toward the bottom.
-    None of these moves a role into another band.
 
     Fixed-term roles such as fellowships, residencies and postdocs rank like
     permanent ones. Internships and trainee positions are not a match, and
@@ -118,7 +117,8 @@ scoring:
     and above.
 
   # How the judge turns its opinion into a number and where every kind of role
-  # belongs. Bands must cover 0 to 100 with no gap and no overlap. Required.
+  # belongs. Bands must cover 0 to 100 with no gap and no overlap. The first
+  # sentence (up to the first period) defines the name of the band. Required.
   bands:
     - low: 90
       high: 100

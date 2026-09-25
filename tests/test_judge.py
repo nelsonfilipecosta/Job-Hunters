@@ -18,6 +18,8 @@ from job_hunters.judge import (
     MAX_DESCRIPTION_CHARS,
     Judge,
     JudgeError,
+    band_for,
+    band_name,
     PostingText,
     Usage,
     Verdict,
@@ -41,7 +43,8 @@ def test_the_verdict_schema_requires_every_field_and_forbids_extras() -> None:
     """An optional field is one the model may skip and a digest entry with no summary is useless."""
     schema = Verdict.model_json_schema()
     assert set(schema["required"]) == {
-        "score", "summary", "rationale", "matched_areas", "concerns", "work_authorization",
+        "band", "score", "summary", "rationale", "matched_areas", "concerns",
+        "work_authorization",
     }
     assert schema["additionalProperties"] is False
 
@@ -215,3 +218,59 @@ def test_a_band_description_of_several_lines_is_indented_under_its_bullet() -> N
 
     assert "- 0 to 100: Everything." in prompt
     assert "\n  - including this\n  - and this" in prompt
+
+
+def test_the_band_names_are_what_the_config_cross_references_point_at() -> None:
+    """A band's name is its description up to the first period and nothing declares it twice."""
+    bands = load_search_profile().scoring.bands
+    names = [band_name(band) for band in bands]
+
+    assert "Core research" in names and "Not a match" in names
+    assert len(set(names)) == len(names), "two bands sharing a name would make the check ambiguous"
+    assert all(name and "\n" not in name for name in names)
+
+
+def test_a_band_is_found_by_name_however_the_judge_punctuates_it() -> None:
+    """The answer is free text, so a trailing period or different case must still resolve."""
+    bands = load_search_profile().scoring.bands
+
+    for spelling in ("ML platforms", "  ml platforms  ", "ML platforms."):
+        found = band_for(bands, spelling)
+        assert found is not None and (found.low, found.high) == (20, 29)
+    assert band_for(bands, "Something else entirely") is None
+
+
+def _judge_with_bands(verdict_answer: Verdict) -> Judge:
+    """A judge wired to the real bands, answering with one scripted verdict."""
+    profile = load_search_profile()
+    return Judge(
+        FakeAnthropic(verdict_answer), "m", "p", bands=profile.scoring.bands
+    )
+
+
+def test_a_score_inside_the_named_band_is_not_counted_as_drift() -> None:
+    """The check must stay quiet when the judge does what it was asked."""
+    judge = _judge_with_bands(verdict(25, band="ML platforms"))
+    judge.judge(TEXT)
+    assert judge.band_mismatches == 0
+
+
+def test_a_score_outside_the_named_band_is_counted() -> None:
+    """Naming one band and scoring in another is the drift this exists to catch."""
+    judge = _judge_with_bands(verdict(75, band="ML platforms"))
+    judge.judge(TEXT)
+    assert judge.band_mismatches == 1
+
+
+def test_a_band_the_config_does_not_have_is_counted_too() -> None:
+    """An invented band name is drift as well and would otherwise pass unnoticed."""
+    judge = _judge_with_bands(verdict(75, band="Vibes"))
+    judge.judge(TEXT)
+    assert judge.band_mismatches == 1
+
+
+def test_a_judge_given_no_bands_checks_nothing() -> None:
+    """Callers that only want a verdict must not pay for a check they did not ask for."""
+    judge = Judge(FakeAnthropic(verdict(75, band="ML platforms")), "m", "p")
+    judge.judge(TEXT)
+    assert judge.band_mismatches == 0

@@ -251,6 +251,10 @@ def cmd_score(args: argparse.Namespace) -> int:
               f"cache. The prefix is probably shorter than the minimum cacheable length"
               f"{target}. Add Markdown records to profile/ or set models.judge to a model "
               f"with a lower minimum.", file=sys.stderr)
+    if report.band_mismatches:
+        print(f"Warning: {report.band_mismatches} of {report.judged} verdict(s) scored outside "
+              f"the band the judge named. The scoring rubric is not binding the answer. See the "
+              f"log for which postings.", file=sys.stderr)
     if report.aborted:
         print(f"Error: stopped early: {report.aborted}", file=sys.stderr)
         return 1

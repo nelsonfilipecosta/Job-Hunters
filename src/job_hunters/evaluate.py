@@ -204,5 +204,6 @@ def run_evaluation(labels_path: Path | None = None, *, skip_llm: bool = False) -
             make_client(api_key),
             config.system.models.judge,
             build_system_prompt(config.search_profile, load_profile_text()),
+            bands=config.search_profile.scoring.bands,
         )
     return evaluate(labeled, config.search_profile, judge)

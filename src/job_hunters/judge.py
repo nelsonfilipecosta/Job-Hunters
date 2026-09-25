@@ -54,9 +54,13 @@ class Verdict(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    band: str = Field(
+        description="The name of the chosen band exactly as it appears at the start of "
+        "band's description.",
+    )
     score: int = Field(
         ge=0, le=100,
-        description="Fit with the rubric and the candidate's background (from 0 to 100).",
+        description="A score inside the range of the chosen band (from 0 to 100).",
     )
     summary: str = Field(
         description="Two short plain-text sentences for a daily digest: what the role "
@@ -164,6 +168,17 @@ def _describe_regions(tokens: list[str]) -> str:
     return "; ".join(parts)
 
 
+def band_name(band: ScoreBand) -> str:
+    """The short name a band is referred to by (its description up to the first period)."""
+    return band.meaning.strip().splitlines()[0].split(".")[0].strip()
+
+
+def band_for(bands: list[ScoreBand], name: str) -> ScoreBand | None:
+    """The band that name refers to or None when it names no band at all."""
+    wanted = name.strip().strip(".").casefold()
+    return next((band for band in bands if band_name(band).casefold() == wanted), None)
+
+
 def _describe_bands(bands: list[ScoreBand]) -> list[str]:
     """The scale as the model reads it. Highest band first whatever order config lists them in."""
     described: list[str] = []
@@ -213,9 +228,20 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
         "",
         "# How to score",
         "",
-        "Give a score from 0 to 100 for how well the role fits the rubric and the "
-        "candidate's background:",
+        "Score in two steps:",
+        "",
+        "Step 1. Choose the one band below whose description matches the role's main "
+        "duties. A role whose duties span several bands belongs to the band its main "
+        "duties belong to and never between them. Name the band you chose in `band`.",
+        "",
         *_describe_bands(scoring.bands),
+        "",
+        "Step 2. Give a score inside the range of the band you chose. That range is a "
+        "hard limit. Nothing about the candidate's background, preferences or the rest "
+        "of the posting may put the score outside it. A strong match in a low band stays "
+        "in the low band. If you want a score the range does not allow, then you chose "
+        "the wrong band in step 1. Go back and choose again.",
+        "",
     ]
     if scoring.guidance.strip():
         lines += ["", scoring.guidance.strip()]
@@ -245,6 +271,9 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
         "",
         "# The answer",
         "",
+        "- band: the band chosen named exactly as it appears at the start of that "
+        "band's description.",
+        "- score: a number inside that band's range.",
         "- summary: two short plain-text sentences for a daily email digest, in "
         "this order: what the role is, then why it does or does not fit the "
         "candidate. No markdown and no company boilerplate.",
@@ -288,11 +317,32 @@ def make_client(api_key: str) -> anthropic.Anthropic:
 class Judge:
     """Holds one client, one model and one cached prefix for a whole run."""
 
-    def __init__(self, client: Any, model: str, system_prompt: str) -> None:
+    def __init__(
+        self, client: Any, model: str, system_prompt: str,
+        *, bands: list[ScoreBand] | None = None,
+    ) -> None:
         """Takes a ready client (real or fake), the model name and the prefix to cache."""
         self._client = client
         self.model = model
         self.system_prompt = system_prompt
+        self._bands = bands or []
+        self.band_mismatches = 0
+
+    def _check_band(self, verdict: Verdict, text: PostingText) -> None:
+        """Counts and logs a score that fell outside the band the judge said it chose."""
+        if not self._bands:
+            return
+        band = band_for(self._bands, verdict.band)
+        where = f"{text.title} @ {text.company}"
+        if band is None:
+            self.band_mismatches += 1
+            log.warning("%s: named no band we know (%r), scored %d", where, verdict.band, verdict.score)
+        elif not band.low <= verdict.score <= band.high:
+            self.band_mismatches += 1
+            log.warning(
+                "%s: chose %r (%d-%d) but scored %d",
+                where, verdict.band, band.low, band.high, verdict.score,
+            )
 
     def judge(self, text: PostingText) -> tuple[Verdict, Usage]:
         """Takes one posting and outputs one validated verdict with the token usage."""
@@ -325,4 +375,5 @@ class Judge:
         verdict = response.parsed_output
         if verdict is None:
             raise JudgeError(f"No structured answer (stop_reason={response.stop_reason!r})")
+        self._check_band(verdict, text)
         return verdict, Usage.from_response(response.usage)
