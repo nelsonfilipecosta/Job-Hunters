@@ -241,7 +241,6 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
         "of the posting may put the score outside it. A strong match in a low band stays "
         "in the low band. If you want a score the range does not allow, then you chose "
         "the wrong band in step 1. Go back and choose again.",
-        "",
     ]
     if scoring.guidance.strip():
         lines += ["", scoring.guidance.strip()]
