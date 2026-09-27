@@ -95,7 +95,7 @@ scoring:
   # Cap per run. The remainder carries to the next run (oldest unscored first).
   max_llm_scores_per_run: 300
   # Increase whenever anything below changes to recalculate all the scores.
-  prompt_version: 5
+  prompt_version: 6
 
   # Everything from here down is pasted into the judge's prompt. Rewrite it to
   # fine-tune the search. The rubric states what is the goal of the search and
@@ -106,10 +106,14 @@ scoring:
     of the search. The bands below run from that centre outwards. Place each
     role in the band whose description best matches its duties.
 
-    Weight post-training work above evaluation work within the same band.
-    Requirements that match the candidate's background, as well as work in the
-    health, environmental and AI safety sectors, also move a role toward the
-    top of its band. Requirements that do not match move it toward the bottom.
+    A role whose duties sit squarely in its band starts in the middle of that
+    band's range and moves up or down from there. It moves up for duties that
+    are post-training rather than evaluation, for requirements that match the
+    candidate's background and for work in the health, environmental or AI
+    safety sectors. It moves down for requirements the candidate does not meet
+    and for duties at the edge of the band. Only a role that barely belongs in
+    its band sits at the bottom of the range. A role the band describes well
+    is not pushed to the bottom by a missing requirement.
 
     Fixed-term roles such as fellowships, residencies and postdocs rank like
     permanent ones. Internships and trainee positions are not a match, and
@@ -267,9 +271,11 @@ scoring:
         training-data quality.
       score: 95
       reason: >
-        Scored on its best track, RL algorithms research, which puts it in "Core
-        research", and as a fellowship it ranks like a permanent role. The mentored
-        project aimed at a paper is a direct route into post-training research.
+        The band comes from the track and not from the fellowship. The best track on
+        offer is RL algorithms research, which is "Core research". Being a
+        fellowship changes nothing about the band and only means the role is not
+        marked down for being fixed-term. The mentored project aimed at a paper is
+        a direct route into post-training research.
     - posting: >
         "Research Scientist, Evaluation" at a 15-person open-weights lab: designs
         benchmarks and LLM-as-a-judge methods for post-training, measures how well they
@@ -378,7 +384,18 @@ scoring:
     - posting: >
         "Director of Post-training" at an AI scale-up: manages four research teams,
         sets the roadmap and owns hiring and budget, with no hands-on research.
-      score: 3
+      score: 5
       reason: >
         Managing four teams with no hands-on research is director-level people
         management, which the rubric rules out whatever the field.
+    - posting: >
+        "Fellows Program, Economics & Policy" at an AI lab: a funded and mentored
+        fellowship, in which each fellow produces a public paper. The workstreams are
+        empirical research on AI's effects on labour markets, analysis of the
+        offence-defence balance in cyber and bio, and the policy implications of both.
+      score: 3
+      reason: >
+        The band comes from the track and no track here trains or evaluates a model.
+        Plus, economics and policy research is outside the search, so this is "Not a
+        match". A funded research fellowship at a frontier lab does not land in "Core
+        research" by virtue of being a fellowship.
