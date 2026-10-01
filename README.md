@@ -15,7 +15,9 @@ A self-hosted pipeline that watches company job boards, judges every new posting
 
 This project was built with the goal of making job searching more efficient. Everything that is specific to the search lives in three YAML files, so another person can adopt it by editing the configuration rather than the code. The current configuration is set for AI research roles in LLM post-training and evaluation.
 
-It is **single-user and runs on your own machine**: there is no login, no hosting and no support for more than one profile. And it **never acts on your behalf**: nothing is submitted to a company and the only email it sends is the digest to you. The pipeline that runs today is deterministic code with two LLM calls (a judge that scores postings and an extractor that reads company names out of prose). In the future, a tailoring agent that drafts tailored applications will be added to the pipeline - see [Future Work](#future-work).
+It is **single-user and runs on your own machine**: there is no login, no hosting and no support for more than one profile. And it **never acts on your behalf**: nothing is submitted to a company and the only email it sends is the digest to you.
+
+The pipeline that runs today is deterministic code with two LLM calls (a judge that scores postings and an extractor that reads company names out of prose). In the future, a tailoring agent that drafts tailored CVs and cover letters will be added to the pipeline - see [Future Work](#future-work).
 
 ## Contents
 
@@ -313,10 +315,10 @@ Three layers enforce that these files and folders stay private:
 
 ### What leaves the machine
 
-Two things are sent to the Anthropic API:
+The system calls an LLM through the API in two places and each sends a different text:
 
-- The text of postings that pass the prefilter with the markdown files in `profile/` as part of the judge's prompt.
-- The text of Hacker News comments that the extractor reads to get the company out of it.
+- **Score.** Once per group of identical postings that passed the prefilter, the judge sends the posting itself with company, title, location and description. Ahead of it, as a prefix shared by every call in the run, your CV (every markdown file in `profile/`) and the rubric, score bands, worked examples, location and work-authorization facts from `search_profile.yaml`.
+- **Discover.** Once per sighting that does not name its company, which in practice is a Hacker News comment, the extractor sends the text of that comment cut at a fixed length. Nothing from `profile/` or `search_profile.yaml` goes with it.
 
 Requests to job boards carry a `User-Agent` naming this project. The digest goes to the address in `.env` through the SMTP server in `system_config.yaml`. Nothing else is sent anywhere and nothing is ever sent to a company.
 
