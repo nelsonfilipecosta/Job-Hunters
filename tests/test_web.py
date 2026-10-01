@@ -1007,6 +1007,49 @@ def test_an_application_still_waiting_is_not_folded(
     assert "Research Scientist" in page[page.find("<h2>Pipeline</h2>"):page.find("<h2>Funnel</h2>")]
 
 
+def test_a_card_reads_company_board_and_date_and_says_active_once_answered(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """No status bubble, no tailoring mark and no word until somebody answers."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        row = session.scalar(select(Application).where(Application.job_id == job.id))
+        row.cv_path = "cv-tailored.pdf"
+        session.commit()
+        waiting = client.get("/").text
+        client.post(
+            f"/a/{_token(Action.ADD_EVENT, job.id)}",
+            data={"event": "recruiter_screen", "occurred_on": "2026-09-20"},
+        )
+        answered = client.get("/").text
+
+    assert "Acme &middot; via greenhouse" in waiting, "nothing between the company and the board"
+    assert "tailored" not in waiting, "a tailored application is not marked as one"
+    assert "class=\"good\">active" not in waiting and "class=\"bad\"" not in waiting
+    assert "<span class=\"good\">active</span>" in answered
+
+
+@pytest.mark.parametrize(
+    ("ending", "colour"),
+    [("offer", "good"), ("rejected", "bad"), ("withdrawn", "bad"), ("ghosted", "bad")],
+)
+def test_an_ended_card_says_how_it_ended_in_green_or_red(
+    session: Session, company: Company, signed: str, watchlist: Path, ending: str, colour: str
+) -> None:
+    """An offer reads green and the three ways an application is lost read red."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        client.post(
+            f"/a/{_token(Action.ADD_EVENT, job.id)}",
+            data={"event": ending, "occurred_on": "2026-09-25"},
+        )
+        page = client.get("/").text
+
+    assert f"<span class=\"{colour}\">{ending}</span>" in _inside_fold(page, "Ended (1)")
+
+
 def test_a_refused_step_comes_back_as_the_same_form(
     session: Session, company: Company, signed: str, watchlist: Path
 ) -> None:

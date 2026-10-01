@@ -1,9 +1,8 @@
 {# The tracker dashboard.
 
    What is outstanding, where each application stands, how far applications
-   get, who answers and whether tailoring changes that. Everything on it is
-   counted from the two tracking tables at request time, so there is no
-   cached number to go stale.
+   get and who answers. Everything on it is counted from the two tracking
+   tables at request time, so there is no cached number to go stale.
 #}
 {% extends "page.html" %}
 {% block title %}Job-Hunters{% endblock %}
@@ -99,14 +98,12 @@
       {% endif %}
     </div>
     <div class="meta" style="padding-top:4px;">
-      {{ application.company }} &middot; <span class="pill">{{ application.status }}</span>
-      &middot; via {{ application.source }}
+      {{ application.company }} &middot; via {{ application.source }}
       {% if application.applied_at %}
         &middot; applied {{ (application.applied_at | local(dashboard.timezone)).strftime('%d %b %Y') }}
       {% endif %}
-      {% if application.tailored %}&middot; tailored{% endif %}
-      {% if application.responded %}
-        &middot; <span class="good">answered</span>
+      {% if application.standing %}
+        &middot; <span class="{{ 'good' if application.standing in ('active', 'offer') else 'bad' }}">{{ application.standing }}</span>
       {% endif %}
     </div>
     <div class="row">

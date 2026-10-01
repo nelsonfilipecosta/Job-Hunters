@@ -522,7 +522,6 @@ class TrackedApplication:
     applied_at: datetime | None
     created_at: datetime
     source: str
-    tailored: bool
     apply_url: str | None
     events: tuple[TimelineEvent, ...] = ()
 
@@ -543,6 +542,13 @@ class TrackedApplication:
     def responded(self) -> bool:
         """Whether anyone at the company ever answered."""
         return any(event.event in RESPONSE_EVENTS for event in self.events)
+
+    @property
+    def standing(self) -> str | None:
+        """The word its card shows: `active`, the outcome or nothing yet."""
+        if self.status in ENDED_STATUSES:
+            return self.status
+        return "active" if self.responded else None
 
     @property
     def last_event(self) -> TimelineEvent | None:
@@ -699,7 +705,6 @@ def _tracked_applications(session: Session) -> tuple[TrackedApplication, ...]:
             applied_at=as_utc(application.applied_at),
             created_at=as_utc(application.created_at),
             source=sources.get(job.id, "unknown"),
-            tailored=bool(application.cv_path or application.cover_letter_path),
             apply_url=job.apply_url,
             events=tuple(
                 TimelineEvent(e.event, as_utc(e.occurred_at), e.notes)

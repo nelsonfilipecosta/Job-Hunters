@@ -521,6 +521,31 @@ def test_an_application_that_reached_an_outcome_is_folded_but_still_counted(
     }
 
 
+@pytest.mark.parametrize(
+    ("steps", "standing"),
+    [
+        ((), None),
+        ((EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL), "active"),
+        ((EventKind.RECRUITER_SCREEN, EventKind.OFFER), "offer"),
+        ((EventKind.ONSITE, EventKind.REJECTED), "rejected"),
+        ((EventKind.RECRUITER_SCREEN, EventKind.WITHDRAWN), "withdrawn"),
+        ((EventKind.GHOSTED,), "ghosted"),
+    ],
+)
+def test_a_card_says_in_one_word_how_an_application_is_going(
+    session: Session, company: Company, steps: tuple[str, ...], standing: str | None
+) -> None:
+    """Nothing while it waits, `active` once somebody answered and then the outcome it ended on."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    for offset, step in enumerate(steps, start=1):
+        record_event(session, job.id, step, NOW + timedelta(days=offset))
+    session.commit()
+
+    assert build_dashboard(session, _config(), now=NOW).applications[0].standing == standing
+
+
 def test_the_response_rate_is_broken_down_by_board(
     session: Session, company: Company
 ) -> None:

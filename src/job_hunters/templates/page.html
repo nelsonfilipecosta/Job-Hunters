@@ -14,7 +14,7 @@
 <style>
   :root {
     --ink: #18181b; --muted: #71717a; --line: #e4e4e7; --paper: #ffffff;
-    --ground: #f4f4f5; --warn: #b45309; --good: #15803d;
+    --ground: #f4f4f5; --warn: #b45309; --good: #15803d; --bad: #b91c1c;
   }
   * { box-sizing: border-box; }
   body {
@@ -51,8 +51,10 @@
     display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px;
     border: 1px solid var(--line); color: var(--muted);
   }
-  .warn { color: var(--warn); }
+
   .good { color: var(--good); }
+  .bad { color: var(--bad); }
+  .warn { color: var(--warn); }
   .banner {
     background: #fffbeb; border: 1px solid #fcd34d; color: #78350f;
     border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px;
