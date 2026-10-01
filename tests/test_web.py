@@ -1030,6 +1030,22 @@ def test_a_card_reads_company_board_and_date_and_says_active_once_answered(
     assert "<span class=\"good\">active</span>" in answered
 
 
+def test_a_card_starts_with_its_timeline_folded_however_long_it_is(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """A card shows only how many events it has until it is opened."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        client.post(
+            f"/a/{_token(Action.ADD_EVENT, job.id)}",
+            data={"event": "recruiter_screen", "occurred_on": "2026-09-20"},
+        )
+        page = client.get("/").text
+
+    assert re.search(r"<details>\s*<summary>2 event\(s\)</summary>", page)
+
+
 @pytest.mark.parametrize(
     ("ending", "colour"),
     [("offer", "good"), ("rejected", "bad"), ("withdrawn", "bad"), ("ghosted", "bad")],

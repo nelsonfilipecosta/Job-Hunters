@@ -109,7 +109,7 @@
     <div class="row">
       <div>
         {% if application.events %}
-          <details{% if application.events | length > 1 %} open{% endif %}>
+          <details>
             <summary>{{ application.events | length }} event(s)</summary>
             <ol class="timeline">
               {% for event in application.events %}
