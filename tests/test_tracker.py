@@ -5,14 +5,15 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
+from conftest import FakeAdapter, make_posting
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from conftest import FakeAdapter, make_posting
 from job_hunters.actions import Action
-from job_hunters.config import AppConfig, Secrets, SearchProfile, SystemConfig
+from job_hunters.config import AppConfig, SearchProfile, Secrets, SystemConfig
 from job_hunters.digest import build_digest
 from job_hunters.ingest import ingest_company
+from job_hunters.sources import replay_posting
 from job_hunters.tables import (
     Application,
     ApplicationEvent,
@@ -26,13 +27,15 @@ from job_hunters.tables import (
     LocationFit,
     Score,
 )
-from job_hunters.sources import replay_posting
+from job_hunters.templating import render
 from job_hunters.tracker import (
     UnknownJob,
     build_dashboard,
     can_confirm,
     job_card,
     perform,
+    record_event,
+    timeline,
 )
 
 NOW = datetime(2026, 9, 9, 6, 0, tzinfo=UTC)
@@ -448,10 +451,12 @@ def test_the_funnel_counts_stages_reached_and_not_where_things_stand(
     session.commit()
     _advance(session, job, EventKind.RECRUITER_SCREEN, EventKind.ONSITE, EventKind.REJECTED)
 
-    reached = {stage.name: stage.count for stage in build_dashboard(session, _config(), now=NOW).funnel}
-    assert reached[EventKind.APPLIED] == 1
+    dashboard = build_dashboard(session, _config(), now=NOW)
+    reached = {stage.name: stage.count for stage in dashboard.funnel}
+    assert dashboard.applied_total == 1
     assert reached[EventKind.ONSITE] == 1
     assert reached[EventKind.OFFER] == 0
+    assert EventKind.APPLIED not in reached, "a row saying all of them were sent is always 100%"
 
 
 def test_the_funnel_share_is_measured_against_what_was_applied_to(
@@ -465,9 +470,44 @@ def test_the_funnel_share_is_measured_against_what_was_applied_to(
     session.commit()
     _advance(session, first, EventKind.RECRUITER_SCREEN)
 
-    stages = {stage.name: stage for stage in build_dashboard(session, _config(), now=NOW).funnel}
-    assert stages[EventKind.APPLIED].share_of_applied == 1.0
+    dashboard = build_dashboard(session, _config(), now=NOW)
+    stages = {stage.name: stage for stage in dashboard.funnel}
+    assert dashboard.applied_total == 2
     assert stages[EventKind.RECRUITER_SCREEN].share_of_applied == 0.5
+
+
+def test_the_funnel_also_counts_how_applications_ended(
+    session: Session, company: Company
+) -> None:
+    """An ending is counted like a stage against what was applied to."""
+    names = ("One", "Two", "Three", "Four")
+    jobs = [_job(session, company, str(n), f"Research Scientist, {name}")
+            for n, name in enumerate(names, start=1)]
+    for job in jobs:
+        perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    paths = (
+        (EventKind.ONSITE, EventKind.REJECTED),
+        (EventKind.WITHDRAWN,),
+        (EventKind.GHOSTED,),
+        (EventKind.RECRUITER_SCREEN,),
+    )
+    for job, steps in zip(jobs, paths, strict=True):
+        for offset, step in enumerate(steps, start=1):
+            record_event(session, job.id, step, NOW + timedelta(days=offset))
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW)
+    reached = {stage.name: stage.count for stage in state.funnel}
+    assert {stage.name: (stage.count, stage.share_of_applied) for stage in state.endings} == {
+        EventKind.REJECTED: (1, 0.25),
+        EventKind.WITHDRAWN: (1, 0.25),
+        EventKind.GHOSTED: (1, 0.25),
+    }
+    assert list(reached) == [
+        EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL, EventKind.ONSITE, EventKind.OFFER,
+    ], "the endings sit apart from the stages"
+    assert reached[EventKind.ONSITE] == 1, "the rejected one still reached the onsite"
 
 
 def test_a_rejection_counts_as_an_answer_and_being_ghosted_does_not(
@@ -486,6 +526,60 @@ def test_a_rejection_counts_as_an_answer_and_being_ghosted_does_not(
     assert state.response_rate == 0.5
 
 
+def test_an_application_that_reached_an_outcome_is_folded_but_still_counted(
+    session: Session, company: Company
+) -> None:
+    """An ended application leaves the pipeline's cards and none of its numbers."""
+    names = ("One", "Two", "Three", "Four", "Five")
+    jobs = [_job(session, company, str(n), f"Research Scientist, {name}")
+            for n, name in enumerate(names, start=1)]
+    for job in jobs:
+        perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    endings = (EventKind.OFFER, EventKind.REJECTED, EventKind.WITHDRAWN, EventKind.GHOSTED)
+    for job, ending in zip(jobs[1:], endings, strict=True):
+        record_event(session, job.id, ending, NOW + timedelta(days=1))
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW)
+    reached = {stage.name: stage.count for stage in state.funnel}
+    assert [a.job_id for a in state.ongoing] == [jobs[0].id]
+    assert {a.status for a in state.ended} == set(endings)
+    assert state.applied_total == 5 and state.pipeline[ApplicationStatus.REJECTED] == 1
+    assert reached[EventKind.OFFER] == 1, "the funnel still sees the offer"
+    assert {row.label: (row.applied, row.responded) for row in state.by_source} == {
+        "greenhouse": (5, 2)
+    }
+    assert {row.label: (row.applied, row.responded) for row in state.by_tier} == {
+        company.tier: (5, 2)
+    }
+
+
+@pytest.mark.parametrize(
+    ("steps", "standing"),
+    [
+        ((), None),
+        ((EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL), "in process"),
+        ((EventKind.RECRUITER_SCREEN, EventKind.OFFER), "offer"),
+        ((EventKind.ONSITE, EventKind.REJECTED), "rejected"),
+        ((EventKind.RECRUITER_SCREEN, EventKind.WITHDRAWN), "withdrawn"),
+        ((EventKind.GHOSTED,), "ghosted"),
+    ],
+)
+def test_a_card_says_in_one_word_how_an_application_is_going(
+    session: Session, company: Company, steps: tuple[str, ...], standing: str | None
+) -> None:
+    """Nothing while it waits, `in process` once somebody answered and then the outcome it ended on."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    for offset, step in enumerate(steps, start=1):
+        record_event(session, job.id, step, NOW + timedelta(days=offset))
+    session.commit()
+
+    assert build_dashboard(session, _config(), now=NOW).applications[0].standing == standing
+
+
 def test_the_response_rate_is_broken_down_by_board(
     session: Session, company: Company
 ) -> None:
@@ -502,23 +596,24 @@ def test_the_response_rate_is_broken_down_by_board(
     assert rates["ashby"].rate == 0.0
 
 
-def test_tailored_and_untailored_applications_are_counted_apart(
+def test_the_response_rate_is_broken_down_by_tier(
     session: Session, company: Company
 ) -> None:
-    """The comparison only means anything if both sides were counted the same way from the start."""
-    tailored = _job(session, company, "1", "Research Scientist, One")
-    plain = _job(session, company, "2", "Research Scientist, Two")
-    for job in (tailored, plain):
+    """Whether labs answer more often than companies with an AI team on the side."""
+    bigtech = Company(slug="megacorp", name="Megacorp", ats_type="lever",
+                      ats_config={"token": "megacorp"}, tier="bigtech")
+    session.add(bigtech)
+    session.commit()
+    lab = _job(session, company, "1", "Research Scientist, One")
+    corp = _job(session, bigtech, "2", "Research Scientist, Two", source="lever")
+    for job in (lab, corp):
         perform(session, Action.APPLIED, job.id, now=NOW)
     session.commit()
-    row = session.scalar(select(Application).where(Application.job_id == tailored.id))
-    row.cover_letter_path = "data/drafts/cover-letter.md"
-    session.commit()
-    _advance(session, tailored, EventKind.RECRUITER_SCREEN)
+    _advance(session, lab, EventKind.RECRUITER_SCREEN)
 
-    rates = {r.label: r for r in build_dashboard(session, _config(), now=NOW).by_tailoring}
-    assert rates["tailored"].applied == 1 and rates["tailored"].responded == 1
-    assert rates["not tailored"].applied == 1 and rates["not tailored"].responded == 0
+    rates = {row.label: row for row in build_dashboard(session, _config(), now=NOW).by_tier}
+    assert rates["lab"].applied == 1 and rates["lab"].responded == 1
+    assert rates["bigtech"].applied == 1 and rates["bigtech"].responded == 0
 
 
 def test_a_job_the_digest_has_stopped_showing_is_still_here(
@@ -616,3 +711,257 @@ def test_open_roles_are_ordered_by_score(session: Session, company: Company) -> 
 
     titles = [role.title for role in build_dashboard(session, _config(), now=NOW).open_roles]
     assert titles == ["Research Scientist, High", "Research Scientist, Low"]
+
+
+@pytest.mark.parametrize(
+    ("timezone", "stamp", "day"),
+    [
+        ("Europe/Lisbon", "17 Sep 2026 00:45 WEST", "17 Sep 2026"),
+        ("America/Toronto", "16 Sep 2026 19:45 EDT", "16 Sep 2026"),
+    ],
+)
+def test_the_dashboard_prints_its_times_where_the_reader_is(
+    session: Session, company: Company, timezone: str, stamp: str, day: str
+) -> None:
+    """Storage stays in UTC. Only what the page prints moves to the configured timezone."""
+    job = _job(session, company)
+    clicked = datetime(2026, 9, 16, 23, 30, tzinfo=UTC)
+    perform(session, Action.APPLIED, job.id, now=clicked)
+    session.commit()
+    config = AppConfig(
+        search_profile=_profile(),
+        system=SystemConfig.model_validate({"timezone": timezone}),
+        watchlist=[], secrets=Secrets(_env_file=None),
+    )
+    now = datetime(2026, 9, 16, 23, 45, tzinfo=UTC)
+
+    state = build_dashboard(session, config, now=now)
+    page = render(
+        "dashboard.html", dashboard=state, links={}, signed=False, expired=False,
+        discovered=(), boardless=(), rejected=(), rejected_total=0, decisions={}, events={},
+        ingest_schedule="every 2h",
+    )
+
+    assert state.generated_at == now and state.applications[0].applied_at == clicked
+    assert stamp in page and f"applied {day}" in page and f"{day} &mdash; applied" in page
+    assert "UTC" not in page
+
+
+def test_undismissing_removes_the_dismissal_and_nothing_else(
+    session: Session, company: Company
+) -> None:
+    """A dismissal undone leaves nothing worth keeping, so the row goes rather than changes."""
+    job = _job(session, company)
+    perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+    assert _applications(session)[0].status == ApplicationStatus.DISMISSED
+
+    outcome = perform(session, Action.UNDISMISS, job.id, now=NOW)
+    session.commit()
+
+    assert outcome.changed
+    assert _applications(session) == [], "the job is as it was before it was dismissed"
+    state = build_dashboard(session, _config(), now=NOW)
+    assert [role.job_id for role in state.open_roles] == [job.id]
+    assert state.dismissed == 0 and state.dismissed_roles == ()
+
+
+def test_undismissing_refuses_to_delete_an_application(
+    session: Session, company: Company
+) -> None:
+    """The guard `_dismiss` applies in reverse: an applied row carries history and stays."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    outcome = perform(session, Action.UNDISMISS, job.id, now=NOW)
+    session.commit()
+
+    assert not outcome.changed and "refused" in outcome.detail
+    rows = _applications(session)
+    assert len(rows) == 1 and rows[0].status == ApplicationStatus.APPLIED
+    assert rows[0].applied_at is not None
+
+
+def test_undismissing_a_job_that_was_never_dismissed_changes_nothing(
+    session: Session, company: Company
+) -> None:
+    """A link decides from the state it finds and most jobs have no row at all."""
+    job = _job(session, company)
+    outcome = perform(session, Action.UNDISMISS, job.id, now=NOW)
+    session.commit()
+    assert not outcome.changed and _applications(session) == []
+
+
+def test_the_dashboard_lists_what_was_dismissed_with_its_score_now(
+    session: Session, company: Company
+) -> None:
+    """The score decides what undismissing would do, so it is the current one and not the old one."""
+    job = _job(session, company, score=90)
+    perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW)
+    assert state.dismissed_total == 1
+    role = state.dismissed_roles[0]
+    assert role.job_id == job.id and role.score == 90
+    assert role.dismissed_at == NOW, "`created_at` is the moment of the dismissal"
+
+
+def test_the_dismissed_list_is_capped_and_counts_the_rest(
+    session: Session, company: Company
+) -> None:
+    """Dismissals only accumulate, so the page shows the newest and says how many there are."""
+    # Titles that no fuzzy pass would read as one opening, so these stay three jobs.
+    for index, title in enumerate(("Research Scientist", "Applied Scientist", "Data Engineer")):
+        job = _job(session, company, str(index), title)
+        perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW, dismissed_limit=2)
+    assert state.dismissed_total == 3 and len(state.dismissed_roles) == 2
+
+
+def test_a_dismissed_job_is_asked_about_before_it_comes_back(
+    session: Session, company: Company
+) -> None:
+    """The confirm page and the POST read the same rule, so a page with a button can act."""
+    job = _job(session, company)
+    perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+
+    card = job_card(session, job.id, prompt_version=1)
+    confirmable, explanation = can_confirm(Action.UNDISMISS, card)
+    assert confirmable and "open roles" in explanation
+
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    applied = job_card(session, job.id, prompt_version=1)
+    refused, why = can_confirm(Action.UNDISMISS, applied)
+    assert not refused and "not a dismissal" in why
+
+
+def test_an_event_lands_on_the_timeline_and_moves_the_status(
+    session: Session, company: Company
+) -> None:
+    """The funnel reads events and the pipeline reads the status, so one write feeds both."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    outcome = record_event(session, job.id, EventKind.RECRUITER_SCREEN, NOW + timedelta(days=3))
+    session.commit()
+
+    assert outcome.changed and outcome.status == ApplicationStatus.IN_PROCESS
+    steps = timeline(session, job.id)
+    assert [step.event for step in steps] == [EventKind.APPLIED, EventKind.RECRUITER_SCREEN]
+    state = build_dashboard(session, _config(), now=NOW)
+    assert state.pipeline == {ApplicationStatus.IN_PROCESS: 1}
+    assert {stage.name: stage.count for stage in state.funnel}[EventKind.RECRUITER_SCREEN] == 1
+
+
+def test_a_note_is_dated_without_claiming_the_process_moved(
+    session: Session, company: Company
+) -> None:
+    """Something worth remembering is not a step, so the status stays where it was."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    outcome = record_event(session, job.id, EventKind.NOTE, NOW, "Referred by a friend.")
+    session.commit()
+
+    assert outcome.changed and outcome.status == ApplicationStatus.APPLIED
+    assert timeline(session, job.id)[-1].notes == "Referred by a friend."
+
+
+def test_a_note_can_be_added_as_often_as_there_is_something_to_say(
+    session: Session, company: Company
+) -> None:
+    """Notes are the one kind with nothing to be duplicated: two on one day is two notes."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    assert record_event(session, job.id, EventKind.NOTE, NOW, "First.").changed
+    assert record_event(session, job.id, EventKind.NOTE, NOW, "Second.").changed
+    session.commit()
+    assert len(timeline(session, job.id)) == 3
+
+
+def test_a_step_that_repeats_is_refused_only_on_a_day_it_already_has(
+    session: Session, company: Company
+) -> None:
+    """Two technical rounds are two events and one clicked twice is one."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    assert record_event(session, job.id, EventKind.TECHNICAL, NOW).changed
+    again = record_event(session, job.id, EventKind.TECHNICAL, NOW + timedelta(hours=2))
+    assert not again.changed and "already recorded on that date" in again.detail
+
+    later = record_event(session, job.id, EventKind.TECHNICAL, NOW + timedelta(days=7))
+    session.commit()
+    assert later.changed, "a second round a week later is a second event"
+    assert len(timeline(session, job.id)) == 3
+
+
+def test_a_step_that_ends_a_process_is_refused_outright(
+    session: Session, company: Company
+) -> None:
+    """An offer happens once, so a second one is a double-click and not a second offer."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    assert record_event(session, job.id, EventKind.OFFER, NOW).changed
+    again = record_event(session, job.id, EventKind.OFFER, NOW + timedelta(days=30))
+    session.commit()
+
+    assert not again.changed and "only happens once" in again.detail
+    assert len(timeline(session, job.id)) == 2
+
+
+def test_the_last_event_decides_the_status_and_the_funnel_keeps_the_rest(
+    session: Session, company: Company
+) -> None:
+    """A rejection after an onsite still reached the onsite, which is what the funnel is for."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    record_event(session, job.id, EventKind.ONSITE, NOW + timedelta(days=5))
+    record_event(session, job.id, EventKind.REJECTED, NOW + timedelta(days=9))
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW)
+    assert state.pipeline == {ApplicationStatus.REJECTED: 1}
+    reached = {stage.name: stage.count for stage in state.funnel}
+    assert reached[EventKind.ONSITE] == 1
+    assert state.applications[0].responded, "a rejection is still an answer"
+
+
+def test_there_has_to_be_an_application_to_add_to(session: Session, company: Company) -> None:
+    """A job nobody applied to has no timeline and a dismissed one is not a process."""
+    job = _job(session, company)
+    nothing = record_event(session, job.id, EventKind.RECRUITER_SCREEN, NOW)
+    assert not nothing.changed and "no application here" in nothing.detail
+
+    perform(session, Action.DISMISS, job.id, now=NOW)
+    session.commit()
+    dismissed = record_event(session, job.id, EventKind.RECRUITER_SCREEN, NOW)
+    assert not dismissed.changed
+    assert timeline(session, job.id) == ()
+
+
+def test_a_step_this_tracker_does_not_know_is_refused(
+    session: Session, company: Company
+) -> None:
+    """The form offers a fixed list, so anything else arrived from somewhere it should not."""
+    job = _job(session, company)
+    perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+
+    outcome = record_event(session, job.id, "promoted_to_cto", NOW)
+    session.commit()
+    assert not outcome.changed and len(timeline(session, job.id)) == 1

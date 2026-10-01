@@ -234,6 +234,8 @@ class ScoringReport:
     failed: int = 0
     # Calls after the first that read nothing from the cache. Should be zero.
     cold_calls: int = 0
+    # Verdicts whose score fell outside the band the judge said it chose. Should be zero.
+    band_mismatches: int = 0
     usage: Usage = field(default_factory=Usage)
     aborted: str | None = None
     # The judge model this run used. So a caller can report a cache problem
@@ -441,6 +443,7 @@ def run_scoring(
             make_client(api_key),
             config.system.models.judge,
             build_system_prompt(profile, load_profile_text()),
+            bands=profile.scoring.bands,
         )
 
     with session_scope() as session:
@@ -451,6 +454,7 @@ def run_scoring(
             session, candidates, judge, prompt_version=prompt_version, limit=cap,
             report=report, on_verdict=on_verdict,
         )
+    report.band_mismatches = getattr(judge, "band_mismatches", 0)
     return report
 
 

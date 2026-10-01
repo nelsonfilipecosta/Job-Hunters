@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .actions import Action
@@ -57,6 +57,40 @@ DEFERRED_ACTIONS: frozenset[str] = frozenset(
 FUNNEL_STAGES: tuple[str, ...] = (
     EventKind.APPLIED, EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL,
     EventKind.ONSITE, EventKind.OFFER,
+)
+
+# How an application ends without an offer, counted under the funnel the way the
+# stages are: by whether it ever happened, so one rejected after an onsite counts in both.
+FUNNEL_ENDINGS: tuple[str, ...] = (EventKind.REJECTED, EventKind.GHOSTED, EventKind.WITHDRAWN)
+
+# What recording one event does to the application's status. A `note` is the
+# exception: it dates something worth remembering without claiming the process
+# moved. The last event recorded wins, so a rejection after an offer leaves the
+# status `rejected` while the funnel still shows the offer was reached.
+EVENT_STATUS: dict[str, str] = {
+    EventKind.APPLIED: ApplicationStatus.APPLIED,
+    EventKind.RECRUITER_SCREEN: ApplicationStatus.IN_PROCESS,
+    EventKind.TECHNICAL: ApplicationStatus.IN_PROCESS,
+    EventKind.ONSITE: ApplicationStatus.IN_PROCESS,
+    EventKind.OFFER: ApplicationStatus.OFFER,
+    EventKind.REJECTED: ApplicationStatus.REJECTED,
+    EventKind.WITHDRAWN: ApplicationStatus.WITHDRAWN,
+    EventKind.GHOSTED: ApplicationStatus.GHOSTED,
+}
+
+# Terminal events are idempotent. Clicking on them twice changes nothing.
+TERMINAL_EVENTS: frozenset[str] = frozenset(
+    {EventKind.OFFER, EventKind.REJECTED, EventKind.WITHDRAWN, EventKind.GHOSTED}
+)
+
+# Where a terminal event leaves an application. The dashboard folds these away
+# under the pipeline, while the funnel and the response rates still count them.
+ENDED_STATUSES: frozenset[str] = frozenset(EVENT_STATUS[event] for event in TERMINAL_EVENTS)
+
+# The steps a process can genuinely repeat (e.g., two technical rounds). These
+# are idempotent if clicked twice on the same day.
+REPEATABLE_EVENTS: frozenset[str] = frozenset(
+    {EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL, EventKind.ONSITE}
 )
 
 # What counts as somebody at the company answering.
@@ -176,6 +210,17 @@ def can_confirm(action: Action, card: JobCard) -> tuple[bool, str]:
         if card.status in APPLIED_STATUSES:
             return False, f"Already recorded as {card.status}. There is nothing left to do."
         return True, "Records the application and starts its timeline."
+    if action is Action.UNDISMISS:
+        if card.status == ApplicationStatus.DISMISSED:
+            return True, (
+                "Puts it back among the open roles as though it had never been dismissed."
+            )
+        if card.status in APPLIED_STATUSES:
+            return False, (
+                f"This job is recorded as {card.status}, which is not a dismissal. "
+                f"Nothing here would undo that."
+            )
+        return False, "This job is not dismissed, so there is nothing to undo."
     if card.status == ApplicationStatus.DISMISSED:
         return False, "Already dismissed. It is not in the digest."
     if card.status in APPLIED_STATUSES:
@@ -203,7 +248,9 @@ def perform(
     application = _application_for(session, job_id)
     if action is Action.APPLIED:
         return _mark_applied(session, application, job_id, now)
-    return _dismiss(session, application, job_id)
+    if action is Action.UNDISMISS:
+        return _undismiss(session, application)
+    return _dismiss(session, application, job_id, now)
 
 
 def _mark_applied(
@@ -223,7 +270,7 @@ def _mark_applied(
             status=application.status,
         )
     if application is None:
-        application = Application(job_id=job_id)
+        application = Application(job_id=job_id, created_at=now)
         session.add(application)
     application.status = ApplicationStatus.APPLIED
     application.applied_at = now
@@ -245,7 +292,9 @@ def _mark_applied(
     )
 
 
-def _dismiss(session: Session, application: Application | None, job_id: int) -> Outcome:
+def _dismiss(
+    session: Session, application: Application | None, job_id: int, now: datetime
+) -> Outcome:
     """Takes a job out of the digest, unless it was applied to."""
     if application is not None and application.status in APPLIED_STATUSES:
         return Outcome(
@@ -266,7 +315,7 @@ def _dismiss(session: Session, application: Application | None, job_id: int) -> 
             status=ApplicationStatus.DISMISSED,
         )
     if application is None:
-        application = Application(job_id=job_id)
+        application = Application(job_id=job_id, created_at=now)
         session.add(application)
     application.status = ApplicationStatus.DISMISSED
     return Outcome(
@@ -279,6 +328,135 @@ def _dismiss(session: Session, application: Application | None, job_id: int) -> 
         ),
         status=ApplicationStatus.DISMISSED,
     )
+
+
+def _undismiss(session: Session, application: Application | None) -> Outcome:
+    """Deletes a dismissal so the job is open again and refuses to delete anything else."""
+    if application is None:
+        return Outcome(
+            changed=False,
+            headline="Nothing was changed",
+            detail="This job was not dismissed, so there was nothing to undo.",
+        )
+    if application.status != ApplicationStatus.DISMISSED:
+        return Outcome(
+            changed=False,
+            headline="Nothing was changed",
+            detail=(
+                f"This job is recorded as {application.status}, which is not a dismissal. "
+                f"Undoing it would discard that record, so it was refused."
+            ),
+            status=application.status,
+        )
+    session.delete(application)
+    session.flush()
+    return Outcome(
+        changed=True,
+        headline="Back among the open roles",
+        detail=(
+            "The dismissal is gone and the job is listed again. The email counts how "
+            "many digests it has already appeared in and that count is unchanged, so a "
+            "job it had stopped showing may stay in the \"Still Open\" line until its "
+            "score or its posting changes."
+        ),
+    )
+
+
+def timeline(session: Session, job_id: int) -> tuple[TimelineEvent, ...]:
+    """What is already recorded against one job (oldest first)."""
+    application = _application_for(session, job_id)
+    if application is None:
+        return ()
+    return tuple(
+        TimelineEvent(event.event, as_utc(event.occurred_at), event.notes)
+        for event in application.events
+    )
+
+
+def record_event(
+    session: Session,
+    job_id: int,
+    event: str,
+    occurred_at: datetime,
+    notes: str | None = None,
+) -> Outcome:
+    """Adds one dated step to an application's timeline and moves its status with it.
+
+    Refuses rather than writes when there is nothing to add to, when the event is
+    not one this project knows and when the same step is already recorded (except for
+    the steps that can genuinely repeat - these are refused only if clicked twice on
+    the same day). Events are never edited or removed, so a mistake is corrected by
+    recording what actually happened next.
+    """
+    if event not in set(EventKind):
+        return Outcome(changed=False, headline="Nothing was changed",
+                       detail=f"{event!r} is not a step this tracker knows.")
+    application = _application_for(session, job_id)
+    if application is None or application.status == ApplicationStatus.DISMISSED:
+        return Outcome(
+            changed=False,
+            headline="Nothing was changed",
+            detail=(
+                "There is no application here to add to. Mark the job applied first."
+                "and its timeline starts with that."
+            ),
+            status=application.status if application is not None else None,
+        )
+    clash = _duplicate_event(session, application.id, event, occurred_at)
+    if clash is not None:
+        return Outcome(
+            changed=False, headline="Already recorded", detail=clash,
+            status=application.status,
+        )
+
+    session.add(
+        ApplicationEvent(
+            application_id=application.id, event=event, occurred_at=occurred_at,
+            notes=(notes or "").strip() or None,
+        )
+    )
+    moved = EVENT_STATUS.get(event)
+    if moved is not None:
+        application.status = moved
+        if event == EventKind.APPLIED and application.applied_at is None:
+            application.applied_at = occurred_at
+    session.flush()
+    return Outcome(
+        changed=True,
+        headline=f"Recorded: {event.replace('_', ' ')}",
+        detail=(
+            "It is on the timeline and counts towards the funnel."
+            if moved is None
+            else f"It is on the timeline, and the application now stands at {moved}."
+        ),
+        status=application.status,
+    )
+
+
+def _duplicate_event(
+    session: Session, application_id: int, event: str, occurred_at: datetime
+) -> str | None:
+    """Why this step is already recorded or None when it may be added."""
+    existing = session.scalars(
+        select(ApplicationEvent).where(
+            ApplicationEvent.application_id == application_id,
+            ApplicationEvent.event == event,
+        )
+    ).all()
+    if not existing:
+        return None
+    label = event.replace("_", " ")
+    if event in REPEATABLE_EVENTS:
+        day = as_utc(occurred_at).date()
+        if any(as_utc(row.occurred_at).date() == day for row in existing):
+            return (
+                f"A {label} is already recorded on that date. A second one on another "
+                f"day is fine - two technical rounds are two events."
+            )
+        return None
+    if event == EventKind.NOTE:
+        return None
+    return f"This application already has a {label} and it only happens once."
 
 
 def _application_for(session: Session, job_id: int) -> Application | None:
@@ -318,17 +496,36 @@ class TimelineEvent:
 
 
 @dataclass(frozen=True)
+class DismissedRole:
+    """One job taken out of the digest, as the dashboard lists it.
+
+    `score` is the job's score now and not what it scored when it was dismissed,
+    because it decides what undismissing would actually do. A job that has since
+    fallen below the threshold comes back to no list at all.
+    """
+
+    job_id: int
+    title: str
+    company: str
+    location: str
+    work_mode: str
+    score: int | None
+    dismissed_at: datetime
+    apply_url: str | None
+
+
+@dataclass(frozen=True)
 class TrackedApplication:
     """One row of the pipeline with the timeline behind it."""
 
     job_id: int
     title: str
     company: str
+    tier: str
     status: str
     applied_at: datetime | None
     created_at: datetime
     source: str
-    tailored: bool
     apply_url: str | None
     events: tuple[TimelineEvent, ...] = ()
 
@@ -349,6 +546,13 @@ class TrackedApplication:
     def responded(self) -> bool:
         """Whether anyone at the company ever answered."""
         return any(event.event in RESPONSE_EVENTS for event in self.events)
+
+    @property
+    def standing(self) -> str | None:
+        """The word its card shows: `in process`, the outcome or nothing yet."""
+        if self.status in ENDED_STATUSES:
+            return self.status
+        return "in process" if self.responded else None
 
     @property
     def last_event(self) -> TimelineEvent | None:
@@ -405,12 +609,16 @@ class Dashboard:
 
     generated_at: datetime
     threshold: int
+    timezone: str
     pipeline: dict[str, int] = field(default_factory=dict)
     applications: tuple[TrackedApplication, ...] = ()
     dismissed: int = 0
+    dismissed_roles: tuple[DismissedRole, ...] = ()
+    dismissed_total: int = 0
     funnel: tuple[Stage, ...] = ()
+    endings: tuple[Stage, ...] = ()
     by_source: tuple[Rate, ...] = ()
-    by_tailoring: tuple[Rate, ...] = ()
+    by_tier: tuple[Rate, ...] = ()
     open_roles: tuple[OpenRole, ...] = ()
     open_total: int = 0
 
@@ -435,6 +643,16 @@ class Dashboard:
         """True before the first link has ever been clicked."""
         return not self.applications and self.dismissed == 0
 
+    @property
+    def ongoing(self) -> tuple[TrackedApplication, ...]:
+        """The applications still waiting on an outcome, which the pipeline shows in full."""
+        return tuple(a for a in self.applications if a.status not in ENDED_STATUSES)
+
+    @property
+    def ended(self) -> tuple[TrackedApplication, ...]:
+        """The applications that reached an outcome, folded away but still counted."""
+        return tuple(a for a in self.applications if a.status in ENDED_STATUSES)
+
 
 def build_dashboard(
     session: Session,
@@ -442,6 +660,7 @@ def build_dashboard(
     *,
     now: datetime | None = None,
     open_limit: int = 200,
+    dismissed_limit: int = 25,
 ) -> Dashboard:
     """Counts the pipeline, the funnel and the response rates in one pass over the tables."""
     now = now or utcnow()
@@ -452,15 +671,22 @@ def build_dashboard(
     open_roles, open_total = _open_roles(
         session, profile, config.system.digest.repeat_suppression, limit=open_limit
     )
+    dismissed_roles, dismissed_total = _dismissed_roles(
+        session, profile, limit=dismissed_limit
+    )
     return Dashboard(
         generated_at=now,
         threshold=profile.scoring.threshold,
+        timezone=config.system.timezone,
         pipeline=_pipeline(active),
         applications=active,
         dismissed=dismissed,
+        dismissed_roles=dismissed_roles,
+        dismissed_total=dismissed_total,
         funnel=_funnel(active),
+        endings=_funnel(active, FUNNEL_ENDINGS),
         by_source=_rates(active, lambda a: a.source),
-        by_tailoring=_rates(active, lambda a: "tailored" if a.tailored else "not tailored"),
+        by_tier=_rates(active, lambda a: a.tier),
         open_roles=open_roles,
         open_total=open_total,
     )
@@ -469,29 +695,64 @@ def build_dashboard(
 def _tracked_applications(session: Session) -> tuple[TrackedApplication, ...]:
     """Every application with its job, its board and its timeline (newest first)."""
     rows = session.execute(
-        select(Application, Job, Company.name)
+        select(Application, Job, Company.name, Company.tier)
         .join(Job, Application.job_id == Job.id)
         .join(Company, Job.company_id == Company.id)
         .order_by(Application.created_at.desc(), Application.id.desc())
     ).all()
-    sources = _primary_sources(session, [job.id for _, job, _ in rows])
+    sources = _primary_sources(session, [job.id for _, job, _, _ in rows])
     return tuple(
         TrackedApplication(
             job_id=job.id,
             title=job.title,
             company=company_name,
+            tier=tier,
             status=application.status,
             applied_at=as_utc(application.applied_at),
             created_at=as_utc(application.created_at),
             source=sources.get(job.id, "unknown"),
-            tailored=bool(application.cv_path or application.cover_letter_path),
             apply_url=job.apply_url,
             events=tuple(
                 TimelineEvent(e.event, as_utc(e.occurred_at), e.notes)
                 for e in application.events
             ),
         )
-        for application, job, company_name in rows
+        for application, job, company_name, tier in rows
+    )
+
+
+def _dismissed_roles(
+    session: Session, profile: SearchProfile, *, limit: int
+) -> tuple[tuple[DismissedRole, ...], int]:
+    """The most recently dismissed jobs and how many there are in total."""
+    where = Application.status == ApplicationStatus.DISMISSED
+    total = session.scalar(select(func.count()).select_from(Application).where(where)) or 0
+    if not total:
+        return (), 0
+    rows = session.execute(
+        select(Application, Job, Company.name)
+        .join(Job, Application.job_id == Job.id)
+        .join(Company, Job.company_id == Company.id)
+        .where(where)
+        .order_by(Application.created_at.desc(), Application.id.desc())
+        .limit(limit)
+    ).all()
+    winners = best_scores(session, profile.scoring.prompt_version)
+    return (
+        tuple(
+            DismissedRole(
+                job_id=job.id,
+                title=job.title,
+                company=company_name,
+                location=job.location_raw or job.region,
+                work_mode=job.work_mode,
+                score=winners[job.id].score if job.id in winners else None,
+                dismissed_at=as_utc(application.created_at),
+                apply_url=job.apply_url,
+            )
+            for application, job, company_name in rows
+        ),
+        total,
     )
 
 
@@ -526,25 +787,21 @@ def _pipeline(applications: tuple[TrackedApplication, ...]) -> dict[str, int]:
     return {status: count for status, count in counts.items() if count}
 
 
-def _funnel(applications: tuple[TrackedApplication, ...]) -> tuple[Stage, ...]:
-    """How many applications ever reached each stage.
-
-    Counted from the events and not from the current status. An application that was
-    rejected after an onsite still reached the onsite. The first stage is counted as
-    `sent` rather than from its event, so that this table and the response rate below
-    are always shares of the same number.
-    """
-    reached = {stage: 0 for stage in FUNNEL_STAGES}
+def _funnel(
+    applications: tuple[TrackedApplication, ...], stages: tuple[str, ...] = FUNNEL_STAGES
+) -> tuple[Stage, ...]:
+    """How many applications ever reached each of these stages past being sent."""
+    reached = {stage: 0 for stage in stages}
     for application in applications:
         kinds = {event.event for event in application.events}
-        for stage in FUNNEL_STAGES:
+        for stage in stages:
             if stage in kinds:
                 reached[stage] += 1
-    reached[EventKind.APPLIED] = sum(1 for a in applications if a.sent)
-    applied = reached[EventKind.APPLIED]
+    applied = sum(1 for a in applications if a.sent)
     return tuple(
         Stage(stage, count, count / applied if applied else 0.0)
         for stage, count in reached.items()
+        if stage != EventKind.APPLIED
     )
 
 

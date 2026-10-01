@@ -1,0 +1,24 @@
+{# What the confirmation actually did to the queue and to the watchlist file.
+
+   An approval prints the line it appended, which is the only copy of it outside
+   the file: an editor holding an unsaved buffer can overwrite the appends, and by
+   then the company has left the queue and would never be offered again.
+#}
+{% extends "page.html" %}
+{% block title %}{{ outcome.headline }}{% endblock %}
+{% block content %}
+
+<h2 class="{{ 'good' if outcome.changed else '' }}">{{ outcome.headline }}</h2>
+<p class="blurb">{{ outcome.detail }}</p>
+
+{% if outcome.line %}
+  <pre class="line"><code>{{ outcome.line }}</code></pre>
+  <p class="blurb">
+    Keep this if you edit that file by hand: a save from an editor that already had
+    it open would drop the line above and {{ candidate.name }} has left the queue.
+  </p>
+{% endif %}
+
+<div class="actions"><a href="/#discovered">Back to the dashboard</a></div>
+
+{% endblock %}

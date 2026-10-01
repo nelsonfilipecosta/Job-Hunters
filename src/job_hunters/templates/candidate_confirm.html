@@ -1,0 +1,97 @@
+{# What a signed company link opens: the evidence, the line the watchlist would
+   gain and a question about it.
+
+   The button posts. A GET never changes anything, so a link scanner cannot put
+   a company on the watchlist by fetching the address.
+#}
+{% extends "page.html" %}
+{% block title %}{{ label }} — {{ candidate.name }}{% endblock %}
+{% block content %}
+
+<h2>{{ label }} {{ candidate.name }}?</h2>
+<p class="blurb">Nothing has changed yet.</p>
+
+{% if refusal %}
+  <div class="banner">{{ refusal }}</div>
+{% endif %}
+
+<div class="card">
+  <div style="font-size:15px;font-weight:600;">{{ candidate.name }}</div>
+  <div class="meta" style="padding-top:4px;">
+    {{ candidate.sightings }} sighting{{ '' if candidate.sightings == 1 else 's' }}
+    {% if candidate.sources %}on {{ candidate.sources | join(', ') }}{% endif %}
+    {% if candidate.has_board %}
+      &middot; board: {{ candidate.ats }} <code>{{ candidate.token }}</code>
+      &middot; {{ candidate.board_jobs }} open posting{{ '' if candidate.board_jobs == 1 else 's' }}
+    {% else %}
+      &middot; <span class="warn">no board found</span>
+    {% endif %}
+  </div>
+  {% if candidate.roles %}
+    <div style="padding-top:10px;">{{ candidate.roles | join('; ') }}</div>
+  {% endif %}
+  {% if candidate.page_url %}
+    <div class="meta" style="padding-top:6px;">
+      <a href="{{ candidate.page_url }}" rel="noreferrer">{{ candidate.page_url }}</a>
+    </div>
+  {% endif %}
+  {% if candidate.seen %}
+    <ol class="timeline">
+      {% for title, url in candidate.seen %}
+        <li><a href="{{ url }}" rel="noreferrer">{{ title }}</a></li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+</div>
+
+{% if confirmable and action == 'approve' %}
+  <p class="blurb">
+    This appends one line to <code>companies_watchlist.yaml</code>. The board and its
+    token were found by probing and are not editable here. The rest is yours to change.
+    {% if suggested %}The tier is a suggestion{% if because %}: {{ because }}{% endif %}{% endif %}
+  </p>
+  <form method="post" action="/c/{{ token }}">
+    <table>
+      <colgroup><col style="width:18%;"><col></colgroup>
+      <tr><th>Name</th><td><input type="text" name="name" value="{{ name }}" size="40"></td></tr>
+      <tr><th>Slug</th><td><input type="text" name="slug" value="{{ slug }}" size="40"></td></tr>
+      <tr>
+        <th>Tier</th>
+        <td>
+          <select name="tier">
+            {% for option in tiers %}
+              <option value="{{ option }}"{% if option == tier %} selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </td>
+      </tr>
+    </table>
+    <div class="actions" style="padding-top:16px;">
+      <button type="submit">{{ label }}</button>
+      <a href="/#discovered">Cancel</a>
+    </div>
+  </form>
+{% elif confirmable and action == 'unreject' %}
+  <p>This puts {{ candidate.name }} back in the queue and waiting for a decision again.</p>
+  <div class="actions">
+    <form method="post" action="/c/{{ token }}">
+      <button type="submit">{{ label }}</button>
+    </form>
+    <a href="/#discovered">Cancel</a>
+  </div>
+{% elif confirmable %}
+  <p>
+    Rejecting takes this company out of the queue for good. Later sightings still count
+    against its row, but it is never queued again. Nothing else changes.
+  </p>
+  <div class="actions">
+    <form method="post" action="/c/{{ token }}">
+      <button type="submit" class="danger">{{ label }}</button>
+    </form>
+    <a href="/#discovered">Cancel</a>
+  </div>
+{% else %}
+  <div class="actions"><a href="/#discovered">Back to the dashboard</a></div>
+{% endif %}
+
+{% endblock %}

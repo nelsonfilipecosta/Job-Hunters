@@ -18,6 +18,7 @@ from ..normalize import html_to_text
 from .base import FetchResult, RawPosting, SourceError, default_client, get_json
 
 BOARD_URL = "https://api.lever.co/v0/postings/{token}?mode=json"
+PAGE_URL = "https://jobs.lever.co/{token}"
 
 
 class LeverAdapter:

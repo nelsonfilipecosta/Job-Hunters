@@ -7,8 +7,10 @@ holds both halves of the digest email and the pages the web application serves.
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
 from functools import lru_cache
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
@@ -18,7 +20,7 @@ TEMPLATE_DIR = Path(__file__).parent / "templates"
 @lru_cache(maxsize=1)
 def environment() -> Environment:
     """The Jinja environment built once and reused."""
-    return Environment(
+    env = Environment(
         loader=FileSystemLoader(TEMPLATE_DIR),
         # Only `.html` is escaped. The plain-text half of the digest must not
         # be escaped or an ampersand in a job title would reach the reader as `&amp;`.
@@ -27,6 +29,22 @@ def environment() -> Environment:
         trim_blocks=True,
         lstrip_blocks=True,
     )
+    # Every stored time is UTC. A template that prints a time passes it through this
+    # filter first, so the reader sees the configured timezone and nothing else does.
+    env.filters["local"] = to_local
+    return env
+
+
+def to_local(moment: datetime, timezone: str) -> datetime:
+    """The same instant expressed in the configured timezone (for display only)."""
+    return moment.astimezone(ZoneInfo(timezone))
+
+
+def from_local_date(day: str, timezone: str) -> datetime:
+    """A date a reader typed is read as noon where they are and stored in UTC."""
+    chosen = date.fromisoformat(day)
+    local = datetime(chosen.year, chosen.month, chosen.day, 12, tzinfo=ZoneInfo(timezone))
+    return local.astimezone(UTC)
 
 
 def render(template: str, **context) -> str:

@@ -306,6 +306,18 @@ def test_a_job_shown_past_suppress_after_is_folded_into_a_count(
     assert digest.still_open == 1
 
 
+def test_the_still_open_line_says_how_many_showings_fold_a_job(
+    session: Session, company: Company
+) -> None:
+    """The blurb quotes the configured `suppress_after` days."""
+    job = _one_job(session, company, 90)
+    _shown_on(session, job, [5, 6, 7])
+    digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
+    assert digest.suppress_after == 3
+    for body in render_bodies(digest):
+        assert "Shown in 3 consecutive digests" in body
+
+
 def test_suppression_can_be_turned_off_entirely(session: Session, company: Company) -> None:
     """`enabled: false` means a job keeps its place however many times it has been shown."""
     job = _one_job(session, company, 90)
@@ -448,7 +460,7 @@ def test_a_job_held_back_only_by_its_authorization_says_the_location_was_fine(
     entry = build_digest(session, _config(), SECRET, today=TODAY, now=NOW).entries[0]
     note = entry.section_note.lower()
     assert "the location qualifies" in note
-    assert "the work authorization does not" in note
+    assert "the work authorization is unclear" in note
 
 
 def test_that_answer_still_names_the_office_when_it_is_not_the_obvious_one(
@@ -465,7 +477,7 @@ def test_that_answer_still_names_the_office_when_it_is_not_the_obvious_one(
     note = entry.section_note.lower()
     assert "the location qualifies" in note
     assert "(via us)" in note, "the office that earned it is named even here"
-    assert "the work authorization does not" in note
+    assert "the work authorization is blocked" in note
 
 
 def test_every_worth_checking_entry_explains_itself(
@@ -667,6 +679,32 @@ def test_the_seed_list_is_not_news_but_a_company_added_later_is(session: Session
     assert [c.name for c in digest.new_companies] == ["Prior Labs"]
 
 
+@pytest.mark.parametrize(
+    ("timezone", "built", "added"),
+    [
+        ("Europe/Lisbon", "2026-09-17 00:45 WEST", "added 17 Sep"),
+        ("America/Toronto", "2026-09-16 19:45 EDT", "added 16 Sep"),
+    ],
+)
+def test_the_email_prints_its_times_where_the_reader_is(
+    session: Session, company: Company, timezone: str, built: str, added: str
+) -> None:
+    """Storage stays in UTC. Only what the email prints moves to the configured timezone."""
+    _settled(session, company)
+    fresh = _company_added(session, "prior-labs", 0)
+    fresh.created_at = datetime(2026, 9, 16, 23, 30, tzinfo=UTC)
+    session.commit()
+    now = datetime(2026, 9, 16, 23, 45, tzinfo=UTC)
+    config = _config(system={**SYSTEM_DICT, "timezone": timezone})
+
+    digest = build_digest(session, config, SECRET, now=now)
+
+    assert digest.generated_at == now
+    for body in (render(digest, "digest.html"), render(digest, "digest.txt")):
+        assert built in body and added in body
+        assert "UTC" not in body
+
+
 def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session, company: Company) -> None:
     """The queue is invisible unless the daily email says it is there."""
     from job_hunters.tables import CandidateCompany, CandidateStatus
@@ -679,10 +717,12 @@ def test_the_review_queue_size_is_reported_even_on_an_empty_day(session: Session
     digest = build_digest(session, _config(), SECRET, today=TODAY, now=NOW)
     assert digest.is_empty and digest.pending_candidates == 2
     for body in render_bodies(digest):
-        assert "2 discovered companies" in body and "promote --review" in body
-        # The queue line stands alone. Nothing joined the watchlist, so the email says that.
-        assert "None joined the watchlist this week" in body
+        assert "Discovered Companies (2)" in body or "DISCOVERED COMPANIES (2)" in body
+        assert "promote --review" in body
+        assert digest.candidates_url in body, "the line has to reach the page that decides"
+        # The queue stands alone. Nothing joined the watchlist, so nothing says one did.
         assert "Added to the watchlist this week" not in body
+        assert "New Companies" not in body and "NEW COMPANIES" not in body
 
 
 def test_a_digest_with_no_company_news_has_no_section_for_it(session: Session, company: Company) -> None:

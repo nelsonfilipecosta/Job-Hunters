@@ -13,7 +13,8 @@ one to the code that does the actual work:
     job-hunters digest       builds the daily email and sends it
     job-hunters backup       writes a timestamped backup of the database to `backups/`
     job-hunters discover     reads the discover sources and queues new companies for review
-    job-hunters promote      reviews the queue and appends approved companies to the watchlist
+    job-hunters promote      reviews the queue, appends approved companies to the watchlist
+                             and puts a rejection back with --unreject
 
 This file does no work of its own. `build_parser()` registers each subcommand
 under a name. `main()` reads what was typed and calls whichever `cmd_*`
@@ -39,7 +40,15 @@ from .evaluate import run_evaluation
 from .judge import Usage, Verdict, cache_minimum_tokens
 from .mailer import DeliveryError
 from .tables import CandidateCompany, Tier
-from .promote import PromoteError, approve, reject, review_queue, slug_for, watchlist_line
+from .promote import (
+    PromoteError,
+    approve,
+    reject,
+    review_queue,
+    slug_for,
+    unreject,
+    watchlist_line,
+)
 from .scoring import Candidate, group_by_text, run_scoring
 from .sources import DISCOVER_SOURCES
 
@@ -242,6 +251,10 @@ def cmd_score(args: argparse.Namespace) -> int:
               f"cache. The prefix is probably shorter than the minimum cacheable length"
               f"{target}. Add Markdown records to profile/ or set models.judge to a model "
               f"with a lower minimum.", file=sys.stderr)
+    if report.band_mismatches:
+        print(f"Warning: {report.band_mismatches} of {report.judged} verdict(s) scored outside "
+              f"the band the judge named. The scoring rubric is not binding the answer. See the "
+              f"log for which postings.", file=sys.stderr)
     if report.aborted:
         print(f"Error: stopped early: {report.aborted}", file=sys.stderr)
         return 1
@@ -392,6 +405,12 @@ def cmd_promote(args: argparse.Namespace) -> int:
         with session_scope() as session:
             candidate = reject(session, args.reject)
             print(f"Rejected {candidate.name}. It will not be queued again.")
+            print(f"`job-hunters promote --unreject {candidate.id}` puts it back.")
+        return 0
+    if args.unreject is not None:
+        with session_scope() as session:
+            candidate = unreject(session, args.unreject)
+            print(f"{candidate.name} is back in the queue, waiting for a decision.")
         return 0
 
     with session_scope() as session:
@@ -549,7 +568,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     discover.set_defaults(func=cmd_discover)
 
-    # `job-hunters promote [--review | --approve ID [--slug SLUG] [--name NAME] [--tier TIER] | --reject ID]`
+    # `job-hunters promote [--review | --approve ID [--slug SLUG] [--name NAME] [--tier TIER]
+    #                       | --reject ID | --unreject ID]`
     promote = subparsers.add_parser(
         "promote", help="review the discovered companies and append approved ones to the watchlist"
     )
@@ -565,6 +585,10 @@ def build_parser() -> argparse.ArgumentParser:
     decision.add_argument(
         "--reject", metavar="ID",
         help="stop showing this candidate (by id or name)"
+    )
+    decision.add_argument(
+        "--unreject", metavar="ID",
+        help="put a rejected candidate (by id or name) back in the queue"
     )
     promote.add_argument(
         "--slug", metavar="SLUG",

@@ -4,8 +4,10 @@ Four routes:
 
     GET  /health      liveness (touching nothing)
     GET  /            the dashboard
-    GET  /a/{token}   what one signed link asks and a button
+    GET  /a/{token}   what one signed link asks about a job and a button
     POST /a/{token}   what that button does
+    GET  /c/{token}   the same for one discovered company with the watchlist line to be
+    POST /c/{token}   what that button does
 
 There is no CSRF token. A form post from another site could reach these routes
 because the browser is on the same machine, but it would have to name a valid
@@ -20,26 +22,48 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from urllib.parse import parse_qsl
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.exc import IntegrityError
 
 from . import paths
 from .actions import (
     ACTION_LABELS,
+    CANDIDATE_LABELS,
+    QUEUE_DECISIONS,
     Action,
     ActionLink,
+    CandidateAction,
     ExpiredToken,
     SignedAction,
+    SignedCandidateAction,
     TokenError,
     action_links,
+    candidate_links,
     verify,
+    verify_candidate,
 )
 from .config import AppConfig, ConfigError, load_all
 from .db import SchemaError, init_db, session_scope
-from .templating import render
+from .promote import (
+    PromoteError,
+    Queued,
+    approve,
+    queued,
+    reject,
+    rejected,
+    review_queue,
+    unreject,
+)
+from .tables import CandidateCompany, CandidateStatus, Tier, utcnow
+from .templating import from_local_date, render, to_local
+from .tiering import suggest_tier
 from .tracker import (
+    ApplicationStatus,
+    EventKind,
     JobCard,
     Outcome,
     UnknownJob,
@@ -47,13 +71,30 @@ from .tracker import (
     can_confirm,
     job_card,
     perform,
+    record_event,
+    timeline,
 )
 
 log = logging.getLogger("job_hunters.web")
 
-# The two  actions the tracker can carry out today. Drafting is Phase 6 and its links
+# The two actions the tracker can carry out today. Drafting is Phase 6 and its links
 # reach an honest page from the email, but there is no reason to print one here.
 DASHBOARD_ACTIONS: tuple[Action, ...] = (Action.APPLIED, Action.DISMISS)
+
+# The options offered to a dismissed posting.
+DISMISSED_ACTIONS: tuple[Action, ...] = (Action.APPLIED, Action.UNDISMISS)
+
+# The options offered for a discovered company with no dashboard.
+REJECT_ONLY: tuple[CandidateAction, ...] = (CandidateAction.REJECT,)
+
+# The options offered for a discovered company that was already rejected.
+UNDO_ONLY: tuple[CandidateAction, ...] = (CandidateAction.UNREJECT,)
+
+# How many dismissed jobs the dashnoard lists.
+DISMISSED_SHOWN = 25
+
+# How many rejections the dashboard lists.
+REJECTED_SHOWN = 25
 
 # Redirect after a POST and the status that means "look over there instead".
 SEE_OTHER = 303
@@ -97,18 +138,55 @@ def health() -> dict[str, str]:
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(expired: str | None = None) -> HTMLResponse:
-    """What is outstanding, where each application stands and how they go."""
+    """What is outstanding, where each application stands, how they go and who is queued."""
     config = load_all()
     secret = config.secrets.optional("action_token_secret")
     with session_scope() as session:
-        state = build_dashboard(session, config)
+        state = build_dashboard(session, config, dismissed_limit=DISMISSED_SHOWN)
+        # `review_queue` reconciles against `companies_watchlist.yaml` first, so a
+        # company approved elsewhere has already left the queue by the time it is drawn.
+        queue = tuple(queued(candidate) for candidate in review_queue(session))
+        turned_down, rejected_total = rejected(session, limit=REJECTED_SHOWN)
+        turned_down = tuple(queued(candidate) for candidate in turned_down)
     links: dict[int, tuple[ActionLink, ...]] = {}
+    decisions: dict[int, tuple[ActionLink, ...]] = {}
+    events: dict[int, str] = {}
     if secret:
         links = {role.job_id: _links_for(config, secret, role.job_id)
                  for role in state.open_roles}
+        links |= {
+            role.job_id: _links_for(config, secret, role.job_id, only=DISMISSED_ACTIONS)
+            for role in state.dismissed_roles
+        }
+        events = {
+            application.job_id: _links_for(
+                config, secret, application.job_id, only=(Action.ADD_EVENT,)
+            )[0].url
+            for application in state.applications
+        }
+        decisions = {entry.id: _decisions_for(config, secret, entry) for entry in queue}
+        decisions |= {
+            entry.id: candidate_links(
+                config.system.base_url, secret, entry.id,
+                ttl_days=config.system.actions.token_ttl_days, only=UNDO_ONLY,
+            )
+            for entry in turned_down
+        }
     return HTMLResponse(
-        render("dashboard.html", dashboard=state, links=links,
-               signed=bool(secret), expired=expired is not None)
+        render(
+            "dashboard.html",
+            dashboard=state,
+            links=links,
+            events=events,
+            signed=bool(secret),
+            expired=expired is not None,
+            discovered=tuple(entry for entry in queue if entry.has_board),
+            boardless=tuple(entry for entry in queue if not entry.has_board),
+            rejected=turned_down,
+            rejected_total=rejected_total,
+            decisions=decisions,
+            ingest_schedule=config.system.schedules.ingest,
+        )
     )
 
 
@@ -126,6 +204,9 @@ def confirm(token: str) -> Response:
         except UnknownJob:
             return _gone(resolved.job_id)
 
+    if resolved.action is Action.ADD_EVENT:
+        return _event_page(config, card, token)
+
     confirmable, explanation = can_confirm(resolved.action, card)
     return HTMLResponse(
         render(
@@ -141,12 +222,15 @@ def confirm(token: str) -> Response:
 
 
 @app.post("/a/{token}", response_class=HTMLResponse)
-def execute(token: str) -> Response:
+async def execute(request: Request, token: str) -> Response:
     """Carries out one confirmed action. Posting the same link twice changes nothing."""
     config = load_all()
     resolved = _resolve(config, token)
     if not isinstance(resolved, SignedAction):
         return resolved
+    if resolved.action is Action.ADD_EVENT:
+        form = dict(parse_qsl((await request.body()).decode("utf-8")))
+        return _record_event(config, resolved.job_id, form, token)
 
     try:
         card, outcome = _act(config, resolved)
@@ -165,6 +249,246 @@ def execute(token: str) -> Response:
     log.info(
         "action %s on job %s: %s", resolved.action.value, resolved.job_id, outcome.headline
     )
+    return HTMLResponse(render("outcome.html", card=card, outcome=outcome))
+
+
+@app.get("/c/{token}", response_class=HTMLResponse)
+def confirm_candidate(token: str) -> Response:
+    """Shows one queued company, the line the watchlist would gain and the button."""
+    config = load_all()
+    resolved = _resolve_candidate(config, token)
+    if not isinstance(resolved, SignedCandidateAction):
+        return resolved
+
+    with session_scope() as session:
+        candidate = session.get(CandidateCompany, resolved.candidate_id)
+        if candidate is None:
+            return _candidate_gone(resolved.candidate_id)
+        entry, refusal = queued(candidate), _refusal(resolved.action, candidate)
+
+    # Only for an approval that can still happen: a decided company needs no tier
+    # and the reviewer should not wait on a model call to be told so.
+    suggestion = None
+    if resolved.action is CandidateAction.APPROVE and refusal is None:
+        suggestion = suggest_tier(entry, config)
+    return _candidate_page(entry, token, resolved.action, suggestion=suggestion, refusal=refusal)
+
+
+@app.post("/c/{token}", response_class=HTMLResponse)
+async def decide_candidate(request: Request, token: str) -> Response:
+    """Approves or rejects one queued company. Posting the same link twice changes nothing."""
+    config = load_all()
+    resolved = _resolve_candidate(config, token)
+    if not isinstance(resolved, SignedCandidateAction):
+        return resolved
+    # Read as a plain urlencoded body rather than through `Form(...)`, which would
+    # pull in `python-multipart` for three text fields this page already controls.
+    form = dict(parse_qsl((await request.body()).decode("utf-8")))
+
+    with session_scope() as session:
+        candidate = session.get(CandidateCompany, resolved.candidate_id)
+        if candidate is None:
+            return _candidate_gone(resolved.candidate_id)
+        entry = queued(candidate)
+        refusal = _refusal(resolved.action, candidate)
+        if refusal is not None:
+            return _candidate_page(entry, token, resolved.action, refusal=refusal)
+        try:
+            outcome = _decide(session, candidate, resolved.action, form)
+        except PromoteError as exc:
+            # Recoverable: the company is still pending and still has a board, so
+            # the same page with another slug would work. The fields come back filled.
+            log.info("candidate %s refused: %s", candidate.name, exc)
+            return _candidate_page(
+                entry, token, resolved.action, refusal=str(exc), chosen=form, confirmable=True
+            )
+        log.info("candidate %s: %s", entry.name, outcome.headline)
+
+    return HTMLResponse(render("candidate_outcome.html", candidate=entry, outcome=outcome))
+
+
+@dataclass(frozen=True)
+class CandidateOutcome:
+    """What a confirmed decision about a company did."""
+
+    headline: str
+    detail: str
+    changed: bool
+    line: str | None = None
+
+
+def _decide(
+    session,
+    candidate: CandidateCompany,
+    action: CandidateAction,
+    form: dict[str, str],
+) -> CandidateOutcome:
+    """Carries out one decision, raising `PromoteError` with the reason it could not."""
+    if action is CandidateAction.REJECT:
+        reject(session, str(candidate.id))
+        return CandidateOutcome(
+            headline=f"{candidate.name} rejected.",
+            detail="It leaves the queue for good. Later sightings still count against "
+                   "its row, but it is never queued again.",
+            changed=True,
+        )
+    if action is CandidateAction.UNREJECT:
+        unreject(session, str(candidate.id))
+        return CandidateOutcome(
+            headline=f"{candidate.name} is back in the queue.",
+            detail="The rejection is undone and nothing else changed. It is waiting for "
+                   "a decision again.",
+            changed=True,
+        )
+    tier = form.get("tier", "")
+    done = approve(
+        session,
+        str(candidate.id),
+        slug=(form.get("slug") or "").strip() or None,
+        name=(form.get("name") or "").strip() or None,
+        # A hand-made POST could name a tier that is not one. The dropdown cannot.
+        tier=tier if tier in set(Tier) else Tier.DISCOVERED,
+    )
+    return CandidateOutcome(
+        headline=f"{done.candidate.name} added to the watchlist.",
+        detail=f"{done.path.name} gained the line below. Its board is fetched by the "
+               f"next ingest and its postings are then judged like any other.",
+        changed=True,
+        line=done.line,
+    )
+
+
+def _refusal(action: CandidateAction, candidate: CandidateCompany) -> str | None:
+    """Why this decision cannot be taken. Read from the state rather than from the link."""
+    decided = candidate.status
+    if action is CandidateAction.APPROVE:
+        if decided == CandidateStatus.APPROVED:
+            return (
+                f"{candidate.name} is already in the watchlist as "
+                f"{candidate.slug or 'an entry'}."
+            )
+        if decided == CandidateStatus.REJECTED:
+            return f"{candidate.name} was rejected, so it is no longer in the queue."
+        if not candidate.ats_type or not candidate.ats_token:
+            return (
+                f"No Greenhouse, Lever or Ashby board was found for {candidate.name}, "
+                f"so there is nothing to watch yet. It is probed again every week."
+            )
+        return None
+    if action is CandidateAction.UNREJECT:
+        if decided == CandidateStatus.APPROVED:
+            return (
+                f"{candidate.name} is in the watchlist. Remove its line from "
+                f"`companies_watchlist.yaml` to stop watching it."
+            )
+        if decided != CandidateStatus.REJECTED:
+            return f"{candidate.name} is already in the queue, so there is nothing to undo."
+        return None
+    if decided == CandidateStatus.APPROVED:
+        return (
+            f"{candidate.name} is in the watchlist. Remove its line from "
+            f"`companies_watchlist.yaml` to stop watching it."
+        )
+    if decided == CandidateStatus.REJECTED:
+        return f"{candidate.name} was already rejected."
+    return None
+
+
+def _candidate_page(
+    entry: Queued,
+    token: str,
+    action: CandidateAction,
+    *,
+    suggestion: tuple[Tier, str] | None = None,
+    refusal: str | None = None,
+    chosen: dict[str, str] | None = None,
+    confirmable: bool | None = None,
+) -> HTMLResponse:
+    """The confirm page for a company with the form filled in and any refusal above it."""
+    chosen = chosen or {}
+    tier, because = suggestion or (Tier.DISCOVERED, "")
+    return HTMLResponse(
+        render(
+            "candidate_confirm.html",
+            candidate=entry,
+            token=token,
+            action=action.value,
+            label=CANDIDATE_LABELS[action],
+            refusal=refusal,
+            confirmable=refusal is None if confirmable is None else confirmable,
+            tiers=[t.value for t in Tier],
+            slug=chosen.get("slug") or entry.slug,
+            name=chosen.get("name") or entry.name,
+            tier=chosen.get("tier") or tier.value,
+            because=because,
+            suggested=suggestion is not None,
+        )
+    )
+
+
+def _event_page(
+    config: AppConfig,
+    card: JobCard,
+    token: str,
+    *,
+    refusal: str | None = None,
+    chosen: dict[str, str] | None = None,
+) -> HTMLResponse:
+    """The form that adds one step to a timeline with the timeline for context."""
+    chosen = chosen or {}
+    with session_scope() as session:
+        steps = timeline(session, card.job_id)
+    today = to_local(utcnow(), config.system.timezone).date().isoformat()
+    return HTMLResponse(
+        render(
+            "event.html",
+            card=card,
+            token=token,
+            timeline=steps,
+            timezone=config.system.timezone,
+            kinds=[kind.value for kind in EventKind],
+            event=chosen.get("event") or EventKind.RECRUITER_SCREEN.value,
+            occurred_on=chosen.get("occurred_on") or today,
+            notes=chosen.get("notes", ""),
+            refusal=refusal,
+            confirmable=card.status is not None
+            and card.status != ApplicationStatus.DISMISSED,
+        )
+    )
+
+
+def _record_event(
+    config: AppConfig, job_id: int, form: dict[str, str], token: str
+) -> Response:
+    """Writes one timeline event or hands the form back with what was wrong."""
+    day = (form.get("occurred_on") or "").strip()
+    try:
+        occurred_at = from_local_date(day, config.system.timezone)
+    except ValueError:
+        occurred_at = None
+
+    with session_scope() as session:
+        try:
+            card = job_card(session, job_id, config.search_profile.scoring.prompt_version)
+        except UnknownJob:
+            return _gone(job_id)
+        if occurred_at is None:
+            outcome = Outcome(
+                changed=False,
+                headline="Nothing was changed",
+                detail=f"{day!r} is not a date this page can read.",
+                status=card.status,
+            )
+        else:
+            outcome = record_event(
+                session, job_id, form.get("event", ""), occurred_at, form.get("notes")
+            )
+        if not outcome.changed:
+            # Fixable at the same page: another date, another step or nothing at all.
+            return _event_page(config, card, token, refusal=outcome.detail, chosen=form)
+        card = job_card(session, job_id, config.search_profile.scoring.prompt_version)
+
+    log.info("event %s on job %s: %s", form.get("event"), job_id, outcome.headline)
     return HTMLResponse(render("outcome.html", card=card, outcome=outcome))
 
 
@@ -208,14 +532,62 @@ def _resolve(config: AppConfig, token: str) -> SignedAction | Response:
         )
 
 
-def _links_for(config: AppConfig, secret: str, job_id: int) -> tuple[ActionLink, ...]:
-    """The signed links printed beside one role on the dashboard."""
+def _links_for(
+    config: AppConfig,
+    secret: str,
+    job_id: int,
+    only: tuple[Action, ...] = DASHBOARD_ACTIONS,
+) -> tuple[ActionLink, ...]:
+    """The signed links printed beside one job on the dashboard."""
     return action_links(
         config.system.base_url,
         secret,
         job_id,
         ttl_days=config.system.actions.token_ttl_days,
-        only=DASHBOARD_ACTIONS,
+        only=only,
+    )
+
+
+def _resolve_candidate(config: AppConfig, token: str) -> SignedCandidateAction | Response:
+    """Verifies a company token or the page to serve instead of honouring it."""
+    secret = config.secrets.optional("action_token_secret")
+    if not secret:
+        return _notice(
+            "This installation cannot check links.",
+            "ACTION_TOKEN_SECRET is not set, so no link can be verified. Add it to "
+            "`.env` (see `.env.example`) and restart.",
+            status=500,
+        )
+    try:
+        return verify_candidate(secret, token)
+    except ExpiredToken:
+        return RedirectResponse("/?expired=1", status_code=SEE_OTHER)
+    except TokenError as exc:
+        return _notice(
+            "This link cannot be trusted.",
+            f"{exc} Nothing was changed. Open the review queue on the dashboard instead.",
+            status=400,
+        )
+
+
+def _decisions_for(config: AppConfig, secret: str, entry: Queued) -> tuple[ActionLink, ...]:
+    """The signed links printed beside one queued company."""
+    return candidate_links(
+        config.system.base_url,
+        secret,
+        entry.id,
+        ttl_days=config.system.actions.token_ttl_days,
+        only=QUEUE_DECISIONS if entry.has_board else REJECT_ONLY,
+    )
+
+
+def _candidate_gone(candidate_id: int) -> HTMLResponse:
+    """The page for a link naming a company this database no longer holds."""
+    return _notice(
+        "That company is no longer here.",
+        f"The link is valid, but company {candidate_id} is not in the queue any more. "
+        f"Nothing was changed.",
+        status=404,
     )
 
 

@@ -6,6 +6,7 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
 from job_hunters import paths
 from job_hunters.cli import main
@@ -348,9 +349,16 @@ def test_promote_with_an_empty_queue_says_so(session, capsys) -> None:
     assert "Nothing to review" in capsys.readouterr().out
 
 
-def test_promote_lists_the_queue_with_ids_and_boards(session, capsys) -> None:
+def test_promote_lists_the_queue_with_ids_and_boards(session, capsys, monkeypatch, tmp_path) -> None:
     """Each candidate prints with the id `--approve` takes and the board that was found."""
     from job_hunters.tables import CandidateCompany
+
+    watchlist = tmp_path / "companies_watchlist.yaml"
+    watchlist.write_text(
+        "- { slug: anthropic, name: Anthropic, ats: greenhouse, token: anthropic, tier: lab }\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("job_hunters.paths.WATCHLIST_PATH", watchlist)
 
     session.add(CandidateCompany(name="Prior Labs", name_key="prior labs", sightings=2, ats_type="ashby",
                                  ats_token="prior-labs", board_url="https://ashby.test/prior-labs", board_jobs=24,
@@ -384,3 +392,42 @@ def test_promote_refuses_naming_options_without_an_approval(capsys) -> None:
     """`--slug` on a review is a typo for an approval and not something to ignore."""
     assert main(["promote", "--slug", "x"]) == 1
     assert "--approve" in capsys.readouterr().err
+
+
+def test_promote_unreject_puts_a_rejection_back(session, capsys, monkeypatch, tmp_path) -> None:
+    """A rejection is permanent so the misclick needs a way back from the terminal too."""
+    from job_hunters.tables import CandidateCompany, CandidateStatus
+
+    watchlist = tmp_path / "companies_watchlist.yaml"
+    watchlist.write_text(
+        "- { slug: anthropic, name: Anthropic, ats: greenhouse, token: anthropic, tier: lab }\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("job_hunters.paths.WATCHLIST_PATH", watchlist)
+    session.add(CandidateCompany(name="Tufalabs", name_key="tufalabs", sightings=1,
+                                 roles=[], evidence=[]))
+    session.commit()
+
+    assert main(["promote", "--reject", "Tufalabs"]) == 0
+    assert "unreject" in capsys.readouterr().out, "the way back is printed where it is needed"
+    assert main(["promote", "--unreject", "Tufalabs"]) == 0
+    assert "back in the queue" in capsys.readouterr().out
+
+    session.expire_all()
+    row = session.scalar(select(CandidateCompany).where(CandidateCompany.name == "Tufalabs"))
+    assert row.status == CandidateStatus.PENDING and row.decided_at is None
+
+    assert main(["promote"]) == 0
+    assert "Tufalabs" in capsys.readouterr().out
+
+
+def test_promote_unreject_refuses_what_was_never_rejected(session, capsys) -> None:
+    """An unknown or undecided company is a user error and exits 1 with the reason."""
+    from job_hunters.tables import CandidateCompany
+
+    session.add(CandidateCompany(name="Tufalabs", name_key="tufalabs", sightings=1,
+                                 roles=[], evidence=[]))
+    session.commit()
+
+    assert main(["promote", "--unreject", "Tufalabs"]) == 1
+    assert "already in the queue" in capsys.readouterr().err

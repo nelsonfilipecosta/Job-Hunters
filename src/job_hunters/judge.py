@@ -54,9 +54,13 @@ class Verdict(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    band: str = Field(
+        description="The name of the chosen band exactly as it appears at the start of "
+        "band's description.",
+    )
     score: int = Field(
         ge=0, le=100,
-        description="Fit with the rubric and the candidate's background (from 0 to 100).",
+        description="A score inside the range of the chosen band (from 0 to 100).",
     )
     summary: str = Field(
         description="Two short plain-text sentences for a daily digest: what the role "
@@ -164,12 +168,27 @@ def _describe_regions(tokens: list[str]) -> str:
     return "; ".join(parts)
 
 
+def band_name(band: ScoreBand) -> str:
+    """The short name a band is referred to by (its description up to the first period)."""
+    return band.meaning.strip().splitlines()[0].split(".")[0].strip()
+
+
+def band_for(bands: list[ScoreBand], name: str) -> ScoreBand | None:
+    """The band that name refers to or None when it names no band at all."""
+    wanted = name.strip().strip(".").casefold()
+    return next((band for band in bands if band_name(band).casefold() == wanted), None)
+
+
 def _describe_bands(bands: list[ScoreBand]) -> list[str]:
     """The scale as the model reads it. Highest band first whatever order config lists them in."""
-    return [
-        f"- {band.low} to {band.high}: {band.meaning.strip()}"
-        for band in sorted(bands, key=lambda band: band.low, reverse=True)
-    ]
+    described: list[str] = []
+    for band in sorted(bands, key=lambda band: band.low, reverse=True):
+        # A band carries a whole description, so only its first line rides the
+        # bullet. The rest is indented under it or it would read as more bands.
+        head, *rest = band.meaning.strip().splitlines()
+        described.append(f"- {band.low} to {band.high}: {head}")
+        described += [f"  {line}" for line in rest]
+    return described
 
 
 def _describe_examples(examples: list[ScoreExample]) -> list[str]:
@@ -191,7 +210,6 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
     """
     location = profile.location
     auth = location.work_authorization
-    seniority = profile.seniority
     scoring = profile.scoring
     lines = [
         "You screen job postings for one specific candidate. For each posting you are "
@@ -208,26 +226,38 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
         "",
         scoring.rubric.strip(),
         "",
-        f"Seniority sought: {', '.join(seniority.include) or 'any'}. "
-        f"Not sought: {', '.join(seniority.exclude) or 'none'}.",
-        f"Title patterns the search treats as a strong signal: "
-        f"{', '.join(profile.titles.include)}.",
-        f"Domain vocabulary that marks the target work: "
-        f"{', '.join(profile.keywords.strong)}."
-        f"Weaker signals: "
-        f"{', '.join(profile.keywords.supporting) or 'none'}.",
+        "# How to score",
         "",
-        "# Declared facts you must not second-guess",
+        "Score in two steps:",
         "",
-        f"The candidate is based in {location.base}. The following is declared and "
-        "is not for you to infer:",
+        "Step 1. Choose the one band below whose description matches the role's main "
+        "duties. A role whose duties span several bands belongs to the band its main "
+        "duties belong to and never between them. Name the band you chose in `band`.",
+        "",
+        *_describe_bands(scoring.bands),
+        "",
+        "Step 2. Give a score inside the range of the band you chose. That range is a "
+        "hard limit. Nothing about the candidate's background, preferences or the rest "
+        "of the posting may put the score outside it. A strong match in a low band stays "
+        "in the low band. If you want a score the range does not allow, then you chose "
+        "the wrong band in step 1. Go back and choose again.",
+    ]
+    if scoring.guidance.strip():
+        lines += ["", scoring.guidance.strip()]
+    if scoring.examples:
+        lines += ["", "# Calibration examples", "", *_describe_examples(scoring.examples)]
+    lines += [
+        "",
+        "# Declared facts you must not guess",
+        "",
+        f"- The candidate is based in {location.base}.",
         f"- Can work without visa sponsorship in: {_describe_regions(auth.have)}.",
         f"- Would need sponsorship in: {_describe_regions(auth.need_sponsorship) or 'nowhere listed'}.",
         "",
         "Do not reason about immigration law and do not guess whether a company "
-        "would sponsor. Location preferences are applied by code, not by you.",
+        "would sponsor. Location preferences are applied by code and not by you.",
         "",
-        "For `work_authorization`, answer one question only: does the posting text "
+        "For `work_authorization`, answer only one question: does the posting text "
         "itself state a requirement that contradicts the declared status?",
         "- blocked: the text explicitly requires something the candidate does not "
         "hold, such as citizenship of a specific country, a security clearance, or "
@@ -238,20 +268,11 @@ def build_system_prompt(profile: SearchProfile, profile_text: str) -> str:
         "- eligible: the text states nothing that conflicts with the declared "
         "status. This is the default when the posting is silent.",
         "",
-        "# How to score",
-        "",
-        "Give a score from 0 to 100 for how well the role fits the rubric and the "
-        "candidate's background:",
-        *_describe_bands(scoring.bands),
-    ]
-    if scoring.guidance.strip():
-        lines += ["", scoring.guidance.strip()]
-    if scoring.examples:
-        lines += ["", "# Calibration examples", "", *_describe_examples(scoring.examples)]
-    lines += [
-        "",
         "# The answer",
         "",
+        "- band: the band chosen named exactly as it appears at the start of that "
+        "band's description.",
+        "- score: a number inside that band's range.",
         "- summary: two short plain-text sentences for a daily email digest, in "
         "this order: what the role is, then why it does or does not fit the "
         "candidate. No markdown and no company boilerplate.",
@@ -295,11 +316,32 @@ def make_client(api_key: str) -> anthropic.Anthropic:
 class Judge:
     """Holds one client, one model and one cached prefix for a whole run."""
 
-    def __init__(self, client: Any, model: str, system_prompt: str) -> None:
+    def __init__(
+        self, client: Any, model: str, system_prompt: str,
+        *, bands: list[ScoreBand] | None = None,
+    ) -> None:
         """Takes a ready client (real or fake), the model name and the prefix to cache."""
         self._client = client
         self.model = model
         self.system_prompt = system_prompt
+        self._bands = bands or []
+        self.band_mismatches = 0
+
+    def _check_band(self, verdict: Verdict, text: PostingText) -> None:
+        """Counts and logs a score that fell outside the band the judge said it chose."""
+        if not self._bands:
+            return
+        band = band_for(self._bands, verdict.band)
+        where = f"{text.title} @ {text.company}"
+        if band is None:
+            self.band_mismatches += 1
+            log.warning("%s: named no band we know (%r), scored %d", where, verdict.band, verdict.score)
+        elif not band.low <= verdict.score <= band.high:
+            self.band_mismatches += 1
+            log.warning(
+                "%s: chose %r (%d-%d) but scored %d",
+                where, verdict.band, band.low, band.high, verdict.score,
+            )
 
     def judge(self, text: PostingText) -> tuple[Verdict, Usage]:
         """Takes one posting and outputs one validated verdict with the token usage."""
@@ -332,4 +374,5 @@ class Judge:
         verdict = response.parsed_output
         if verdict is None:
             raise JudgeError(f"No structured answer (stop_reason={response.stop_reason!r})")
+        self._check_band(verdict, text)
         return verdict, Usage.from_response(response.usage)

@@ -16,9 +16,12 @@ from __future__ import annotations
 
 from .arbeitnow import ArbeitnowSource
 from .ashby import AshbyAdapter
+from .ashby import PAGE_URL as ASHBY_PAGE
 from .base import DiscoverSource, FetchResult, JobSource, RawPosting, SourceError
+from .greenhouse import PAGE_URL as GREENHOUSE_PAGE
 from .greenhouse import GreenhouseAdapter
 from .hn import HackerNewsSource
+from .lever import PAGE_URL as LEVER_PAGE
 from .lever import LeverAdapter
 from .remoteok import RemoteOkSource
 from .remotive import RemotiveSource
@@ -28,6 +31,21 @@ ADAPTERS: dict[str, type[JobSource]] = {
     "lever": LeverAdapter,
     "ashby": AshbyAdapter,
 }
+
+BOARD_PAGES: dict[str, str] = {
+    "greenhouse": GREENHOUSE_PAGE,
+    "lever": LEVER_PAGE,
+    "ashby": ASHBY_PAGE,
+}
+
+
+def board_page(ats_type: str | None, token: str | None) -> str | None:
+    """The public job board of one company or None when there is nothing to point at."""
+    if not ats_type or not token:
+        return None
+    template = BOARD_PAGES.get(ats_type)
+    return template.format(token=token) if template else None
+
 
 DISCOVER_SOURCES: dict[str, type[DiscoverSource]] = {
     "hn": HackerNewsSource,

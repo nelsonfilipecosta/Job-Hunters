@@ -28,6 +28,7 @@ from .base import (
 )
 
 BOARD_URL = "https://api.ashbyhq.com/posting-api/job-board/{token}"
+PAGE_URL = "https://jobs.ashbyhq.com/{token}"
 
 
 class AshbyAdapter:

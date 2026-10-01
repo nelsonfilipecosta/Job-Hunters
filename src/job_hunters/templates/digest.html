@@ -51,17 +51,15 @@
           </div>
 
           <div style="font-size:12px;color:#52525b;padding-top:4px;">
-            {{ entry.company }} &middot; {{ entry.location }} &middot; {{ entry.work_mode }}
-            {% if entry.section_note %}
-              &middot; <span style="color:#71717a;">{{ entry.section_note }}</span>
-            {% endif %}
-            {% if entry.work_authorization != 'eligible' %}
-              &middot; <span style="color:#b45309;">Work Authorization: {{ entry.work_authorization }}</span>
-            {% endif %}
+            {{ entry.company }} &middot; {{ entry.location }} &middot; {{ entry.work_mode | capitalize }}
             {% if entry.repeat_note %}
               &middot; <span style="color:#b45309;">{{ entry.repeat_note }}</span>
             {% endif %}
           </div>
+
+          {% if entry.section_note %}
+            <div style="font-size:12px;color:#71717a;padding-top:2px;">{{ entry.section_note }}</div>
+          {% endif %}
 
           {% if entry.summary %}
             <div style="font-size:14px;padding-top:10px;">{{ entry.summary }}</div>
@@ -89,7 +87,20 @@
     {% endif %}
   {% endfor %}
 
-  {% if digest.new_companies or digest.pending_candidates %}
+  {% if digest.still_open %}
+    <div style="font-size:13px;color:#71717a;padding-top:24px;">
+      <a href="{{ digest.still_open_url }}" style="color:#71717a;">
+        Still Open ({{ digest.still_open }}) &rarr;
+      </a>
+      <div style="font-size:12px;padding-top:2px;">
+        Shown in {{ digest.suppress_after }} consecutive digests and neither applied to
+        nor dismissed. They are still in the dashboard and they come back to the
+        sections above if the posting or the score changes.
+      </div>
+    </div>
+  {% endif %}
+
+  {% if digest.new_companies %}
     <div style="padding-top:28px;">
       <div style="font-size:16px;font-weight:700;">
         🆕 New Companies
@@ -98,11 +109,8 @@
         {% endif %}
       </div>
       <div style="font-size:12px;color:#71717a;padding-top:2px;">
-        {% if digest.new_companies %}
-          Added to the watchlist this week. Their postings arrive with the next ingest.
-        {% else %}
-          None joined the watchlist this week.
-        {% endif %}
+        Added to the watchlist this week. Their postings are already part of the ingest
+        and every role scoring {{ digest.threshold }} or above appears in the sections above.
       </div>
     </div>
     {% for company in digest.new_companies %}
@@ -115,29 +123,23 @@
         </span>
       </div>
     {% endfor %}
-    {% if digest.pending_candidates %}
-      <div style="font-size:12px;color:#71717a;padding-top:10px;">
-        {{ digest.pending_candidates }} discovered compan{{ 'y is' if digest.pending_candidates == 1 else 'ies are' }}
-        waiting for a decision: <code>job-hunters promote --review</code>
-      </div>
-    {% endif %}
   {% endif %}
 
-  {% if digest.still_open %}
+  {% if digest.pending_candidates %}
     <div style="font-size:13px;color:#71717a;padding-top:24px;">
-      <a href="{{ digest.still_open_url }}" style="color:#71717a;">
-        Still Open ({{ digest.still_open }}) &rarr;
+      <a href="{{ digest.candidates_url }}" style="color:#71717a;">
+        Discovered Companies ({{ digest.pending_candidates }}) &rarr;
       </a>
       <div style="font-size:12px;padding-top:2px;">
-        Shown often enough already and neither applied to nor dismissed. They
-        are still in the dashboard and they come back here if the posting or
-        the score changes.
+        Seen hiring and waiting for a decision. Approve or reject them on the dashboard
+        or with <code>job-hunters promote --review</code>. Nothing joins the watchlist
+        until you say so.
       </div>
     </div>
   {% endif %}
 
   <div style="font-size:11px;color:#a1a1aa;padding-top:28px;border-top:1px solid #e4e4e7;margin-top:28px;">
-    Built {{ digest.generated_at.strftime('%Y-%m-%d %H:%M') }} UTC.
+    Built {{ (digest.generated_at | local(digest.timezone)).strftime('%Y-%m-%d %H:%M %Z') }}.
     The action links are signed and expire. Nothing happens until you confirm
     on the page they open.
   </div>

@@ -1,8 +1,10 @@
-"""The review queue and the two decisions that empty it.
+"""The review queue and the three decisions that move a company through it.
 
 `job-hunters promote --review` lists the companies `discover` has queued.
-`--approve` appends one to `config/companies_watchlist.yaml` and `--reject`
-silences one. Nothing is ever appended without a person asking for it.
+`--approve` appends one to `config/companies_watchlist.yaml`, `--reject`
+silences one and `--unreject` puts a rejection back if it was a misclick.
+The dashboard offers the same three behind signed links. Nothing is ever
+appended without a person asking for it.
 
 The `companies_watchlist.yaml` file is the source of truth and this module
 adds companies to it. The next `ingest` syncs the `companies` table from the
@@ -17,12 +19,13 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import paths
 from .config import CompanyEntry, ConfigError, load_watchlist
 from .discover import Watched, reconcile
+from .sources import board_page
 from .tables import CandidateCompany, CandidateStatus, Tier, utcnow
 from .normalize import normalize_company
 
@@ -63,6 +66,70 @@ def review_queue(
         pending,
         key=lambda c: (c.ats_type is None, -c.sightings, -(c.board_jobs or 0), c.name.lower()),
     )
+
+
+@dataclass(frozen=True)
+class Queued:
+    """One company in the review queue as a page shows it."""
+
+    id: int
+    name: str
+    slug: str
+    ats: str | None
+    token: str | None
+    board_url: str | None
+    board_jobs: int | None
+    careers_url: str | None
+    # The careers page the sighting gave or the company's board on its ATS.
+    page_url: str | None
+    roles: tuple[str, ...]
+    sightings: int
+    sources: tuple[str, ...]
+    seen: tuple[tuple[str, str], ...]
+    decided_at: datetime | None = None
+
+    @property
+    def has_board(self) -> bool:
+        """Whether there is anything to watch: no board, no approval."""
+        return bool(self.ats and self.token)
+
+
+def queued(candidate: CandidateCompany) -> Queued:
+    """One queue row flattened for display."""
+    evidence = candidate.evidence or []
+    return Queued(
+        id=candidate.id,
+        name=candidate.name,
+        slug=slug_for(candidate.name),
+        ats=candidate.ats_type,
+        token=candidate.ats_token,
+        board_url=candidate.board_url,
+        board_jobs=candidate.board_jobs,
+        careers_url=candidate.careers_url,
+        page_url=candidate.careers_url or board_page(candidate.ats_type, candidate.ats_token),
+        roles=tuple(candidate.roles or []),
+        sightings=candidate.sightings or 0,
+        sources=tuple(sorted({str(item.get("source", "")) for item in evidence} - {""})),
+        seen=tuple(
+            (str(item.get("title", "")), str(item.get("url", "")))
+            for item in evidence[-2:]
+            if item.get("title")
+        ),
+        decided_at=candidate.decided_at,
+    )
+
+
+def rejected(session: Session, limit: int = 25) -> tuple[list[CandidateCompany], int]:
+    """The most recently rejected companies and how many there are in total."""
+    where = CandidateCompany.status == CandidateStatus.REJECTED
+    total = session.scalar(select(func.count()).select_from(CandidateCompany).where(where)) or 0
+    rows = session.scalars(
+        select(CandidateCompany)
+        .where(where)
+        .order_by(CandidateCompany.decided_at.desc(), CandidateCompany.id.desc())
+        .limit(limit)
+    ).all()
+    return list(rows), total
 
 
 def find_candidate(session: Session, ref: str) -> CandidateCompany:
@@ -221,5 +288,21 @@ def reject(session: Session, ref: str, now: datetime | None = None) -> Candidate
         )
     candidate.status = CandidateStatus.REJECTED
     candidate.decided_at = now or utcnow()
+    session.flush()
+    return candidate
+
+
+def unreject(session: Session, ref: str) -> CandidateCompany:
+    """Puts a rejected candidate back in the queue for a rejection that was a misclick."""
+    candidate = find_candidate(session, ref)
+    if candidate.status == CandidateStatus.APPROVED:
+        raise PromoteError(
+            f"{candidate.name} is in the watchlist. Remove its line from "
+            f"`companies_watchlist.yaml` to stop watching it."
+        )
+    if candidate.status != CandidateStatus.REJECTED:
+        raise PromoteError(f"{candidate.name} is already in the queue.")
+    candidate.status = CandidateStatus.PENDING
+    candidate.decided_at = None
     session.flush()
     return candidate

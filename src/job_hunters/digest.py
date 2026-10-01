@@ -26,7 +26,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -52,6 +51,7 @@ from .tables import (
 )
 from .scoring import LocationMatch, best_scores, location_match
 from .templating import render as render_template
+from .templating import to_local
 
 ACTIONED_STATUSES: frozenset[str] = frozenset(
     set(ApplicationStatus) - {ApplicationStatus.INTERESTED}
@@ -137,7 +137,10 @@ class Entry:
         if self.fit == LocationFit.UNKNOWN:
             return "Location could not be settled."
         if self.work_authorization != WorkAuthStatus.ELIGIBLE:
-            return f"The location qualifies{self._via}. The work authorization does not."
+            return (
+                f"The location qualifies{self._via}, but the work authorization "
+                f"is {self.work_authorization}."
+            )
         return f"{self.fit} via {self.matched_place}" if self._via else ""
 
     @property
@@ -183,7 +186,10 @@ class Digest:
     threshold: int
     still_open: int
     still_open_url: str
+    candidates_url: str
+    suppress_after: int
     generated_at: datetime
+    timezone: str
     new_companies: list[NewCompany] = field(default_factory=list)
     pending_candidates: int = 0
 
@@ -286,7 +292,7 @@ def build_digest(
     base_url = config.system.base_url
     links = LinkFactory(base_url, secret, config.system.actions.token_ttl_days, now)
 
-    new_companies = _new_companies(session, now)
+    new_companies = _new_companies(session, now, config.system.timezone)
     pending = _pending_candidates(session)
 
     winners = best_scores(session, profile.scoring.prompt_version)
@@ -302,7 +308,10 @@ def build_digest(
             threshold=profile.scoring.threshold,
             still_open=0,
             still_open_url=f"{base_url}/",
+            candidates_url=f"{base_url}/#discovered",
+            suppress_after=suppression.suppress_after,
             generated_at=now,
+            timezone=config.system.timezone,
             new_companies=new_companies,
             pending_candidates=pending,
         )
@@ -354,13 +363,16 @@ def build_digest(
         threshold=profile.scoring.threshold,
         still_open=suppressed,
         still_open_url=f"{base_url}/",
+        candidates_url=f"{base_url}/#discovered",
+        suppress_after=suppression.suppress_after,
         generated_at=now,
+        timezone=config.system.timezone,
         new_companies=new_companies,
         pending_candidates=pending,
     )
 
 
-def _new_companies(session: Session, now: datetime) -> list[NewCompany]:
+def _new_companies(session: Session, now: datetime, timezone: str) -> list[NewCompany]:
     """Every company that joined the `companies` table in the last week (newest first).
 
     The seed list is left out. Every company created within a minute of the first one is
@@ -385,7 +397,7 @@ def _new_companies(session: Session, now: datetime) -> list[NewCompany]:
             tier=company.tier,
             ats=company.ats_type,
             open_postings=open_counts.get(company.id, 0),
-            added=as_utc(company.created_at).date(),
+            added=to_local(as_utc(company.created_at), timezone).date(),
         )
         for company in rows
         if as_utc(company.created_at) >= since and as_utc(company.created_at) > seeded_until
@@ -471,8 +483,8 @@ def _appearance_history(
 
 
 def _local_today(timezone: str, now: datetime) -> date:
-    """The time at the timezone where you are not where UTC is."""
-    return now.astimezone(ZoneInfo(timezone)).date()
+    """The time at the timezone where you are and not where UTC is."""
+    return to_local(now, timezone).date()
 
 
 def record_appearances(session: Session, digest: Digest) -> int:

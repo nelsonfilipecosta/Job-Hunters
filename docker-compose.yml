@@ -27,7 +27,10 @@ services:
       - ./src:/app/src
       # Config files are also bind-mounted but read-only
       - ./config:/app/config:ro
-      # Same thing for profile files
+      # The one exception: `promote --approve` appends to the watchlist, so that
+      # file alone is mounted again over the read-only directory and is writable.
+      - ./config/companies_watchlist.yaml:/app/config/companies_watchlist.yaml
+      # Profile files are also bind-mounted but read-only
       - ./profile:/app/profile:ro
       # Backups are bind-mount to survive `down -v`
       - ./backups:/app/backups
