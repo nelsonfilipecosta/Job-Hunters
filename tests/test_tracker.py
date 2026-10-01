@@ -476,6 +476,40 @@ def test_the_funnel_share_is_measured_against_what_was_applied_to(
     assert stages[EventKind.RECRUITER_SCREEN].share_of_applied == 0.5
 
 
+def test_the_funnel_also_counts_how_applications_ended(
+    session: Session, company: Company
+) -> None:
+    """An ending is counted like a stage against what was applied to."""
+    names = ("One", "Two", "Three", "Four")
+    jobs = [_job(session, company, str(n), f"Research Scientist, {name}")
+            for n, name in enumerate(names, start=1)]
+    for job in jobs:
+        perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    paths = (
+        (EventKind.ONSITE, EventKind.REJECTED),
+        (EventKind.WITHDRAWN,),
+        (EventKind.GHOSTED,),
+        (EventKind.RECRUITER_SCREEN,),
+    )
+    for job, steps in zip(jobs, paths, strict=True):
+        for offset, step in enumerate(steps, start=1):
+            record_event(session, job.id, step, NOW + timedelta(days=offset))
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW)
+    reached = {stage.name: stage.count for stage in state.funnel}
+    assert {stage.name: (stage.count, stage.share_of_applied) for stage in state.endings} == {
+        EventKind.REJECTED: (1, 0.25),
+        EventKind.WITHDRAWN: (1, 0.25),
+        EventKind.GHOSTED: (1, 0.25),
+    }
+    assert list(reached) == [
+        EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL, EventKind.ONSITE, EventKind.OFFER,
+    ], "the endings sit apart from the stages"
+    assert reached[EventKind.ONSITE] == 1, "the rejected one still reached the onsite"
+
+
 def test_a_rejection_counts_as_an_answer_and_being_ghosted_does_not(
     session: Session, company: Company
 ) -> None:
@@ -525,7 +559,7 @@ def test_an_application_that_reached_an_outcome_is_folded_but_still_counted(
     ("steps", "standing"),
     [
         ((), None),
-        ((EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL), "active"),
+        ((EventKind.RECRUITER_SCREEN, EventKind.TECHNICAL), "in process"),
         ((EventKind.RECRUITER_SCREEN, EventKind.OFFER), "offer"),
         ((EventKind.ONSITE, EventKind.REJECTED), "rejected"),
         ((EventKind.RECRUITER_SCREEN, EventKind.WITHDRAWN), "withdrawn"),
@@ -535,7 +569,7 @@ def test_an_application_that_reached_an_outcome_is_folded_but_still_counted(
 def test_a_card_says_in_one_word_how_an_application_is_going(
     session: Session, company: Company, steps: tuple[str, ...], standing: str | None
 ) -> None:
-    """Nothing while it waits, `active` once somebody answered and then the outcome it ended on."""
+    """Nothing while it waits, `in process` once somebody answered and then the outcome it ended on."""
     job = _job(session, company)
     perform(session, Action.APPLIED, job.id, now=NOW)
     session.commit()

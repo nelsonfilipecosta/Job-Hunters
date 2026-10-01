@@ -1007,7 +1007,7 @@ def test_an_application_still_waiting_is_not_folded(
     assert "Research Scientist" in page[page.find("<h2>Pipeline</h2>"):page.find("<h2>Funnel</h2>")]
 
 
-def test_a_card_reads_company_board_and_date_and_says_active_once_answered(
+def test_a_card_reads_company_board_and_date_and_says_in_process_once_answered(
     session: Session, company: Company, signed: str, watchlist: Path
 ) -> None:
     """No status bubble, no tailoring mark and no word until somebody answers."""
@@ -1026,8 +1026,8 @@ def test_a_card_reads_company_board_and_date_and_says_active_once_answered(
 
     assert "Acme &middot; via greenhouse" in waiting, "nothing between the company and the board"
     assert "tailored" not in waiting, "a tailored application is not marked as one"
-    assert "class=\"good\">active" not in waiting and "class=\"bad\"" not in waiting
-    assert "<span class=\"good\">active</span>" in answered
+    assert "class=\"good\">in process" not in waiting and "class=\"bad\"" not in waiting
+    assert "<span class=\"good\">in process</span>" in answered
 
 
 def test_a_card_starts_with_its_timeline_folded_however_long_it_is(
@@ -1064,6 +1064,32 @@ def test_an_ended_card_says_how_it_ended_in_green_or_red(
         page = client.get("/").text
 
     assert f"<span class=\"{colour}\">{ending}</span>" in _inside_fold(page, "Ended (1)")
+
+
+def test_the_funnel_lists_how_applications_ended_below_its_stages(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """Each ending gets a row of its own counted against what was applied to."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        client.post(
+            f"/a/{_token(Action.ADD_EVENT, job.id)}",
+            data={"event": "rejected", "occurred_on": "2026-09-25"},
+        )
+        page = client.get("/").text
+
+    funnel = page[page.find("<h2>Funnel</h2>"):page.find("<h2>Response Rate</h2>")]
+    rows = re.findall(
+        r'<td>([a-z ]+)</td>.*?<td class="num">(\d+)</td>\s*<td class="num">(\d+)%</td>',
+        funnel, re.S,
+    )
+    assert rows == [
+        ("recruiter screen", "0", "0"), ("technical", "0", "0"), ("onsite", "0", "0"),
+        ("offer", "0", "0"), ("rejected", "1", "100"), ("ghosted", "0", "0"),
+        ("withdrawn", "0", "0"),
+    ]
+    assert 'class="bar"' not in funnel, "a count and a share, and no bar"
 
 
 def test_a_refused_step_comes_back_as_the_same_form(

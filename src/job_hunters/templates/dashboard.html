@@ -103,7 +103,7 @@
         &middot; applied {{ (application.applied_at | local(dashboard.timezone)).strftime('%d %b %Y') }}
       {% endif %}
       {% if application.standing %}
-        &middot; <span class="{{ 'good' if application.standing in ('active', 'offer') else 'bad' }}">{{ application.standing }}</span>
+        &middot; <span class="{{ 'good' if application.standing in ('in process', 'offer') else 'bad' }}">{{ application.standing }}</span>
       {% endif %}
     </div>
     <div class="row">
@@ -195,23 +195,20 @@
 
 <h2>Funnel</h2>
 <p class="blurb">
-  How many applications have reached each stage. One rejected after an onsite still reached the onsite.
+  How many applications have reached each stage. One rejected after an onsite still reached the onsite and counts in both.
 </p>
 {% if dashboard.applied_total %}
   <table>
     <colgroup>
-      <col><col style="width:40%;"><col style="width:14%;"><col style="width:14%;">
+      <col><col style="width:14%;"><col style="width:14%;">
     </colgroup>
     <tr>
-      <th>Stage</th><th>&nbsp;</th>
+      <th>Stage</th>
       <th class="num">Count</th><th class="num">Of applied ({{ dashboard.applied_total }})</th>
     </tr>
-    {% for stage in dashboard.funnel %}
+    {% for stage in dashboard.funnel + dashboard.endings %}
       <tr>
         <td>{{ stage.label }}</td>
-        <td>
-          <div class="bar"><span style="width:{{ (stage.share_of_applied * 100) | round(1) }}%;"></span></div>
-        </td>
         <td class="num">{{ stage.count }}</td>
         <td class="num">{{ (stage.share_of_applied * 100) | round | int }}%</td>
       </tr>

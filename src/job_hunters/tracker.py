@@ -59,6 +59,10 @@ FUNNEL_STAGES: tuple[str, ...] = (
     EventKind.ONSITE, EventKind.OFFER,
 )
 
+# How an application ends without an offer, counted under the funnel the way the
+# stages are: by whether it ever happened, so one rejected after an onsite counts in both.
+FUNNEL_ENDINGS: tuple[str, ...] = (EventKind.REJECTED, EventKind.GHOSTED, EventKind.WITHDRAWN)
+
 # What recording one event does to the application's status. A `note` is the
 # exception: it dates something worth remembering without claiming the process
 # moved. The last event recorded wins, so a rejection after an offer leaves the
@@ -545,10 +549,10 @@ class TrackedApplication:
 
     @property
     def standing(self) -> str | None:
-        """The word its card shows: `active`, the outcome or nothing yet."""
+        """The word its card shows: `in process`, the outcome or nothing yet."""
         if self.status in ENDED_STATUSES:
             return self.status
-        return "active" if self.responded else None
+        return "in process" if self.responded else None
 
     @property
     def last_event(self) -> TimelineEvent | None:
@@ -612,6 +616,7 @@ class Dashboard:
     dismissed_roles: tuple[DismissedRole, ...] = ()
     dismissed_total: int = 0
     funnel: tuple[Stage, ...] = ()
+    endings: tuple[Stage, ...] = ()
     by_source: tuple[Rate, ...] = ()
     by_tier: tuple[Rate, ...] = ()
     open_roles: tuple[OpenRole, ...] = ()
@@ -679,6 +684,7 @@ def build_dashboard(
         dismissed_roles=dismissed_roles,
         dismissed_total=dismissed_total,
         funnel=_funnel(active),
+        endings=_funnel(active, FUNNEL_ENDINGS),
         by_source=_rates(active, lambda a: a.source),
         by_tier=_rates(active, lambda a: a.tier),
         open_roles=open_roles,
@@ -781,12 +787,14 @@ def _pipeline(applications: tuple[TrackedApplication, ...]) -> dict[str, int]:
     return {status: count for status, count in counts.items() if count}
 
 
-def _funnel(applications: tuple[TrackedApplication, ...]) -> tuple[Stage, ...]:
-    """How many applications ever reached each stage past being sent."""
-    reached = {stage: 0 for stage in FUNNEL_STAGES}
+def _funnel(
+    applications: tuple[TrackedApplication, ...], stages: tuple[str, ...] = FUNNEL_STAGES
+) -> tuple[Stage, ...]:
+    """How many applications ever reached each of these stages past being sent."""
+    reached = {stage: 0 for stage in stages}
     for application in applications:
         kinds = {event.event for event in application.events}
-        for stage in FUNNEL_STAGES:
+        for stage in stages:
             if stage in kinds:
                 reached[stage] += 1
     applied = sum(1 for a in applications if a.sent)
