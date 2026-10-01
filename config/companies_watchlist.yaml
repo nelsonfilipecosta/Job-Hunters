@@ -92,3 +92,5 @@
 - { slug: pathos-ai, name: Pathos AI, ats: ashby, token: pathos, tier: discovered }
 - { slug: janestreet, name: Janestreet, ats: greenhouse, token: janestreet, tier: bigtech }
 - { slug: benchling, name: Benchling, ats: ashby, token: benchling, tier: infra }
+- { slug: super, name: Super, ats: greenhouse, token: super, tier: discovered }
+- { slug: inato, name: Inato, ats: ashby, token: inato, tier: discovered }
