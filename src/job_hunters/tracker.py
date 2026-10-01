@@ -79,6 +79,10 @@ TERMINAL_EVENTS: frozenset[str] = frozenset(
     {EventKind.OFFER, EventKind.REJECTED, EventKind.WITHDRAWN, EventKind.GHOSTED}
 )
 
+# Where a terminal event leaves an application. The dashboard folds these away
+# under the pipeline, while the funnel and the response rates still count them.
+ENDED_STATUSES: frozenset[str] = frozenset(EVENT_STATUS[event] for event in TERMINAL_EVENTS)
+
 # The steps a process can genuinely repeat (e.g., two technical rounds). These
 # are idempotent if clicked twice on the same day.
 REPEATABLE_EVENTS: frozenset[str] = frozenset(
@@ -627,6 +631,16 @@ class Dashboard:
     def is_empty(self) -> bool:
         """True before the first link has ever been clicked."""
         return not self.applications and self.dismissed == 0
+
+    @property
+    def ongoing(self) -> tuple[TrackedApplication, ...]:
+        """The applications still waiting on an outcome, which the pipeline shows in full."""
+        return tuple(a for a in self.applications if a.status not in ENDED_STATUSES)
+
+    @property
+    def ended(self) -> tuple[TrackedApplication, ...]:
+        """The applications that reached an outcome, folded away but still counted."""
+        return tuple(a for a in self.applications if a.status in ENDED_STATUSES)
 
 
 def build_dashboard(

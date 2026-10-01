@@ -492,6 +492,35 @@ def test_a_rejection_counts_as_an_answer_and_being_ghosted_does_not(
     assert state.response_rate == 0.5
 
 
+def test_an_application_that_reached_an_outcome_is_folded_but_still_counted(
+    session: Session, company: Company
+) -> None:
+    """An ended application leaves the pipeline's cards and none of its numbers."""
+    names = ("One", "Two", "Three", "Four", "Five")
+    jobs = [_job(session, company, str(n), f"Research Scientist, {name}")
+            for n, name in enumerate(names, start=1)]
+    for job in jobs:
+        perform(session, Action.APPLIED, job.id, now=NOW)
+    session.commit()
+    endings = (EventKind.OFFER, EventKind.REJECTED, EventKind.WITHDRAWN, EventKind.GHOSTED)
+    for job, ending in zip(jobs[1:], endings, strict=True):
+        record_event(session, job.id, ending, NOW + timedelta(days=1))
+    session.commit()
+
+    state = build_dashboard(session, _config(), now=NOW)
+    reached = {stage.name: stage.count for stage in state.funnel}
+    assert [a.job_id for a in state.ongoing] == [jobs[0].id]
+    assert {a.status for a in state.ended} == set(endings)
+    assert state.applied_total == 5 and state.pipeline[ApplicationStatus.REJECTED] == 1
+    assert reached[EventKind.OFFER] == 1, "the funnel still sees the offer"
+    assert {row.label: (row.applied, row.responded) for row in state.by_source} == {
+        "greenhouse": (5, 2)
+    }
+    assert {row.label: (row.applied, row.responded) for row in state.by_tier} == {
+        company.tier: (5, 2)
+    }
+
+
 def test_the_response_rate_is_broken_down_by_board(
     session: Session, company: Company
 ) -> None:

@@ -89,7 +89,7 @@
   <p class="empty">No application yet. Clicking "Applied" on a role above starts one.</p>
 {% endif %}
 
-{% for application in dashboard.applications %}
+{% macro application_card(application) %}
   <div class="card">
     <div style="font-size:15px;font-weight:600;">
       {% if application.apply_url %}
@@ -130,7 +130,25 @@
       {% endif %}
     </div>
   </div>
+{% endmacro %}
+
+{% for application in dashboard.ongoing %}
+  {{ application_card(application) }}
 {% endfor %}
+
+{% if dashboard.ended %}
+  <details>
+    <summary>Ended ({{ dashboard.ended | length }})</summary>
+    <p class="blurb">
+      Applications that reached an outcome: an offer, a rejection, a withdrawal or no
+      answer at all. Nothing was deleted and they still count in the funnel and the
+      response rates below.
+    </p>
+    {% for application in dashboard.ended %}
+      {{ application_card(application) }}
+    {% endfor %}
+  </details>
+{% endif %}
 
 {% if dashboard.dismissed_roles %}
   <details>

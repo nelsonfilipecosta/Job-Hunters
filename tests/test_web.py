@@ -960,6 +960,53 @@ def test_recording_a_step_writes_it_and_says_where_the_application_stands(
     assert "20 Sep 2026" in page, "the date a reader picked is the date they are shown"
 
 
+def _inside_fold(page: str, summary: str) -> str:
+    """What one collapsed list holds (up to its own closing tag and past any nested in it)."""
+    opening = re.search(rf"<details>\s*<summary>{re.escape(summary)}</summary>", page)
+    assert opening, f"no collapsed list called {summary!r}"
+    depth = 1
+    for tag in re.finditer(r"<(/?)details\b", page[opening.end():]):
+        depth += -1 if tag.group(1) else 1
+        if depth == 0:
+            return page[opening.end():opening.end() + tag.start()]
+    raise AssertionError(f"{summary!r} is never closed")
+
+
+def test_an_application_that_reached_an_outcome_is_folded_away(
+    session: Session, company: Company, signed: str, watchlist: Path
+) -> None:
+    """An ended application is out of the way but still one click from its timeline."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        client.post(
+            f"/a/{_token(Action.ADD_EVENT, job.id)}",
+            data={"event": "rejected", "occurred_on": "2026-09-20"},
+        )
+        page = client.get("/").text
+
+    folded = _inside_fold(page, "Ended (1)")
+    cards = page[page.find("<h2>Pipeline</h2>"):page.find("Ended (1)")]
+    assert "Research Scientist" not in cards, "it has left the cards"
+    assert "rejected 1" in cards, "but the count above them still has it"
+    assert "Research Scientist" in folded and "20 Sep 2026" in folded
+    assert ">Add an event</a>" in folded, "a step that comes later can still be recorded"
+    assert "Of applied (1)" in page, "and the funnel still counts it"
+
+
+def test_an_application_still_waiting_is_not_folded(
+    session: Session, company: Company, signed: str
+) -> None:
+    """Only an outcome moves a card so with none there is nothing to fold."""
+    job = _job(session, company)
+    with TestClient(app) as client:
+        client.post(f"/a/{_token(Action.APPLIED, job.id)}")
+        page = client.get("/").text
+
+    assert "Ended (" not in page
+    assert "Research Scientist" in page[page.find("<h2>Pipeline</h2>"):page.find("<h2>Funnel</h2>")]
+
+
 def test_a_refused_step_comes_back_as_the_same_form(
     session: Session, company: Company, signed: str, watchlist: Path
 ) -> None:
