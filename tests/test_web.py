@@ -744,23 +744,27 @@ def test_every_queued_company_with_a_board_is_a_link(
     assert 'href="https://jobs.ashbyhq.com/prior-labs"' in page
 
 
-def test_a_rejection_offers_the_way_back(
+def test_a_rejection_is_undone_from_the_rejected_list(
     session: Session, signed: str, watchlist: Path
 ) -> None:
-    """Rejecting is permanent, so the one thing it must survive is a misclick."""
+    """A misclick is put right from the dashboard."""
     row = _candidate(session, "Tufalabs", ats=None)
 
     with TestClient(app) as client:
         done = client.post(f"/c/{_candidate_token(CandidateAction.REJECT, row.id)}")
-        assert "Undo" in done.text
-        undo = re.search(r'action="([^"]*/c/[^"]+)"', done.text).group(1)
-        back = client.post(undo)
+        link = re.search(r'href="([^"]*/c/[^"]+)">Undo</a>', client.get("/").text).group(1)
+        button = re.search(r'action="(/c/[^"]+)"', client.get(link).text).group(1)
+        back = client.post(button)
         page = client.get("/").text
 
+    assert "rejected" in done.text.lower() and "Undo" not in done.text, "like a dismissal's page"
+    assert 'href="/#discovered"' in done.text, "whose one control is the way back to the dashboard"
     assert "back in the queue" in back.text
     assert _decided(session, row.id).status == CandidateStatus.PENDING
     assert _decided(session, row.id).decided_at is None
-    assert "Tufalabs" in page, "and it is waiting for a decision again"
+    assert "No Board Found (1)" in page and "Rejected (" not in page, (
+        "and it is waiting for a decision again"
+    )
 
 
 def test_undoing_what_was_never_rejected_says_so(
@@ -796,7 +800,7 @@ def test_an_approved_company_cannot_be_undone_into_the_queue(
 def test_the_queue_does_not_offer_undo_beside_every_company(
     session: Session, signed: str, watchlist: Path
 ) -> None:
-    """Undo belongs to the page that rejected and not to a row that has decided nothing."""
+    """Undo belongs to the rejected list and not to a row that has decided nothing."""
     _candidate(session, "Prior Labs")
     with TestClient(app) as client:
         page = client.get("/").text
@@ -806,7 +810,7 @@ def test_the_queue_does_not_offer_undo_beside_every_company(
 def test_the_dashboard_lists_what_was_rejected_and_offers_only_the_way_back(
     session: Session, signed: str, watchlist: Path
 ) -> None:
-    """This is the way to undo a rejected company after closing the page that rejected it."""
+    """The page that rejected offers no undo so this list is the way back."""
     row = _candidate(session, "Tufalabs", ats=None)
     with TestClient(app) as client:
         client.post(f"/c/{_candidate_token(CandidateAction.REJECT, row.id)}")

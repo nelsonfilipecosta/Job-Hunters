@@ -19,21 +19,6 @@
   </p>
 {% endif %}
 
-<div class="actions">
-  {% if outcome.undo_url %}
-    <form method="post" action="{{ outcome.undo_url }}">
-      <button type="submit">Undo</button>
-    </form>
-  {% endif %}
-  <a href="/#discovered">Back to the dashboard</a>
-</div>
-
-{% if outcome.undo_url %}
-  <p class="blurb">
-    Undo puts it straight back in the queue. Once you leave this page the decision stands
-    and only the CLI command
-    <code>job-hunters promote --unreject {{ candidate.name }}</code> brings it back.
-  </p>
-{% endif %}
+<div class="actions"><a href="/#discovered">Back to the dashboard</a></div>
 
 {% endblock %}

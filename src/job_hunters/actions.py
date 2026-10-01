@@ -258,7 +258,7 @@ def candidate_url(
 
 
 # What a company in the queue is offered. Undoing is not among them: it belongs to
-# the page that rejected and a row that has decided nothing has nothing to undo.
+# the rejected list and a row that has decided nothing has nothing to undo.
 QUEUE_DECISIONS: tuple[CandidateAction, ...] = (CandidateAction.APPROVE, CandidateAction.REJECT)
 
 

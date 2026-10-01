@@ -43,7 +43,6 @@ from .actions import (
     TokenError,
     action_links,
     candidate_links,
-    candidate_url,
     verify,
     verify_candidate,
 )
@@ -295,7 +294,7 @@ async def decide_candidate(request: Request, token: str) -> Response:
         if refusal is not None:
             return _candidate_page(entry, token, resolved.action, refusal=refusal)
         try:
-            outcome = _decide(session, candidate, resolved.action, form, config)
+            outcome = _decide(session, candidate, resolved.action, form)
         except PromoteError as exc:
             # Recoverable: the company is still pending and still has a board, so
             # the same page with another slug would work. The fields come back filled.
@@ -316,7 +315,6 @@ class CandidateOutcome:
     detail: str
     changed: bool
     line: str | None = None
-    undo_url: str | None = None
 
 
 def _decide(
@@ -324,7 +322,6 @@ def _decide(
     candidate: CandidateCompany,
     action: CandidateAction,
     form: dict[str, str],
-    config: AppConfig,
 ) -> CandidateOutcome:
     """Carries out one decision, raising `PromoteError` with the reason it could not."""
     if action is CandidateAction.REJECT:
@@ -334,7 +331,6 @@ def _decide(
             detail="It leaves the queue for good. Later sightings still count against "
                    "its row, but it is never queued again.",
             changed=True,
-            undo_url=_undo_url(config, candidate.id),
         )
     if action is CandidateAction.UNREJECT:
         unreject(session, str(candidate.id))
@@ -582,20 +578,6 @@ def _decisions_for(config: AppConfig, secret: str, entry: Queued) -> tuple[Actio
         entry.id,
         ttl_days=config.system.actions.token_ttl_days,
         only=QUEUE_DECISIONS if entry.has_board else REJECT_ONLY,
-    )
-
-
-def _undo_url(config: AppConfig, candidate_id: int) -> str | None:
-    """The link that puts one rejection back signed like every other decision."""
-    secret = config.secrets.optional("action_token_secret")
-    if not secret:
-        return None
-    return candidate_url(
-        config.system.base_url,
-        secret,
-        CandidateAction.UNREJECT,
-        candidate_id,
-        ttl_days=config.system.actions.token_ttl_days,
     )
 
 
