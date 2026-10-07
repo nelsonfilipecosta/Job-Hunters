@@ -21,6 +21,8 @@
 - { slug: lumaai,          name: Luma AI,         ats: ashby,      token: lumaai,         tier: lab }
 - { slug: liquid-ai,       name: Liquid AI,       ats: ashby,      token: liquid-ai,      tier: lab }
 - { slug: runway,          name: Runway,          ats: ashby,      token: runway,         tier: lab }
+- { slug: reflection-ai,   name: Reflection AI,   ats: ashby,      token: reflectionai,   tier: lab }
+- { slug: thinking-machines, name: Thinking Machines, ats: ashby,      token: thinkingmachines, tier: lab }
 - { slug: deepl,           name: DeepL,           ats: ashby,      token: deepl,          tier: lab }
 - { slug: deepjudge,       name: DeepJudge,       ats: ashby,      token: deepjudge,      tier: lab }
 - { slug: cradle,          name: Cradle,          ats: ashby,      token: cradlebio,      tier: lab }
@@ -57,7 +59,7 @@
 #   Tonic Easy Medical, Outsystems, Booking.com, Loka, Zendesk, Revolut, Norrin,
 #   Codacy (Personio), Defined.ai, Priberam, Visor.ai, Automaise, YData, Lakera,
 #   LatticeFlow, Unique, Supertext, Squirro, Starmind, Visium, AlpineAI, Kaiko,
-#   Nexthink, Modulos, Unit8, Spitch.
+#   Nexthink, Modulos, Unit8, Spitch, Trillium Labs.
 # Reachable only via the promotion loop (or by checking manually).
 #
 # Workday tenants (NVIDIA, IBM, Intel, Adobe, Salesforce, Qualcomm) become
@@ -77,7 +79,7 @@
 
 - { slug: prior-labs, name: Prior Labs, ats: ashby, token: prior-labs, tier: lab }
 - { slug: deliveroo, name: Deliveroo, ats: greenhouse, token: deliveroo, tier: bigtech }
-- { slug: sonarsource, name: Sonarsource, ats: lever, token: sonarsource, tier: infra }
+- { slug: sonarsource, name: Sonar, ats: lever, token: sonarsource, tier: infra }
 - { slug: flow-traders, name: Flow Traders, ats: greenhouse, token: flowtraders, tier: discovered }
 - { slug: latchbio, name: LatchBio, ats: ashby, token: latchbio, tier: infra }
 - { slug: artificial-analysis, name: Artificial Analysis, ats: ashby, token: artificialanalysis, tier: infra }
@@ -94,3 +96,8 @@
 - { slug: benchling, name: Benchling, ats: ashby, token: benchling, tier: infra }
 - { slug: super, name: Super, ats: greenhouse, token: super, tier: discovered }
 - { slug: inato, name: Inato, ats: ashby, token: inato, tier: discovered }
+- { slug: clickhouse, name: ClickHouse, ats: ashby, token: clickhouse, tier: infra }
+- { slug: laelaps, name: Laelaps, ats: ashby, token: laelaps, tier: lab }
+- { slug: dayhoff-labs, name: Dayhoff Labs, ats: ashby, token: dayhoff-labs, tier: lab }
+- { slug: kimchi, name: Kimchi, ats: greenhouse, token: kimchi, tier: discovered }
+- { slug: lemrock, name: Lemrock, ats: ashby, token: lemrock, tier: discovered }
