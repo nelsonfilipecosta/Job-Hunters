@@ -59,7 +59,7 @@
 #   Tonic Easy Medical, Outsystems, Booking.com, Loka, Zendesk, Revolut, Norrin,
 #   Codacy (Personio), Defined.ai, Priberam, Visor.ai, Automaise, YData, Lakera,
 #   LatticeFlow, Unique, Supertext, Squirro, Starmind, Visium, AlpineAI, Kaiko,
-#   Nexthink, Modulos, Unit8, Spitch, Trillium Labs.
+#   Nexthink, Modulos, Unit8, Spitch, Trillium Labs, Midjourney.
 # Reachable only via the promotion loop (or by checking manually).
 #
 # Workday tenants (NVIDIA, IBM, Intel, Adobe, Salesforce, Qualcomm) become
@@ -101,3 +101,16 @@
 - { slug: dayhoff-labs, name: Dayhoff Labs, ats: ashby, token: dayhoff-labs, tier: lab }
 - { slug: kimchi, name: Kimchi, ats: greenhouse, token: kimchi, tier: discovered }
 - { slug: lemrock, name: Lemrock, ats: ashby, token: lemrock, tier: discovered }
+- { slug: spaitial, name: Spaitial, ats: ashby, token: spaitial, tier: lab }
+- { slug: duck-duck-go, name: Duck Duck Go, ats: ashby, token: duck-duck-go, tier: bigtech }
+- { slug: nebius, name: Nebius, ats: greenhouse, token: nebius, tier: infra }
+- { slug: oscilar-com, name: Oscilar.com, ats: ashby, token: oscilar, tier: discovered }
+- { slug: mastra, name: Mastra, ats: ashby, token: mastra, tier: infra }
+- { slug: lawzero, name: LawZero, ats: greenhouse, token: lawzero, tier: lab }
+- { slug: replit, name: Replit, ats: ashby, token: replit, tier: infra }
+- { slug: lovable, name: Lovable, ats: ashby, token: lovable, tier: discovered }
+- { slug: otter-ai, name: Otter.ai, ats: greenhouse, token: otterai, tier: discovered }
+- { slug: notion, name: Notion, ats: ashby, token: notion, tier: bigtech }
+- { slug: n8n, name: n8n, ats: ashby, token: n8n, tier: infra }
+- { slug: quillbot, name: QuillBot, ats: greenhouse, token: quillbot, tier: discovered }
+- { slug: higgsfield, name: Higgsfield, ats: ashby, token: higgsfieldai, tier: discovered }
